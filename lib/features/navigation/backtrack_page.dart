@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +6,16 @@ import '../../core/location/location_controller.dart';
 import '../../core/location/route_recorder.dart';
 import '../../core/navigation/backtrack.dart';
 
+import 'package:geolocator/geolocator.dart';
+
+final backtrackGuidanceProvider =
+    FutureProvider.family<BacktrackGuidance?, Position>((ref, current) async {
+  final recorder = ref.read(routeRecorderProvider.notifier);
+  return BacktrackService().calculateFromStream(
+    current: current,
+    recordedPoints: recorder.pointsForBacktrack(),
+  );
+});
 class BacktrackPage extends ConsumerWidget {
   const BacktrackPage({super.key});
 
@@ -13,12 +23,11 @@ class BacktrackPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recording = ref.watch(routeRecorderProvider);
     final location = ref.watch(locationControllerProvider);
-    final guidance = location.position == null
+    final guidanceAsync = location.position == null
         ? null
-        : const BacktrackService().calculate(
-            current: location.position!,
-            recordedPoints: recording.points,
-          );
+        : ref.watch(backtrackGuidanceProvider(location.position!));
+    final guidance = guidanceAsync?.asData?.value;
+
 
     return Scaffold(
       appBar: AppBar(title: const Text('Volver sobre mis pasos')),
@@ -51,32 +60,32 @@ class BacktrackPage extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () => ref.read(routeRecorderProvider.notifier).start(),
               icon: const Icon(Icons.fiber_manual_record),
-              label: const Text('Iniciar grabación'),
+              label: const Text('Iniciar grabaciÃ³n'),
             )
           else
             OutlinedButton.icon(
               onPressed: () => ref.read(routeRecorderProvider.notifier).stop(),
               icon: const Icon(Icons.stop),
-              label: const Text('Detener grabación'),
+              label: const Text('Detener grabaciÃ³n'),
             ),
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             onPressed: () => ref.read(locationControllerProvider.notifier).locate(),
             icon: const Icon(Icons.my_location),
-            label: const Text('Actualizar ubicación'),
+            label: const Text('Actualizar ubicaciÃ³n'),
           ),
           const SizedBox(height: 18),
           _StatCard(
             title: 'Puntos registrados',
             value: '${recording.points.length}',
-            subtitle: recording.isRecording ? 'Grabación activa' : 'Inicia una ruta para generar el track',
+            subtitle: recording.isRecording ? 'GrabaciÃ³n activa' : 'Inicia una ruta para generar el track',
             icon: Icons.route,
           ),
           const SizedBox(height: 12),
           _StatCard(
             title: 'Distancia grabada',
             value: _distance(recording.distanceMeters),
-            subtitle: recording.persistenceHealthy ? 'Persistencia local operativa' : 'Aviso: no se pudo guardar el último punto',
+            subtitle: recording.persistenceHealthy ? 'Persistencia local operativa' : 'Aviso: no se pudo guardar el Ãºltimo punto',
             icon: Icons.straighten,
           ),
           const SizedBox(height: 18),
@@ -87,7 +96,7 @@ class BacktrackPage extends ConsumerWidget {
                 child: Text(
                   recording.points.length < 2
                       ? 'Necesitas al menos dos puntos GPS grabados para activar Backtrack.'
-                      : 'Obteniendo ubicación para calcular la dirección de regreso.',
+                      : 'Obteniendo ubicaciÃ³n para calcular la direcciÃ³n de regreso.',
                 ),
               ),
             )
@@ -97,7 +106,7 @@ class BacktrackPage extends ConsumerWidget {
                 padding: const EdgeInsets.all(22),
                 child: Column(
                   children: [
-                    const Text('Dirección de regreso', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Text('DirecciÃ³n de regreso', style: TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 18),
                     Transform.rotate(
                       angle: guidance.bearingDegrees * math.pi / 180,
@@ -105,7 +114,7 @@ class BacktrackPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '${guidance.bearingDegrees.toStringAsFixed(0)}°',
+                      '${guidance.bearingDegrees.toStringAsFixed(0)}Â°',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 6),
@@ -148,3 +157,5 @@ class _StatCard extends StatelessWidget {
         ),
       );
 }
+
+

@@ -54,7 +54,28 @@ void main() {
       expect(recovered.startedAt, startedAt);
     });
 
-    test('finish removes recoverable session', () async {
+    test('bounded recovery limits memory without deleting stored history',
+        () async {
+      await store.begin(startedAt: DateTime.utc(2026, 9, 23));
+      for (var i = 0; i < 125; i++) {
+        await store.append(
+          point: GeoPoint(
+            latitude: 40 + i / 100000,
+            longitude: -3 - i / 100000,
+          ),
+          distanceMeters: i.toDouble(),
+        );
+      }
+
+      final bounded = store.recover(maxPoints: 20);
+      final full = store.recover();
+
+      expect(bounded!.points, hasLength(20));
+      expect(bounded.points.first.latitude, closeTo(40.00105, 0.000001));
+      expect(full!.points, hasLength(125));
+    });
+
+    test('finish archives route and removes recoverable session', () async {
       await store.begin(startedAt: DateTime.utc(2026, 9, 23));
       await store.append(
         point: const GeoPoint(latitude: 40.4, longitude: -3.7),
@@ -64,6 +85,87 @@ void main() {
       await store.finish();
 
       expect(store.recover(), isNull);
+      final routes = store.getRoutes();
+      expect(routes, hasLength(1));
+      expect(routes.single.points, hasLength(1));
+      expect(routes.single.points.single.latitude, closeTo(40.4, 0.00001));
+      expect(routes.single.distanceMeters, 0);
+      expect(routes.single.completedAt, isNotNull);
+    });
+
+    test('starting a new route does not delete completed route history', () async {
+      await store.begin(startedAt: DateTime.utc(2026, 9, 23));
+      await store.append(
+        point: const GeoPoint(latitude: 40.4, longitude: -3.7),
+        distanceMeters: 0,
+      );
+      await store.finish();
+
+      await store.begin(startedAt: DateTime.utc(2026, 9, 24));
+      await store.append(
+        point: const GeoPoint(latitude: 41.4, longitude: -4.7),
+        distanceMeters: 12,
+      );
+
+      expect(store.getRoutes(), hasLength(1));
+      expect(store.recover(), isNotNull);
+      expect(store.recover()!.points.single.latitude, closeTo(41.4, 0.00001));
+    });
+
+    test('begin refuses to overwrite an interrupted active session', () async {
+      final startedAt = DateTime.utc(2026, 9, 25);
+      await store.begin(startedAt: startedAt);
+      await store.append(
+        point: const GeoPoint(latitude: 40.4, longitude: -3.7),
+        distanceMeters: 0,
+      );
+
+      await expectLater(
+        store.begin(startedAt: DateTime.utc(2026, 9, 26)),
+        throwsA(isA<StateError>()),
+      );
+
+      final recovered = store.recover();
+      expect(recovered, isNotNull);
+      expect(recovered!.startedAt, startedAt);
+      expect(recovered.points, hasLength(1));
+    });
+
+    test('streams complete active history in order', () async {
+      await store.begin(startedAt: DateTime.utc(2026, 9, 27));
+      for (var i = 0; i < 125; i++) {
+        await store.append(
+          point: GeoPoint(latitude: 40 + i / 100000, longitude: -3),
+          distanceMeters: i.toDouble(),
+        );
+      }
+
+      final points = await store.streamActivePoints().toList();
+      expect(points, hasLength(125));
+      expect(points.first.latitude, closeTo(40, 0.000001));
+      expect(points.last.latitude, closeTo(40.00124, 0.000001));
+    });
+
+    test('loads an archived route by ID and streams it', () async {
+      await store.begin(startedAt: DateTime.utc(2026, 9, 23));
+      await store.append(
+        point: const GeoPoint(latitude: 40.4, longitude: -3.7),
+        distanceMeters: 0,
+      );
+      await store.append(
+        point: const GeoPoint(latitude: 40.5, longitude: -3.8),
+        distanceMeters: 10,
+      );
+      await store.finish();
+
+      final route = store.getRoutes().single;
+      final loaded = store.loadRoute(route.id);
+      final streamed = await store.streamRoutePoints(route.id).toList();
+
+      expect(loaded, isNotNull);
+      expect(loaded!.id, route.id);
+      expect(loaded.points, hasLength(2));
+      expect(streamed, hasLength(2));
     });
   });
 }

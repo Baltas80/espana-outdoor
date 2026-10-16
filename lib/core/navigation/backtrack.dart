@@ -2,9 +2,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../domain/outdoor_models.dart';
 
-/// Guidance derived from the recorded track, intended for returning along
-/// the path already travelled. It does not require a network route service.
-class BacktrackGuidance {
+final class BacktrackGuidance {
   const BacktrackGuidance({
     required this.distanceMeters,
     required this.bearingDegrees,
@@ -18,46 +16,91 @@ class BacktrackGuidance {
   final GeoPoint target;
 }
 
-class BacktrackService {
-  const BacktrackService();
-
+final class BacktrackService {
   BacktrackGuidance? calculate({
     required Position current,
     required List<GeoPoint> recordedPoints,
   }) {
     if (recordedPoints.length < 2) return null;
 
-    var nearestIndex = 0;
     var nearestDistance = double.infinity;
-    for (var i = 0; i < recordedPoints.length; i++) {
-      final point = recordedPoints[i];
-      final distance = Geolocator.distanceBetween(
-        current.latitude,
-        current.longitude,
-        point.latitude,
-        point.longitude,
-      );
+    var nearestIndex = -1;
+    GeoPoint? target;
+    GeoPoint? previous;
+
+    for (var index = 0; index < recordedPoints.length; index++) {
+      final point = recordedPoints[index];
+      final distance = _distanceTo(current, point);
       if (distance < nearestDistance) {
         nearestDistance = distance;
-        nearestIndex = i;
+        nearestIndex = index;
+        target = index > 0 ? previous : point;
       }
+      previous = point;
     }
 
-    final targetIndex = nearestIndex > 0 ? nearestIndex - 1 : 0;
-    final target = recordedPoints[targetIndex];
-    final bearing = Geolocator.bearingBetween(
+    if (nearestIndex < 0 || target == null) return null;
+    return _guidance(current, target, nearestIndex > 0 ? nearestIndex : 1);
+  }
+
+  /// Calculates against a stream so long routes are processed in bounded
+  /// memory and the event loop gets time to paint between storage batches.
+  Future<BacktrackGuidance?> calculateFromStream({
+    required Position current,
+    required Stream<GeoPoint> recordedPoints,
+  }) async {
+    var nearestDistance = double.infinity;
+    var nearestIndex = -1;
+    var count = 0;
+    GeoPoint? target;
+    GeoPoint? previous;
+
+    await for (final point in recordedPoints) {
+      final distance = _distanceTo(current, point);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = count;
+        target = count > 0 ? previous : point;
+      }
+      previous = point;
+      count++;
+    }
+
+    if (count < 2 || nearestIndex < 0 || target == null) return null;
+    return _guidance(current, target, nearestIndex > 0 ? nearestIndex : 1);
+  }
+
+  BacktrackGuidance _guidance(
+    Position current,
+    GeoPoint target,
+    int remainingPoints,
+  ) {
+    final distance = Geolocator.distanceBetween(
       current.latitude,
       current.longitude,
       target.latitude,
       target.longitude,
     );
-
-
+    final rawBearing = Geolocator.bearingBetween(
+      current.latitude,
+      current.longitude,
+      target.latitude,
+      target.longitude,
+    );
+    final bearing = (rawBearing + 360) % 360;
     return BacktrackGuidance(
-      distanceMeters: nearestDistance,
-      bearingDegrees: (bearing + 360) % 360,
-      remainingPoints: targetIndex + 1,
+      distanceMeters: distance,
+      bearingDegrees: bearing,
+      remainingPoints: remainingPoints,
       target: target,
     );
   }
+
+  double _distanceTo(Position current, GeoPoint point) =>
+      Geolocator.distanceBetween(
+        current.latitude,
+        current.longitude,
+        point.latitude,
+        point.longitude,
+      );
 }

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import '../domain/outdoor_models.dart';
 import '../storage/route_recording_store.dart';
 
-final routeRecorderProvider = NotifierProvider<RouteRecorder, RouteRecordingState>(RouteRecorder.new);
+final routeRecorderProvider =
+    NotifierProvider<RouteRecorder, RouteRecordingState>(RouteRecorder.new);
 
 class RouteRecordingState {
   const RouteRecordingState({
@@ -39,15 +40,25 @@ class RouteRecordingState {
       points: points ?? this.points,
       distanceMeters: distanceMeters ?? this.distanceMeters,
       startedAt: startedAt ?? this.startedAt,
-      hasRecoverableSession: hasRecoverableSession ?? this.hasRecoverableSession,
+      hasRecoverableSession:
+          hasRecoverableSession ?? this.hasRecoverableSession,
       persistenceHealthy: persistenceHealthy ?? this.persistenceHealthy,
     );
   }
 }
 
+/// Seam for tests: production uses the Hive-backed store; widget/unit tests
+/// can inject an in-memory fake to exercise the recorder lifecycle without
+/// platform plugins.
+@visibleForTesting
+RouteRecordingStore? routeRecordingStoreOverride;
+
 class RouteRecorder extends Notifier<RouteRecordingState> {
+  static const _maxRetainedPoints = 20000;
+
   StreamSubscription<Position>? _subscription;
-  final RouteRecordingStore _store = RouteRecordingStore();
+  late final RouteRecordingStore _store =
+      routeRecordingStoreOverride ?? RouteRecordingStore();
   Future<void> _persistTail = Future<void>.value();
   bool _disposed = false;
 
@@ -63,7 +74,7 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
   }
 
   Future<void> _restore() async {
-    final session = _store.recover();
+    final session = _store.recover(maxPoints: _maxRetainedPoints);
     if (_disposed || session == null) return;
     state = RouteRecordingState(
       points: session.points,
@@ -77,6 +88,24 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
     if (state.isRecording) return;
     await _ensureLocationPermission();
     await _persistTail;
+
+    // Do not let a fast tap race the provider's asynchronous restoration.
+    final pendingSession = _store.recover(maxPoints: _maxRetainedPoints);
+    if (pendingSession != null) {
+      if (!_disposed) {
+        state = RouteRecordingState(
+          points: pendingSession.points,
+          distanceMeters: pendingSession.distanceMeters,
+          startedAt: pendingSession.startedAt,
+          hasRecoverableSession: true,
+        );
+      }
+      throw StateError(
+        'Hay una ruta pendiente de recuperar. ReanÃºdala o finalÃ­zala antes '
+        'de iniciar una nueva.',
+      );
+    }
+
     final startedAt = DateTime.now().toUtc();
     await _store.begin(startedAt: startedAt);
     state = RouteRecordingState(isRecording: true, startedAt: startedAt);
@@ -86,7 +115,8 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
   Future<void> resume() async {
     if (state.isRecording) return;
     await _ensureLocationPermission();
-    final session = _store.recover();
+    await _persistTail;
+    final session = _store.recover(maxPoints: _maxRetainedPoints);
     if (session == null) {
       await start();
       return;
@@ -109,16 +139,45 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
     state = state.copyWith(isRecording: false, hasRecoverableSession: false);
   }
 
+  /// Pauses GPS acquisition but leaves the persisted session recoverable.
+  Future<void> pause() async {
+    if (!state.isRecording) return;
+    await _subscription?.cancel();
+    _subscription = null;
+    await _persistTail;
+    state = state.copyWith(
+      isRecording: false,
+      hasRecoverableSession: state.points.isNotEmpty,
+    );
+  }
+
+  /// Streams the complete current route from segmented storage. It only keeps
+  /// the bounded UI window in provider state and does not assemble full history.
+  Stream<GeoPoint> pointsForBacktrack() async* {
+    await _persistTail;
+    if (_store.hasActiveSession) {
+      yield* _store.streamActivePoints();
+      return;
+    }
+    final latestRouteId = _store.latestRouteId;
+    if (latestRouteId != null) {
+      yield* _store.streamRoutePoints(latestRouteId);
+      return;
+    }
+    for (final point in state.points) { yield point; }
+  }
+
   Future<void> _ensureLocationPermission() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
-      throw StateError('Activa la ubicación del dispositivo para grabar.');
+      throw StateError('Activa la ubicaciÃ³n del dispositivo para grabar.');
     }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      throw StateError('No hay permiso de ubicación para grabar la ruta.');
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw StateError('No hay permiso de ubicaciÃ³n para grabar la ruta.');
     }
   }
 
@@ -134,7 +193,7 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
     );
   }
 
-  void _onPositionStreamError(Object _, StackTrace __) {
+  void _onPositionStreamError(Object _, StackTrace _) {
     _onPositionStreamEnded();
   }
 
@@ -158,7 +217,7 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
         distanceFilter: 5,
         intervalDuration: const Duration(seconds: 5),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'España Outdoor',
+          notificationTitle: 'EspaÃ±a Outdoor',
           notificationText: 'Grabando tu ruta en segundo plano.',
           notificationChannelName: 'Seguimiento GPS',
           enableWakeLock: true,
@@ -176,25 +235,39 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
         showBackgroundLocationIndicator: true,
       );
     }
-    return const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5);
+    return const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    );
   }
 
   void _onPosition(Position position) {
-    final point = GeoPoint(latitude: position.latitude, longitude: position.longitude);
+    final point =
+        GeoPoint(latitude: position.latitude, longitude: position.longitude);
     final previous = state.points.isEmpty ? null : state.points.last;
     final nextDistance = previous == null
         ? state.distanceMeters
-        : state.distanceMeters + Geolocator.distanceBetween(
-            previous.latitude,
-            previous.longitude,
-            point.latitude,
-            point.longitude,
-          );
+        : state.distanceMeters +
+            Geolocator.distanceBetween(
+              previous.latitude,
+              previous.longitude,
+              point.latitude,
+              point.longitude,
+            );
+
+    final retainedPoints = <GeoPoint>[...state.points, point];
+    if (retainedPoints.length > _maxRetainedPoints) {
+      retainedPoints.removeRange(
+        0,
+        retainedPoints.length - _maxRetainedPoints,
+      );
+    }
     state = state.copyWith(
-      points: <GeoPoint>[...state.points, point],
+      points: List.unmodifiable(retainedPoints),
       distanceMeters: nextDistance,
       persistenceHealthy: true,
     );
+
     _persistTail = _persistTail.then<void>((_) async {
       try {
         await _store.append(point: point, distanceMeters: nextDistance);
@@ -204,3 +277,4 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
     });
   }
 }
+
