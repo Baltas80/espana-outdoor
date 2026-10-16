@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -277,4 +277,3 @@ class RouteRecorder extends Notifier<RouteRecordingState> {
     });
   }
 }
-

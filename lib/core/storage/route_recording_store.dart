@@ -1,4 +1,4 @@
-﻿import 'package:hive_ce_flutter/hive_ce_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 import '../domain/outdoor_models.dart';
 
@@ -341,4 +341,3 @@ final class RouteRecordingStore {
     return double.tryParse(value?.toString() ?? '');
   }
 }
-
