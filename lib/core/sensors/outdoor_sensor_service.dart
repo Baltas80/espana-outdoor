@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter_device_compass/flutter_device_compass.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,9 +24,27 @@ class OutdoorSensorController extends Notifier<OutdoorSensorState> {
       unawaited(_barometerSubscription?.cancel());
       unawaited(_positionSubscription?.cancel());
     });
-    unawaited(_start());
+    // Sensors are started lazily the first time a listener watches this
+    // provider (the compass/barometer pages). Keeping magnetometer, pressure
+    // and GPS streams alive for a provider nobody listens to would drain the
+    // battery while the user is on other screens.
+    unawaited(_ensureStarted());
     return const OutdoorSensorState();
   }
+
+  Future<void> _ensureStarted() async {
+    if (_started || _starting) return;
+    _starting = true;
+    try {
+      await _start();
+      _started = true;
+    } finally {
+      _starting = false;
+    }
+  }
+
+  bool _started = false;
+  bool _starting = false;
 
   Future<void> _start() async {
     try {
@@ -45,7 +63,7 @@ class OutdoorSensorController extends Notifier<OutdoorSensorState> {
         });
       }
     } catch (error) {
-      state = state.copyWith(error: 'Brújula no disponible: $error');
+      state = state.copyWith(error: 'BrÃºjula no disponible: $error');
     }
 
     try {
@@ -59,7 +77,7 @@ class OutdoorSensorController extends Notifier<OutdoorSensorState> {
         );
       });
     } catch (error) {
-      state = state.copyWith(error: 'Barómetro no disponible: $error');
+      state = state.copyWith(error: 'BarÃ³metro no disponible: $error');
     }
 
     try {

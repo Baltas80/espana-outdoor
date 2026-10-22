@@ -358,7 +358,7 @@ class _OfflinePageState extends State<OfflinePage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'El mapa principal utiliza PMTiles con flutter_map_vector_tiles.',
+                    'El mapa principal abre paquetes PMTiles verificados con MapLibre.',
                   ),
                 ],
               );

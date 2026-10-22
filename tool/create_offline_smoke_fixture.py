@@ -21,13 +21,35 @@ def varint(value: int) -> bytes:
 
 
 def build_fixture() -> bytes:
-    # A minimal valid vector-tile Layer. The layer name matches one of the
-    # production offline style source layers; no features are required for the
-    # smoke test because the test is about opening the verified archive offline.
+    # Include an actual, visible polygon so the Android smoke can distinguish
+    # successful local PMTiles reads from an empty beige background.
+    geometry = bytes(
+        (
+            9, 128, 8, 128, 8,  # MoveTo (512, 512)
+            26, 128, 48, 0, 0, 128, 48, 255, 47, 0,  # 3 LineTo points
+            15,  # ClosePath
+        )
+    )
+    feature = (
+        b"\x08\x01"  # id = 1
+        b"\x12\x02\x00\x00"  # class = wood (key 0, value 0)
+        b"\x18\x03"  # polygon geometry type
+        + b"\x22"
+        + varint(len(geometry))
+        + geometry
+    )
+    value = b"\x0a\x04wood"
     layer = (
-        b"\x0a\x0ftransportation"
-        b"\x78\x02"
-        b"\x28\x80\x20"
+        b"\x0a\x09landcover"
+        + b"\x12"
+        + varint(len(feature))
+        + feature
+        + b"\x1a\x05class"
+        + b"\x22"
+        + varint(len(value))
+        + value
+        + b"\x28\x80\x20"  # extent = 4096
+        + b"\x78\x02"  # MVT layer version = 2
     )
     tile = b"\x1a" + varint(len(layer)) + layer
 
@@ -47,7 +69,7 @@ def build_fixture() -> bytes:
             varint(1),  # second tile-id delta
             varint(1),  # second run length
             varint(tile_length),
-            varint(tile_length),  # second tile-data offset
+            varint(0),  # second offset follows the first tile immediately
         )
     )
 
@@ -62,7 +84,7 @@ def build_fixture() -> bytes:
             "maxzoom": 6,
             "bounds": [-18, 35, 5, 44],
             "center": [-3.7038, 40.4168, 6],
-            "vector_layers": [{"id": "transportation", "fields": {}}],
+            "vector_layers": [{"id": "landcover", "fields": {"class": "String"}}],
         },
         separators=(",", ":"),
     ).encode("utf-8")
@@ -99,7 +121,7 @@ def build_fixture() -> bytes:
     header[96] = 1
     header[97] = 1
     header[98] = 1
-    header[99] = 1
+    header[99] = 1  # PMTiles TileType.Mvt
     header[100] = 0
     header[101] = 6
     struct.pack_into("<i", header, 102, -180000000)
@@ -123,6 +145,8 @@ def main() -> int:
         raise SystemExit("Generated PMTiles fixture is too small.")
     if data[:7] != b"PMTiles" or data[7] != 3:
         raise SystemExit("Generated fixture has an invalid PMTiles header.")
+    if data[97] != 1 or data[98] != 1 or data[99] != 1:
+        raise SystemExit("Fixture must use uncompressed MVT tile payloads.")
     if int.from_bytes(data[8:16], "little") + int.from_bytes(data[16:24], "little") > 16384:
         raise SystemExit("Generated root directory is outside the 16 KiB PMTiles bootstrap window.")
 

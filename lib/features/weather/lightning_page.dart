@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/weather/lightning_distance.dart';
+import 'lightning_providers.dart';
 
-class LightningPage extends StatefulWidget {
+class LightningPage extends ConsumerStatefulWidget {
   const LightningPage({super.key});
 
   @override
-  State<LightningPage> createState() => _LightningPageState();
+  ConsumerState<LightningPage> createState() => _LightningPageState();
 }
 
-class _LightningPageState extends State<LightningPage> {
+class _LightningPageState extends ConsumerState<LightningPage> {
   final _controller = TextEditingController();
-  LightningDistance? _result;
 
   @override
   void dispose() {
@@ -20,16 +20,12 @@ class _LightningPageState extends State<LightningPage> {
   }
 
   void _calculate() {
-    final seconds = double.tryParse(_controller.text.replaceAll(',', '.'));
-    if (seconds == null || seconds < 0) {
-      setState(() => _result = null);
-      return;
-    }
-    setState(() => _result = LightningDistance.fromThunderDelay(seconds));
+    ref.read(lightningDelayProvider.notifier).submit(_controller.text);
   }
 
   @override
   Widget build(BuildContext context) {
+    final result = ref.watch(lightningDistanceProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Distancia de tormenta')),
       body: ListView(
@@ -54,15 +50,15 @@ class _LightningPageState extends State<LightningPage> {
               ]),
             ),
           ),
-          if (_result != null) ...[
+          if (result != null) ...[
             const SizedBox(height: 12),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${_result!.distanceKm.toStringAsFixed(2)} km', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                  Text('${result!.distanceKm.toStringAsFixed(2)} km', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text('${_result!.distanceMeters.round()} m aproximadamente'),
+                  Text('${result!.distanceMeters.round()} m aproximadamente'),
                 ]),
               ),
             ),

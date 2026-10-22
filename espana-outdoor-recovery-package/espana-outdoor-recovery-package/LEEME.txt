@@ -1,0 +1,53 @@
+ESPAÑA OUTDOOR — PAQUETE DE RECUPERACIÓN
+
+Contenido
+- recuperacion.patch: parche Git generado desde el commit real 7af2afbd722d4569e8e6ed672f4d8e21d4cff7f7.
+- SHA256SUMS.txt: hash SHA-256 para comprobar la integridad del parche.
+
+Base exacta
+- Commit base: c33d917aeb3178690f305d8606ca847f1e17fbe9
+- Commit recuperado original: 7af2afbd722d4569e8e6ed672f4d8e21d4cff7f7
+- Árbol del commit recuperado: 903fea4dbdc72ff83dc08fbc3479a3efd1baf703
+- 13 archivos; +321 / -149 líneas.
+
+VERIFICACIONES REALIZADAS
+- El parche pasa `git apply --check` en una copia limpia del commit base c33d917.
+- Se aplicó con `git am` en un worktree desechable de prueba.
+- El árbol resultante coincide exactamente con el árbol del commit recuperado: 903fea4dbdc72ff83dc08fbc3479a3efd1baf703.
+- No se han ejecutado pruebas Flutter; no se afirma que compile.
+
+IMPORTANTE
+No aplicar directamente sobre master ni sobre una rama con cambios locales. El parche está basado en c33d917, no en 5d6c144.
+
+PROCEDIMIENTO RECOMENDADO EN WINDOWS
+1. Copia recuperacion.patch a C:\Proyectos\Espana-Outdoors.
+2. Abre PowerShell y ejecuta:
+
+   cd C:\Proyectos\Espana-Outdoors
+   git status --short --branch
+
+   Si hay cambios locales, DETENTE y consérvalos antes de continuar.
+
+3. Comprueba que el commit base existe en GitHub:
+
+   git fetch origin audit/baseline-2026-10-14
+   git rev-parse FETCH_HEAD
+
+   Debe mostrar c33d917aeb3178690f305d8606ca847f1e17fbe9.
+   Si no coincide, detente; no apliques el parche.
+
+4. Crea una rama independiente desde la base correcta y aplica el parche:
+
+   git switch -c recovery/qwen-staged-work-20261015 FETCH_HEAD
+   git apply --check .\recuperacion.patch
+   git am .\recuperacion.patch
+
+5. Verifica el resultado:
+
+   git log -1 --oneline
+   git show --stat --oneline HEAD
+   git status --short --branch
+
+El commit resultante tendrá un SHA distinto del original porque `git am` recrea el commit, pero el árbol de archivos debe coincidir con 903fea4dbdc72ff83dc08fbc3479a3efd1baf703.
+
+No hagas push, merge, reset ni checkout de master durante la recuperación. La integración se decidirá después de revisar los cambios y ejecutar las pruebas.

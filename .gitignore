@@ -34,3 +34,4 @@ macos/Runner/GoogleService-Info.plist
 # Large generated routing/map state
 ops/valhalla/data/
 ops/valhalla/config/valhalla.json
+España-Outdoor.apk

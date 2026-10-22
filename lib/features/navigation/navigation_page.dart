@@ -100,7 +100,11 @@ class _NavigationPageState extends ConsumerState<NavigationPage> {
                         children: [
                           Text(recording.isRecording ? 'Navegación activa' : 'GPS preparado', style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(height: 6),
-                          Text(position == null ? 'Obtén una posición para comenzar.' : 'Posición disponible${accuracy == null ? '' : ' · precisión ±${accuracy.toStringAsFixed(0)} m'}'),
+                          if (position != null && location.isStale)
+                            Text('Última posición conocida${accuracy == null ? '' : ' · precisión ±${accuracy.toStringAsFixed(0)} m'} · el seguimiento no está activo',
+                                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                          if (!(position != null && location.isStale))
+                            Text(position == null ? 'Obtén una posición para comenzar.' : 'Posición disponible${accuracy == null ? '' : ' · precisión ±${accuracy.toStringAsFixed(0)} m'}'),
                         ],
                       ),
                     ),

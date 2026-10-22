@@ -6,5 +6,3 @@ Future<String?> findValidLocalPmTiles({
 }) async =>
     null;
 
-Future<String> serveLocalPmTiles(String path) async =>
-    throw UnsupportedError('Local PMTiles serving is native-only.');

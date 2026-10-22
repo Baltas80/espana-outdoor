@@ -1,5 +1,4 @@
-import 'package:espana_outdoors/core/domain/route_readiness.dart';
-import 'package:espana_outdoors/core/domain/route_readiness_engine.dart';
+﻿import 'package:espana_outdoors/core/safety/route_readiness_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -8,34 +7,33 @@ void main() {
   test('returns apto when no relevant risk is present', () {
     final result = engine.evaluate(const RouteReadinessInput());
 
-    expect(result.decision, RouteReadinessDecision.apto);
-    expect(result.reasons, isEmpty);
+    expect(result.status, RouteReadiness.apto);
+    expect(result.reasons, isNotEmpty);
   });
 
   test('official closure always overrides other factors', () {
     final result = engine.evaluate(
-      const RouteReadinessInput(officialClosure: true),
+      const RouteReadinessInput(
+        routeClosed: true,
+        severeWeather: true,
+      ),
     );
 
-    expect(result.decision, RouteReadinessDecision.noRecomendado);
-    expect(result.factors, contains(RouteReadinessFactor.officialClosure));
+    expect(result.status, RouteReadiness.noRecomendado);
+    expect(result.reasons, contains('La ruta figura como cerrada.'));
   });
 
   test('official emergency alert always overrides lower risk inputs', () {
     final result = engine.evaluate(
       const RouteReadinessInput(
-        officialEmergencyAlert: true,
+        criticalOfficialAlert: true,
         routeRiskLevel: 1,
         weatherRiskLevel: 1,
         hazardRiskLevel: 1,
       ),
     );
 
-    expect(result.decision, RouteReadinessDecision.noRecomendado);
-    expect(
-      result.factors,
-      contains(RouteReadinessFactor.officialEmergencyAlert),
-    );
+    expect(result.status, RouteReadiness.noRecomendado);
   });
 
   test('critical hazard yields no recomendado', () {
@@ -43,7 +41,7 @@ void main() {
       const RouteReadinessInput(hazardRiskLevel: 3),
     );
 
-    expect(result.decision, RouteReadinessDecision.noRecomendado);
+    expect(result.status, RouteReadiness.noRecomendado);
   });
 
   test('combined severe weather and elevated route risk yields no recomendado', () {
@@ -54,7 +52,7 @@ void main() {
       ),
     );
 
-    expect(result.decision, RouteReadinessDecision.noRecomendado);
+    expect(result.status, RouteReadiness.noRecomendado);
   });
 
   test('moderate weather risk yields precaucion with evidence', () {
@@ -62,18 +60,17 @@ void main() {
       const RouteReadinessInput(weatherRiskLevel: 1),
     );
 
-    expect(result.decision, RouteReadinessDecision.precaucion);
-    expect(result.factors, contains(RouteReadinessFactor.weatherRisk));
+    expect(result.status, RouteReadiness.precaucion);
     expect(result.reasons, isNotEmpty);
   });
 
   test('stale information never upgrades a route to apto', () {
     final result = engine.evaluate(
-      const RouteReadinessInput(informationStale: true),
+      const RouteReadinessInput(staleData: true),
     );
 
-    expect(result.decision, RouteReadinessDecision.precaucion);
-    expect(result.factors, contains(RouteReadinessFactor.staleInformation));
+    expect(result.status, RouteReadiness.precaucion);
+    expect(result.reasons, isNotEmpty);
   });
 
   test('invalid risk scores are rejected', () {

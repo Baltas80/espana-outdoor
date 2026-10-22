@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/outdoor_visuals.dart';
 
 import 'wildlife_guidance.dart';
 
-class WildlifePage extends StatefulWidget {
+/// Selected species, held in Riverpod per the app's declared state stack.
+final wildlifeSpeciesProvider =
+    NotifierProvider.autoDispose<WildlifeSpeciesController, String>(
+  WildlifeSpeciesController.new,
+);
+
+class WildlifeSpeciesController extends Notifier<String> {
+  @override
+  String build() => 'Jabalí';
+
+  void select(String species) => state = species;
+}
+
+class WildlifePage extends ConsumerWidget {
   const WildlifePage({super.key});
 
   @override
-  State<WildlifePage> createState() => _WildlifePageState();
-}
-
-class _WildlifePageState extends State<WildlifePage> {
-  final _catalog = const WildlifeGuidanceCatalog();
-  String _species = 'Jabalí';
-
-  @override
-  Widget build(BuildContext context) {
-    final guidance = _catalog.forSpecies(_species);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final _catalog = const WildlifeGuidanceCatalog();
+    final species = ref.watch(wildlifeSpeciesProvider);
+    final guidance = _catalog.forSpecies(species);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fauna')),
@@ -45,9 +53,10 @@ class _WildlifePageState extends State<WildlifePage> {
               ButtonSegment(value: 'Serpiente', label: Text('Serpiente')),
               ButtonSegment(value: 'Otro', label: Text('Otro')),
             ],
-            selected: {_species},
-            onSelectionChanged: (selection) =>
-                setState(() => _species = selection.first),
+            selected: {species},
+            onSelectionChanged: (selection) => ref
+                .read(wildlifeSpeciesProvider.notifier)
+                .select(selection.first),
           ),
           const SizedBox(height: 16),
           Card(

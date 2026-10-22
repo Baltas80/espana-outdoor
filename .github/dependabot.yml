@@ -11,3 +11,30 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+
+  # Go modules are not covered by the "pub" ecosystem above. Each service is
+  # declared separately so Dependabot resolves its own go.mod/go.sum.
+  - package-ecosystem: gomod
+    directory: "/services/rescue-link"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: gomod
+    directory: "/services/source-gateway"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Base images used by the service Dockerfiles (distroless) and CI tooling.
+  - package-ecosystem: docker
+    directory: "/services/rescue-link"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/services/source-gateway"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

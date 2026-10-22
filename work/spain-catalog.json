@@ -1,0 +1,14 @@
+[
+  {
+    "id": "spain",
+    "name": "España",
+    "description": "Mapa base vectorial de España para España Outdoor.",
+    "providerId": "approved-pmtiles-catalog",
+    "licenseUrl": "https://www.openstreetmap.org/copyright",
+    "attribution": "© OpenStreetMap contributors",
+    "downloadUrl": "https://espana-outdoor-r2-uploader.espana-outdoor.workers.dev/basemap/spain/2026-09-28/spain.pmtiles",
+    "sizeBytes": 1269114296,
+    "updatedAt": "2026-09-28T21:46:48Z",
+    "sha256": "f410f9961397ed502876a1843844a00b4fcf77f7d037c4ed12d716190ad73d4d"
+  }
+]

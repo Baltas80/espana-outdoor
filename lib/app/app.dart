@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/contracts/routing_service.dart';
@@ -9,7 +9,7 @@ import '../features/astronomy/astronomy_page.dart';
 import '../features/explore/explore_page.dart';
 import '../features/home/home_page.dart';
 import '../features/instruments/instruments_page.dart';
-import '../features/map/map_page.dart';
+import '../features/map/maplibre_map_page.dart';
 import '../features/navigation/backtrack_page.dart';
 import '../features/navigation/navigation_page.dart';
 import '../features/navigation/waypoints_page.dart';
@@ -60,7 +60,7 @@ class EspanaOutdoorApp extends StatelessWidget {
             routes: [
               GoRoute(
                 path: '/map',
-                builder: (_, __) => _withBackNavigation(const MapPage()),
+                builder: (_, __) => _withBackNavigation(const MapLibreMapPage()),
               ),
             ],
           ),
@@ -161,7 +161,7 @@ class EspanaOutdoorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-        title: 'España Outdoor',
+        title: 'EspaÃ±a Outdoor',
         debugShowCheckedModeBanner: false,
         theme: buildOutdoorTheme(Brightness.light),
         darkTheme: buildOutdoorTheme(Brightness.dark),
@@ -187,3 +187,4 @@ class _BackNavigationScope extends StatelessWidget {
     );
   }
 }
+

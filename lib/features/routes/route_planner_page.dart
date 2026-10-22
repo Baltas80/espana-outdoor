@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart' hide RoutingConfig;
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 
 import '../../core/contracts/routing_service.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/routing/routing_config.dart';
 import '../../infrastructure/routing/valhalla_routing_service.dart';
-import '../map/map_page.dart';
+import '../map/maplibre_map_viewport.dart';
 
 class RoutePlannerPage extends ConsumerStatefulWidget {
   const RoutePlannerPage({super.key});
@@ -23,8 +24,12 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
 
   Future<void> _showDestinationDialog() async {
     final existing = _destination;
-    final latController = TextEditingController(text: existing?.latitude.toString() ?? '');
-    final lonController = TextEditingController(text: existing?.longitude.toString() ?? '');
+    final latController = TextEditingController(
+      text: existing?.latitude.toString() ?? '',
+    );
+    final lonController = TextEditingController(
+      text: existing?.longitude.toString() ?? '',
+    );
     final result = await showDialog<LatLng>(
       context: context,
       builder: (context) => AlertDialog(
@@ -34,23 +39,36 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
           children: [
             TextField(
               controller: latController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
               decoration: const InputDecoration(labelText: 'Latitud'),
             ),
             TextField(
               controller: lonController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
               decoration: const InputDecoration(labelText: 'Longitud'),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () {
               final lat = double.tryParse(latController.text.trim());
               final lon = double.tryParse(lonController.text.trim());
-              if (lat == null || lon == null || lat.abs() > 90 || lon.abs() > 180) return;
+              if (lat == null ||
+                  lon == null ||
+                  lat.abs() > 90 ||
+                  lon.abs() > 180)
+                return;
               Navigator.pop(context, LatLng(lat, lon));
             },
             child: const Text('Usar destino'),
@@ -95,10 +113,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       final service = ValhallaRoutingService(baseUri: config.baseUri!);
       final result = await service.route(
         RouteRequest(
-          points: [
-            LatLng(location.latitude, location.longitude),
-            destination,
-          ],
+          points: [LatLng(location.latitude, location.longitude), destination],
           profile: 'hiking',
         ),
       );
@@ -121,7 +136,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
   Widget build(BuildContext context) {
     final location = ref.watch(locationControllerProvider).position;
     final destination = _destination;
-    final center = destination ??
+    final center =
+        destination ??
         (location == null
             ? const LatLng(40.4168, -3.7038)
             : LatLng(location.latitude, location.longitude));
@@ -135,21 +151,27 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: PmTilesMapViewport(
-              key: ValueKey('${center.latitude}:${center.longitude}:${_route?.points.length ?? 0}'),
-              initialCenter: center,
+            child: MapLibreMapViewport(
+              key: ValueKey(
+                '${center.latitude}:${center.longitude}:${_route?.points.length ?? 0}',
+              ),
+              initialCenter: ml.LatLng(center.latitude, center.longitude),
               initialZoom: destination == null ? 12 : 14,
-              routePoints: _route?.points ?? const <LatLng>[],
+              routePoints: (_route?.points ?? const <LatLng>[])
+                  .map((point) => ml.LatLng(point.latitude, point.longitude))
+                  .toList(growable: false),
               currentPosition: location == null
                   ? null
-                  : LatLng(location.latitude, location.longitude),
-              destination: destination,
+                  : ml.LatLng(location.latitude, location.longitude),
+              destination: destination == null
+                  ? null
+                  : ml.LatLng(destination.latitude, destination.longitude),
               onTap: _busy
                   ? null
                   : (point) => setState(() {
-                        _destination = point;
-                        _route = null;
-                      }),
+                      _destination = LatLng(point.latitude, point.longitude);
+                      _route = null;
+                    }),
             ),
           ),
           Positioned(
@@ -162,7 +184,10 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ruta de senderismo', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Text(
+                      'Ruta de senderismo',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                     const SizedBox(height: 4),
                     Text(destinationLabel),
                     if (destination == null)
@@ -171,7 +196,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                         child: Text(
                           'Toca un punto del mapa para colocar el destino.',
                         ),
-                      ),                    if (_route != null) ...[
+                      ),
+                    if (_route != null) ...[
                       const SizedBox(height: 6),
                       Text(
                         '${((_route!.distanceMeters ?? 0) / 1000).toStringAsFixed(1)} km · ${((_route!.durationSeconds ?? 0) / 60).round()} min',
@@ -201,7 +227,9 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _busy ? null : () => context.push('/navigation', extra: _route),
+                      onPressed: _busy
+                          ? null
+                          : () => context.push('/navigation', extra: _route),
                       icon: const Icon(Icons.navigation_outlined),
                       label: const Text('Iniciar navegación'),
                     ),
