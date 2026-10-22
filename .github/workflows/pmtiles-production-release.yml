@@ -30,7 +30,7 @@ jobs:
       VERSION: ${{ inputs.version}}
       OSM_URL: ${{ inputs.osm_url}}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
 
       - name: Validate production configuration
         shell: bash
