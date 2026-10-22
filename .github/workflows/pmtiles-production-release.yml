@@ -208,7 +208,7 @@ jobs:
           bash ops/offline/verify-pmtiles-http.sh
 
       - name: Upload release evidence
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: pmtiles-release-evidence-${{ inputs.version}}
           path: |

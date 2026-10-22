@@ -130,7 +130,7 @@ jobs:
             echo "aab_sha256=$(sha256sum "$aab" | cut -d ' ' -f1)"
           } > build/android-release-manifest.txt
       - name: Upload Android build artifacts
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-release
           path: |
@@ -138,7 +138,7 @@ jobs:
             build/app/outputs/bundle/release/*.aab
             build/android-release-manifest.txt
       - name: Upload coverage
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: coverage
           path: coverage/lcov.info
