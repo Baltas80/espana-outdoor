@@ -6,10 +6,11 @@ Before writing custom infrastructure, the project must first check whether Flutt
 
 ## Current foundation
 
-- Flutter/Dart for the cross-platform application.
+- Flutter/Dart for the application.
 - Riverpod for feature state.
 - go_router for navigation.
-- flutter_map + latlong2 for GIS presentation.
+- MapLibre Flutter (`maplibre_gl`) for map rendering.
+- PMTiles for controlled vector-data distribution and offline map packages.
 - geolocator for location and distance calculations.
 - file_picker for file import/export.
 - path_provider for platform paths.
@@ -23,24 +24,24 @@ Before writing custom infrastructure, the project must first check whether Flutt
 
 ### Offline maps
 
-Preferred architecture:
+Current architecture:
 
-1. Native: MBTiles through flutter_map_vector_tiles_mbtiles.
-2. Web: PMTiles through flutter_map_vector_tiles.
-3. Keep the application map-provider interface independent of both.
+1. MapLibre Flutter renders the map.
+2. PMTiles provides the controlled vector-data distribution format.
+3. `MapService` and the offline-region services keep map lifecycle and application state separate from rendering details.
 
 Do not build a custom tile renderer or custom SQLite tile reader.
-Do not use tile.openstreetmap.org for bulk offline downloading. Production offline packages must use a provider or infrastructure whose terms explicitly permit prefetch/offline use.
+Do not use `tile.openstreetmap.org` for bulk offline downloading. Production offline packages must use a provider or infrastructure whose terms explicitly permit prefetch/offline use.
 
 ### Routing
 
 Keep a RoutingEngine application port.
-Evaluate maintained OSRM/Valhalla adapters before writing a custom routing client. Candidate packages can change quickly, so adoption requires a maintenance, license and API review.
+Use the configured Valhalla adapter for routing; keep endpoint configuration outside source code.
 Never bind domain logic directly to one routing vendor.
 
 ### Marker and POI clustering
 
-When POI or community markers become numerous, prefer an existing maintained clustering implementation such as flutter_map_marker_cluster instead of writing a custom spatial clustering system.
+When POI or community markers become numerous, prefer an existing maintained clustering implementation compatible with the active renderer instead of writing a custom spatial clustering system.
 
 ### Structured persistence
 
@@ -86,10 +87,8 @@ Use existing libraries aggressively where they remove infrastructure work, but d
 
 Priority evaluations:
 
-- flutter_map_vector_tiles + native MBTiles companion for true offline maps.
 - Drift for structured local data as the domain expands.
 - Marker clustering when POI density requires it.
-- Routing adapter after the route domain is stable.
 - Local notifications for operational and safety state.
 - Background task scheduling once backend synchronization exists.
 
