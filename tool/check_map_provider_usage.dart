@@ -1,18 +1,6 @@
 import 'dart:io';
 
 const forbiddenTileHost = 'tile.openstreetmap.org';
-const forbiddenImports = <String>{
-  'package:maplibre_gl/',
-  'package:maplibre_gl_platform_interface/',
-  'package:agus_maps_flutter/',
-};
-const forbiddenTerms = <String>{
-  'Agus Maps',
-  'agus_maps',
-  'CoMaps',
-  'comaps_data',
-  'AGUS_MAPS_HOME',
-};
 
 void main() {
   final violations = <String>[];
@@ -31,33 +19,31 @@ void main() {
     if (content.contains(forbiddenTileHost)) {
       violations.add('$path: direct OSM tile host');
     }
-    for (final importPrefix in forbiddenImports) {
-      if (content.contains("'$importPrefix")) {
-        violations.add('$path: forbidden map import $importPrefix');
-      }
-    }
-    for (final term in forbiddenTerms) {
-      if (content.contains(term)) {
-        violations.add('$path: forbidden legacy map term $term');
-      }
+  }
+
+  final mapPage = File('lib/features/map/maplibre_map_page.dart');
+  if (!mapPage.existsSync()) {
+    violations.add('MapLibre map page is missing.');
+  } else {
+    final mapContent = mapPage.readAsStringSync();
+    if (!mapContent.contains("package:maplibre_gl/") ||
+        !mapContent.contains('MapLibreMapViewport(')) {
+      violations.add(
+        'Map page must use the existing MapLibre Flutter integration.',
+      );
     }
   }
 
   if (violations.isNotEmpty) {
-    stderr.writeln('Forbidden legacy/direct map provider usage detected:');
+    stderr.writeln('Map provider validation failed:');
     for (final violation in violations) {
       stderr.writeln(' - $violation');
     }
-    stderr.writeln(
-      'España Outdoor uses flutter_map_vector_tiles as the renderer and '
-      'PMTiles/R2 as the cartographic data source. Agus Maps/CoMaps and '
-      'MapLibre native bindings are forbidden.',
-    );
     exitCode = 1;
     return;
   }
 
   stdout.writeln(
-    'Map provider usage guard passed: PMTiles renderer architecture.',
+    'Map provider validation passed: MapLibre Flutter integration found.',
   );
 }
