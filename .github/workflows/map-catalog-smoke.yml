@@ -13,7 +13,7 @@ jobs:
     env:
       OFFLINE_CATALOG_URL: ${{ vars.OFFLINE_CATALOG_URL }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Validate production catalog endpoint
         run: |
           set -euo pipefail

@@ -17,7 +17,7 @@ jobs:
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2.23.0
         with:
           flutter-version: '3.47.5'
@@ -31,7 +31,7 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v3.0.0
@@ -41,7 +41,7 @@ jobs:
   filesystem-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
@@ -54,7 +54,7 @@ jobs:
     name: Generate SBOM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: anchore/sbom-action@v0
         with:
           path: .
@@ -66,7 +66,7 @@ jobs:
     name: CodeQL - GitHub Actions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4.38.2
         with:
           languages: actions
@@ -78,7 +78,7 @@ jobs:
     name: CodeQL - Go
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4.38.2
         with:
           languages: go
@@ -91,7 +91,7 @@ jobs:
     name: OG image policy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Validate first-party OG images
         run: python3 tool/check_og_image_policy.py
 
@@ -99,7 +99,7 @@ jobs:
     name: Dart static analysis (CodeQL unavailable)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2.23.0
         with:
           flutter-version: '3.47.5'
