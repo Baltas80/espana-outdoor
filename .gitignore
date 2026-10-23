@@ -34,4 +34,21 @@ macos/Runner/GoogleService-Info.plist
 # Large generated routing/map state
 ops/valhalla/data/
 ops/valhalla/config/valhalla.json
-España-Outdoor.apk
+
+
+# Local builds, backups and temporary diagnostics (kept in the working copy only)
+*.apk
+*.aab
+*.bak
+*.backup
+*.before-*
+*.tmp
+/*.zip
+/espana-outdoor-recovery-package/
+/work/
+/gradle-error.txt
+/assets/visuals/outdoor_photo_atlas.jpg.backup
+/android/local.properties
+/site/shopify-config.js
+/Espana-Outdoors*status --short --branch
+/ntent libcoresafetyroute_readiness.dart*Select-Object*

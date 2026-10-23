@@ -3,6 +3,7 @@ name: Deploy España Outdoor Web
 on:
   push:
     branches:
+      - main
       - master
   workflow_dispatch:
 
@@ -28,11 +29,11 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6.0.0
 
-      - name: Inject Shopify Storefront configuration
+      - name: Inject public Shopify Storefront configuration
         env:
-          SHOPIFY_STOREFRONT_TOKEN: ${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}
+          SHOPIFY_STOREFRONT_PUBLIC_TOKEN: ${{ vars.SHOPIFY_STOREFRONT_PUBLIC_TOKEN }}
         run: |
-          printf 'window.ESPANA_OUTDOOR_SHOPIFY_STOREFRONT_TOKEN=%s;\n' "$(python3 -c 'import json,os; print(json.dumps(os.environ["SHOPIFY_STOREFRONT_TOKEN"]))')" > site/shopify-config.js
+          printf 'window.ESPANA_OUTDOOR_SHOPIFY_STOREFRONT_TOKEN=%s;\n' "$(python3 -c 'import json,os; print(json.dumps(os.environ["SHOPIFY_STOREFRONT_PUBLIC_TOKEN"]))')" > site/shopify-config.js
 
       - name: Build official route catalog
         run: python3 scripts/build-route-catalog.py
