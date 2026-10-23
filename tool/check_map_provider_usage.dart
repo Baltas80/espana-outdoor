@@ -27,7 +27,7 @@ void main() {
   } else {
     final mapContent = mapPage.readAsStringSync();
     if (!mapContent.contains("package:maplibre_gl/") ||
-        !mapContent.contains('MapLibreMap(')) {
+        !mapContent.contains('MapLibreMapViewport(')) {
       violations.add(
         'Map page must use the existing MapLibre Flutter integration.',
       );
