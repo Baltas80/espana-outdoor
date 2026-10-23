@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Setup Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v7
         with:
           go-version-file: services/source-gateway/go.mod
           cache-dependency-path: services/source-gateway/go.sum
