@@ -5,7 +5,7 @@ This document separates implemented application foundations from production inte
 | Capability | Mature technology | App boundary | Production requirement |
 |---|---|---|---|
 | Cross-platform UI | Flutter | feature layer | platform projects + store signing |
-| Maps | MapLibre / flutter_map | `MapService` | approved tile/vector source |
+| Maps | MapLibre Flutter + PMTiles | `MapService` | approved vector-data source |
 | Offline maps | PMTiles / MBTiles | `MapService` | region catalogue + signed manifests |
 | Routing | Valhalla | `RoutingService` | Valhalla deployment + regional tiles |
 | GIS database | PostgreSQL/PostGIS | backend API | managed PostgreSQL/PostGIS |
