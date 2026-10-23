@@ -1,11 +1,11 @@
 # ESPAÑA OUTDOOR — THIRD-PARTY SOFTWARE & LICENCE REGISTER
 
-Estado: registro reconciliado con `pubspec.yaml` y los módulos Go presentes en `master`.
-Fecha de revisión: 2026-10-05.
+Estado: registro reconciliado con `pubspec.yaml`, `pubspec.lock` y los módulos Go presentes en `main`.
+Fecha de revisión: 2026-10-23.
 Alcance: dependencias de ejecución declaradas directamente por la aplicación y módulos Go declarados directamente por los servicios backend.
 
 > Este documento es un registro de licencias de dependencias directas. No sustituye el inventario completo de dependencias transitivas que se debe generar para cada release.
-> En el repositorio actual no existe `pubspec.lock`; por tanto, la resolución transitiva de Dart no queda fijada en Git y este documento no la presenta como si fuera determinista.
+> El repositorio contiene `pubspec.lock`, que fija las versiones resueltas de Dart. Este registro enumera dependencias directas; el lockfile no sustituye el inventario de licencias transitivas que debe generarse para cada release.
 > Para una release, el inventario final debe incluir las dependencias transitivas realmente empaquetadas y sus notices/licencias.
 
 ## Criterio de registro
@@ -24,7 +24,7 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 
 | Componente | Constraint actual | Licencia | Verificación | Obligación |
 |---|---|---|---|---|
-| Flutter framework | Flutter >=3.38.0 | BSD-3-Clause | https://docs.flutter.dev/resources/faq | Conservar notices aplicables |
+| Flutter framework | Flutter >=3.38.1 | BSD-3-Clause | https://docs.flutter.dev/resources/faq | Conservar notices aplicables |
 | Dart SDK | Dart >=3.10.0 <4.0.0 | BSD-3-Clause | https://github.com/dart-lang/sdk | Conservar notices aplicables |
 
 ## Dependencias directas de la aplicación Flutter
@@ -33,8 +33,7 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 |---|---|---|---|---|
 | flutter_svg | ^2.3.0 | Renderizado SVG | MIT | https://pub.dev/packages/flutter_svg/license |
 | cupertino_icons | ^2.0.0 | Recursos de iconos Cupertino | MIT | https://pub.dev/packages/cupertino_icons |
-| flutter_map | ^8.3.2 | Mapas | BSD-3-Clause | https://pub.dev/packages/flutter_map/license |
-| flutter_map_vector_tiles | ^2.9.0 | Vector tiles | BSD-3-Clause | https://pub.dev/packages/flutter_map_vector_tiles |
+| maplibre_gl | 0.27.1 | Renderizado cartográfico vectorial y fuentes PMTiles | BSD-3-Clause | https://pub.dev/packages/maplibre_gl/license |
 | latlong2 | ^0.10.1 | Cálculos geográficos | Apache-2.0 | https://pub.dev/packages/latlong2 |
 | flutter_riverpod | ^3.4.3 | Estado/inyección | MIT | https://pub.dev/packages/flutter_riverpod/license |
 | go_router | ^18.0.2 | Navegación/deep links | BSD-3-Clause | https://pub.dev/packages/go_router/license |
@@ -52,7 +51,7 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 | purchases_flutter | ^10.14.0 | Compras/entitlements RevenueCat | MIT | https://pub.dev/packages/purchases_flutter |
 | purchases_ui_flutter | ^10.14.0 | UI de paywalls RevenueCat | MIT | https://pub.dev/packages/purchases_ui_flutter |
 | background_downloader | ^9.6.3 | Descargas en segundo plano | BSD-3-Clause + MIT | https://pub.dev/packages/background_downloader |
-| openidconnect | ^3.0.0 | OIDC/OAuth 2.0 | Apache-2.0 | https://pub.dev/packages/openidconnect |
+| flutter_appauth | ^12.1.0 | OIDC/OAuth 2.0 mediante AppAuth | BSD-3-Clause | https://pub.dev/packages/flutter_appauth/license |
 | sentry_flutter | ^9.30.1 | Telemetría de errores | MIT | https://pub.dev/packages/sentry_flutter/license |
 | battery_plus | ^7.1.1 | Estado de batería | BSD-3-Clause | https://pub.dev/packages/battery_plus/versions/7.1.1 |
 | sensors_plus | ^7.1.0 | Sensores de dispositivo | BSD-3-Clause | https://pub.dev/packages/sensors_plus/license |
@@ -89,7 +88,6 @@ Los módulos indirectos registrados en `go.mod/go.sum` no se presentan aquí com
 
 Los siguientes elementos se eliminan del inventario de dependencias actuales porque no aparecen como dependencias directas en el `pubspec.yaml` o en los módulos Go actuales:
 
-- maplibre_gl
 - pmtiles
 - firebase_messaging
 - Drift
