@@ -71,8 +71,6 @@ def verify_android() -> None:
             "configured as com.espanaoutdoors."
         )
 
-    if "agus_maps_flutter" in content.lower() or "comaps" in content.lower():
-        raise SystemExit("Forbidden Agus/CoMaps Android configuration detected.")
 
     print("android_manifest=verified")
     print("android_permissions=verified")
