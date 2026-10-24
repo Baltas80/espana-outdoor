@@ -30,4 +30,32 @@ The Flutter app uses the existing `flutter_appauth` Authorization Code + PKCE fl
 
 The in-app **Crear cuenta / iniciar sesión** button opens the hosted Keycloak authentication page. The Keycloak **Register** link is shown only when self-registration is enabled for that realm.
 
-The profile form currently stores its public profile fields on the device through the app's existing `shared_preferences` dependency. This is separate from Keycloak identity: cross-device profile synchronisation requires a protected profile API and persistent server-side storage, neither of which is provided by the current source-gateway API.
+Los perfiles ya se han diseñado como datos centralizados en `services/user-profile`, almacenados en PostgreSQL y asociados al claim OIDC `sub`. Android y web consultan el mismo endpoint protegido; la app no guarda perfiles como fuente de verdad local.
+
+
+## Cliente web y perfil compartido
+
+La web estática `site/cuenta.html` utiliza el adaptador oficial `keycloak-js` en su versión fijada y el flujo Authorization Code + PKCE. Configura un cliente público independiente:
+
+- **Client ID:** `espana-outdoors-web`
+- **Valid redirect URIs:** `https://espanaoutdoor.es/cuenta.html` y únicamente las rutas adicionales que se vayan a utilizar.
+- **Web origins:** `https://espanaoutdoor.es` (añade `https://www.espanaoutdoor.es` solo si ese origen sirve la web).
+- **Standard Flow:** habilitado.
+- **PKCE:** S256.
+- **Client authentication:** desactivado; nunca se coloca un secreto de cliente en la web.
+
+Android sigue usando el cliente público `espana-outdoors-mobile` y el mismo realm/issuer `espana-outdoor`. Habilita **User registration** en la configuración de Login del realm y prueba el alta, la verificación de email y el acceso con ambos clientes.
+
+### Audience de la API
+
+El servicio de perfiles valida tokens cuyo audience es `espana-outdoor-api`. Configura ese audience mediante el mapper/scope de audiencia para los clientes web y móvil. No sustituyas la validación del servidor por una comprobación del token en el navegador o en Flutter.
+
+### API y datos compartidos
+
+- `GET /v1/me/profile`: lee el perfil de la identidad autenticada.
+- `PUT /v1/me/profile`: crea o actualiza el perfil asociado al mismo `sub`.
+- API pública a través del proxy HTTPS: `https://api.espanaoutdoor.es/v1/me/profile`.
+- Los cambios en web se ven al volver a abrir el perfil en Android y viceversa, porque ambos usan el mismo registro PostgreSQL.
+- El servicio se desplegará desde `services/user-profile`; el puerto de contenedor no debe exponerse directamente a Internet.
+
+Los tokens del navegador se mantienen en memoria a través del adaptador de Keycloak. Los campos de perfil son datos públicos: no introduzcas contraseñas, direcciones privadas ni otra información sensible.
