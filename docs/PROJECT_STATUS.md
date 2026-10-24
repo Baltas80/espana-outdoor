@@ -1,109 +1,72 @@
 # España Outdoor — estado técnico
 
-Última auditoría: 2026-09-30
+Última auditoría documental: 2026-10-23
 
 ## Objetivo MVP
 
 Android primero. El criterio de aceptación principal es un APK instalable que abra el mapa sin cerrar la aplicación, renderice cartografía vectorial real y permita usar GPS, rutas y mapas offline.
 
-## Arquitectura fijada
+## Arquitectura cartográfica actual
 
-- Renderer Android: `agus_maps_flutter 0.1.18` + CoMaps/MWM.
+- Renderer móvil: MapLibre Flutter mediante `maplibre_gl`.
+- Distribución cartográfica: PMTiles, con catálogo y endpoint controlados por entorno.
+- Offline: los archivos regionales verificados en `offline_regions` tienen prioridad cuando están disponibles.
 - Flutter/Riverpod/go_router.
-- PMTiles no forma parte del renderer Android.
-- iOS queda fuera del MVP.
-- Web/desktop quedan fuera del camino crítico del MVP.
+- Routing mediante Valhalla, configurado externamente con `VALHALLA_BASE_URL`.
+- Android es la plataforma prioritaria del MVP; el soporte de otras plataformas no debe darse por validado por inferencia.
 
-## Auditoría ejecutada
+## Estado conocido del repositorio
 
-- [x] Revisión de arquitectura Flutter: `app/`, `core/`, `domain/`, `features/`, `infrastructure/`.
-- [x] Revisión del proveedor cartográfico actual: Agus Maps / CoMaps.
-- [x] Confirmado que las dependencias directas antiguas `flutter_map`, `flutter_map_vector_tiles` y `pmtiles` ya no están en `pubspec.yaml`.
-- [x] Guard de CI para impedir imports de MapLibre/flutter_map/PMTiles en Dart.
-- [x] Revisión del lifecycle de `AgusMapsRuntime`.
-- [x] Validación de `World.mwm` y `WorldCoasts.mwm` por tamaño + SHA-1 antes de registrarlos.
-- [x] Validación de recursos críticos de CoMaps antes de `initWithPaths()`.
-- [x] Limpieza de mapas parciales `.mwm.download`.
-- [x] Validación de mapas persistidos por tamaño + SHA-256.
-- [x] Descargas MWM: SHA-1 upstream + cálculo SHA-256 antes de promoción.
-- [x] SHA-256 almacenado en `MwmMetadata` para revalidación en posteriores arranques.
-- [x] Impeller Android desactivado en configuración nativa generada por compatibilidad con el renderer Agus Maps.
-- [x] Smoke test Android que navega a `Mapa` y comprueba que el proceso sigue vivo.
-- [x] Smoke test preparado para conservar `logcat` y jerarquía UI como artifacts.
-- [x] Agus Maps fijado en 0.1.18.
-- [x] SDK Agus Maps fijado por SHA-256 en CI.
-- [x] Redraw nativo explícito después del registro de mapas.
-- [x] Foreground notification GPS configurada como ongoing + wake lock.
-- [x] Tests de Home/widget alineados con la UI actual, eliminando expectativas obsoletas.
-- [x] Documento de arquitectura de alta gama creado en `docs/ARCHITECTURE_HIGH_END.md`.
+- `pubspec.yaml` declara `maplibre_gl: 0.27.1`.
+- La pantalla cartográfica activa está en `lib/features/map/maplibre_map_page.dart`.
+- La carga de estilos y fuentes locales se encuentra en `lib/core/maps/`.
+- El flujo de descargas offline utiliza `background_downloader` y los servicios de catálogo/verificación en `lib/core/offline/`.
+- La configuración de producción debe suministrar `MAP_PMTILES_URL` o una configuración de estilo aprobada que apunte a una fuente PMTiles válida.
+- Un APK que compile no demuestra por sí solo cobertura regional detallada ni funcionamiento físico en todos los dispositivos.
 
-## Problemas detectados que siguen abiertos
+## Riesgos y comprobaciones pendientes
 
-### P0 — Crash al abrir Mapa
+### P0 — Validación física del mapa
 
-El código ya contiene defensas de lifecycle, pero el cierre físico de la aplicación no se considera resuelto hasta que el smoke test Android ejecute realmente `Mapa` y capture un resultado PASS. La última ejecución que falló no llegó al smoke test porque el análisis/tests fallaron antes.
+Confirmar en el dispositivo objetivo que la pantalla del mapa se abre, el proceso permanece vivo, el estilo y la fuente cartográfica cargan correctamente y el GPS no interrumpe la experiencia.
 
-### P0 — Cartografía detallada
+### P0 — Cobertura cartográfica
 
-`World.mwm` + `WorldCoasts.mwm` son mapas base. Para mostrar el nivel de detalle esperado de España hay que disponer y registrar los MWM regionales de España. No se debe confundir que el renderer funcione con que exista cobertura regional detallada.
+Verificar que los paquetes publicados contienen el nivel de detalle esperado para España: carreteras, caminos, poblaciones, hidrografía y etiquetas. No confundir que el renderer funcione con que exista cobertura regional completa.
 
-### P1 — SHA-256 de confianza externa
+### P1 — Integridad de paquetes offline
 
-El catálogo CoMaps expone SHA-1. La app ya calcula y persiste SHA-256, pero el cierre definitivo del requisito de alta seguridad exige un manifiesto propio de producción con SHA-256 esperado por versión/archivo, preferiblemente firmado.
+Mantener verificación de tamaño, metadatos y SHA-256 antes de activar paquetes descargados. La procedencia y las condiciones de licencia deben acompañar a los datos publicados.
 
-### P1 — Foreground service resiliente
+### P1 — Resiliencia de descargas y GPS
 
-`geolocator` proporciona foreground service y notificación persistente. Para sobrevivir al cierre explícito de la app/proceso y escenarios OEM extremos, el diseño objetivo es un service con engine dedicado y recuperación persistente.
+Probar reanudación de descargas, recuperación tras interrupciones, permisos de ubicación y notificación persistente en los dispositivos objetivo.
 
-### P1 — Caching predictivo 500 m
+### P1 — Routing
 
-Pendiente integrar con el planificador de rutas y convertir el corredor de 500 m en una selección de regiones MWM a descargar de forma preventiva.
+Validar la configuración externa de Valhalla, la calidad de las rutas y el comportamiento sin conectividad o sin endpoint disponible.
 
-### P2 — Hillshading
+### P2 — Elevación y sombreado
 
-Pendiente fuente DEM + pipeline local + integración soportada por Agus Maps. No se implementará un falso sombreado visual.
+La integración de DEM/hillshading requiere una fuente de elevación y un pipeline verificados; no se debe simular un sombreado que no proceda de datos reales.
 
-## Limpieza / conservación
+## Conservación
 
-- `assets/backgrounds/`: conservar hasta completar búsqueda de referencias; no borrar por suposición.
-- `lib/app/outdoor_visuals.dart`: conservar mientras existan features que dependan de sus SVG.
-- `LICENSE` y `LICENSE.md`: no eliminar sin revisar diferencias legales/licencia.
-- PMTiles/R2: aislar del Android MVP y tratar como legado/web hasta su retirada formal; no debe entrar en la cadena de renderizado Android.
-- `services/source-gateway` y `services/rescue-link`: conservar; forman parte de la arquitectura de producto.
+- Conservar los recursos visuales compartidos mientras existan referencias desde la app o la web.
+- No borrar licencias, activos, datos ni artefactos ajenos a la integración cartográfica sin una auditoría específica.
+- Mantener los servicios de backend de seguridad y datos, que son independientes del renderer.
+- No realizar cambios sobre la pantalla cartográfica activa ni su configuración nativa como parte de una limpieza documental.
 
-## Lista de tareas
+## Siguiente orden de QA
 
-### Terminadas
-
-- Auditoría inicial y clasificación de arquitectura.
-- Limpieza de dependencias cartográficas antiguas.
-- Protección CI contra regresión del renderer.
-- Correcciones de lifecycle Agus Maps.
-- Validación de CoMaps data/assets.
-- Integridad MWM base.
-- Integridad SHA-256 de MWM descargados/persistidos.
-- Foreground notification GPS persistente.
-- Smoke test de navegación al mapa.
-- Corrección de tests obsoletos de UI.
-- Sistema visual premium con fotografía propia.
-
-### Pendientes — orden de ejecución
-
-1. **PASS Android staging + `Mapa` smoke test.**
-2. **Capturar/analizar logcat nativo si vuelve a caer.**
-3. **Nuevo APK staging.**
-4. **Prueba física del APK en móvil.**
-5. **Registrar MWM regional de España y comprobar carreteras, caminos, pueblos, ciudades, ríos, lagos y etiquetas.**
-6. **Manifiesto SHA-256 de producción.**
-7. **Recuperación automática de descarga corrupta.**
-8. **Foreground service con engine dedicado para resiliencia extrema.**
-9. **Caching predictivo de corredor 500 m.**
-10. **DEM/hillshading profesional.**
-11. **Valhalla y navegación.**
-12. **QA Android 14/15/16 + dispositivos OEM.**
-13. **Auditoría final de assets no utilizados.**
-14. **Release candidate Android.**
+1. Ejecutar el guard de proveedor cartográfico y el análisis estático.
+2. Ejecutar pruebas de routing, offline y seguridad.
+3. Compilar el APK de staging con la configuración real aprobada.
+4. Ejecutar el smoke test de mapa Android y revisar los logs nativos.
+5. Comprobar físicamente el APK en el dispositivo objetivo.
+6. Verificar cobertura y atribución de los paquetes PMTiles publicados.
+7. Preparar el release candidate solo después de superar los criterios anteriores.
 
 ## Criterio de cierre del incidente del mapa
 
-No se considera resuelto porque compile. El incidente queda cerrado únicamente cuando el smoke test abre `Mapa`, el proceso Android permanece vivo, el renderer registra MWM sin error nativo y el APK resultante se instala y se comprueba físicamente sin cierre de la aplicación.
+El incidente queda cerrado cuando el smoke test abre la pantalla del mapa, el proceso Android permanece vivo, la fuente cartográfica se carga sin error nativo y el APK resultante se instala y comprueba físicamente sin cierre de la aplicación.

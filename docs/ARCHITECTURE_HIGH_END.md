@@ -1,78 +1,59 @@
 # España Outdoor — arquitectura móvil de alta gama
 
-## 1. Renderer Android
+## 1. Cartografía móvil
 
-Android usa exclusivamente `agus_maps_flutter 0.1.18` + CoMaps/MWM.
+- Renderer: MapLibre Flutter mediante la dependencia `maplibre_gl`.
+- Distribución de datos vectoriales: PMTiles, con endpoints y catálogo controlados por entorno.
+- Los datos offline descargados deben verificarse antes de activarse y conservar atribución/licencia.
+- La pantalla cartográfica activa es `lib/features/map/maplibre_map_page.dart`; la carga de estilos y fuentes está en `lib/core/maps/`.
+- La lógica de rutas, seguridad y estado offline debe permanecer desacoplada de la implementación concreta del renderer.
 
-No se permite introducir en el camino Android MapLibre, flutter_map, flutter_map_vector_tiles ni PMTiles como fuente/renderizador del mapa Android.
+La configuración de producción debe proporcionar `MAP_PMTILES_URL` o un estilo aprobado que apunte a una fuente válida. No se permite fallback silencioso a un servicio público de teselas para producción.
 
-La infraestructura PMTiles/R2 existente queda aislada como legado/web hasta su retirada formal. No participa en el renderer Android.
+## 2. Lifecycle del mapa
 
-## 2. Lifecycle de Agus Maps
+1. Resolver configuración de estilo y fuente cartográfica.
+2. Preferir un paquete offline local previamente verificado cuando exista.
+3. Crear la superficie MapLibre y esperar a que esté disponible.
+4. Cargar el estilo y la fuente cartográfica configurados.
+5. Presentar errores de configuración/carga sin cerrar la aplicación.
+6. Liberar listeners y recursos al desmontar la pantalla.
 
-Orden obligatorio:
-
-1. Crear almacenamiento MWM.
-2. Extraer/validar `comaps_data`.
-3. Limpiar transferencias parciales.
-4. Validar mapas persistidos.
-5. Extraer/validar `World.mwm` y `WorldCoasts.mwm`.
-6. Ejecutar `agus.initWithPaths(dataPath, dataPath)` una sola vez.
-7. Crear `AgusMap`.
-8. Esperar `onMapReady`.
-9. Registrar mapas MWM.
-10. Ejecutar `invalidateMap()` / `forceRedraw()`.
-
-No se debe cambiar el viewport inicial durante la creación de la superficie nativa.
-
-La aplicación no debe invocar funciones nativas después de desmontar el widget. La liberación de la superficie queda bajo el lifecycle del plugin.
+Las llamadas al controlador del mapa deben respetar su lifecycle y no ejecutarse después de desmontar el widget.
 
 ## 3. Integridad offline
 
-Un MWM descargado sigue esta máquina de estados:
+Los paquetes descargados deben seguir una máquina de estados explícita: descarga parcial, descarga completa, validación de metadatos y tamaño, verificación SHA-256 y promoción atómica a paquete activo. Un archivo parcial nunca debe considerarse disponible.
 
-`NO_EXISTE -> .download -> SIZE_OK -> SHA1_UPSTREAM_OK -> SHA256_CALCULADO -> RENOMBRADO -> METADATA -> REGISTRADO`
-
-Un archivo `.download` nunca se considera disponible.
-
-Antes de registrarlo se comprueba tamaño, se valida SHA-1 frente al catálogo CoMaps, se calcula SHA-256 completo, se almacena el SHA-256 junto con la metadata y en arranques posteriores se vuelve a calcular y comparar. Si no coincide, el MWM se elimina y debe recuperarse.
-
-### Próximo endurecimiento
-
-El catálogo propio de producción debe incorporar un SHA-256 esperado por versión/archivo. Hasta disponer de ese manifiesto firmado, CoMaps SHA-1 + SHA-256 local constituye una doble comprobación de transporte/persistencia, pero no debe describirse como una cadena de confianza SHA-256 externa completa.
+El catálogo debe proporcionar procedencia, URL HTTPS, licencia/atribución, tamaño esperado, fecha de actualización y digest de integridad. Si la validación falla, el paquete no se activa y debe recuperarse de la fuente aprobada.
 
 ## 4. Foreground tracking
 
-La grabación Android usa `geolocator 14` con foreground notification, wake lock y `setOngoing=true`. La aplicación persiste cada punto para recuperar una sesión si el proceso se interrumpe.
+La grabación Android usa `geolocator` con notificación foreground, wake lock y persistencia incremental. La aplicación debe poder recuperar una sesión tras una interrupción.
 
-No se afirma que Android permita un proceso literalmente inmune a destrucción. Un foreground service reduce las restricciones de ejecución, pero el sistema/OEM puede finalizar procesos. El objetivo profesional es foreground service de ubicación, notificación persistente, permisos correctos, persistencia incremental, recuperación de sesión y pruebas Android 14/15/16.
-
-Si el requisito final es sobrevivir también al swipe de recientes y reinicios del proceso Flutter, se debe migrar el tracking a un foreground service con engine dedicado, manteniendo la misma store de recuperación.
+No se afirma que Android permita un proceso literalmente inmune a destrucción. El objetivo profesional es un servicio foreground de ubicación, notificación persistente, permisos correctos, recuperación de sesión y pruebas Android 14/15/16 en dispositivos objetivo.
 
 ## 5. Caching predictivo
 
-El motor MWM no utiliza tiles PMTiles. El caching predictivo se implementará sobre unidades MWM/regiones:
+El caching predictivo se debe diseñar sobre regiones offline publicadas por el catálogo:
 
 - analizar una ruta guardada o planificada;
-- determinar regiones MWM intersectadas;
-- añadir un corredor de 500 m alrededor de la ruta;
-- priorizar región actual + siguiente región + margen;
-- descargar silenciosamente solo con conectividad y batería adecuadas;
+- seleccionar regiones que intersecten la ruta y un corredor configurable;
+- priorizar la región actual y las siguientes;
+- descargar solo con conectividad y batería adecuadas;
 - validar integridad antes de activar cada región;
-- no duplicar descargas ya presentes.
+- evitar duplicar descargas que ya estén presentes.
 
 No se descargará automáticamente toda España cuando una ruta solo atraviese una pequeña zona.
 
-## 6. Hillshading / elevación
+## 6. Elevación y sombreado
 
-No se debe simular hillshading con degradados visuales. La implementación profesional requiere una fuente DEM compatible y con licencia documentada, almacenamiento local por bloques, validación, cálculo local de normales/sombreado, caché por zoom/bloque, límites de resolución según dispositivo e integración mediante una API soportada por Agus Maps.
-
-Si Agus Maps 0.1.18 no expone una capa de raster/overlay adecuada, no se debe forzar una integración nativa no soportada. Se mantiene como módulo desacoplado hasta disponer de un punto de integración estable.
+No se debe simular hillshading con degradados visuales. La implementación profesional requiere una fuente DEM compatible y con licencia documentada, almacenamiento local, validación, cálculo de sombreado y pruebas de rendimiento. La integración se mantiene desacoplada hasta que exista un camino técnicamente soportado.
 
 ## 7. Rendimiento
 
 - Evitar polling de alta frecuencia.
-- Evitar copias de MWM a RAM.
+- Evitar cargar grandes archivos completos en memoria cuando no sea necesario.
 - No recalcular elevación mientras el mapa está estático.
 - Invalidar cachés solo cuando cambie el bloque relevante.
 - Mantener procesamiento pesado fuera del isolate de UI.
@@ -84,13 +65,13 @@ Si Agus Maps 0.1.18 no expone una capa de raster/overlay adecuada, no se debe fo
 Un release candidate no puede avanzar si falla cualquiera de estos gates:
 
 1. `flutter analyze`.
-2. tests unitarios/widget.
-3. guard contra renderer obsoleto.
-4. validación nativa Agus Maps.
-5. build APK.
-6. instalación en dispositivo/emulador.
-7. apertura de `Mapa` sin crash.
-8. navegación fuera de `Mapa` y regreso sin crash.
-9. registro de MWM sin error nativo.
-10. validación offline.
+2. Tests unitarios/widget.
+3. Validación de la integración cartográfica y ausencia de fallback de teselas públicas.
+4. Validación de configuración nativa.
+5. Build APK.
+6. Instalación en dispositivo/emulador.
+7. Apertura de `Mapa` sin crash.
+8. Navegación fuera de `Mapa` y regreso sin crash.
+9. Carga de la fuente cartográfica sin error nativo.
+10. Validación offline.
 11. GPS/foreground tracking.
