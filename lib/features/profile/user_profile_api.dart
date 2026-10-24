@@ -143,6 +143,11 @@ final class UserProfileApi {
           decoded is Map<String, dynamic> &&
           decoded['error'] == 'username already in use') {
         message = 'Ese alias ya está utilizado. Elige otro.';
+      } else if (response.statusCode == 400 &&
+          decoded is Map<String, dynamic> &&
+          decoded['message'] is String &&
+          (decoded['message'] as String).trim().isNotEmpty) {
+        message = decoded['message'] as String;
       }
     } on Object {
       // Keep the stable, user-facing message when the body is not JSON.
