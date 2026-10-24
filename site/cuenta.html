@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071511">
+  <meta name="description" content="Gestiona tu cuenta y tu perfil de España Outdoor, compartido entre la web y la aplicación Android.">
+  <meta property="og:title" content="España Outdoor — Mi cuenta">
+  <meta property="og:description" content="Una cuenta y un perfil para la web y la aplicación España Outdoor.">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="https://espanaoutdoor.es/cuenta.html">
+  <link rel="icon" href="./assets/brand/mark.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Mi cuenta — España Outdoor</title>
+</head>
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido</a>
+<header class="site-header" data-header>
+  <div class="shell header-inner">
+    <a class="brand" href="./index.html" aria-label="España Outdoor">
+      <img src="./assets/brand/mark.svg" alt="" width="48" height="48">
+      <span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span>
+    </a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" data-menu>
+      <span></span><span></span><span></span><span class="sr-only">Abrir menú</span>
+    </button>
+    <nav id="main-nav" class="main-nav" aria-label="Principal">
+      <a href="./index.html">Inicio</a>
+      <a href="./mapa.html">Mapa</a>
+      <a href="./rutas.html">Rutas</a>
+      <a href="./naturaleza.html">Naturaleza</a>
+      <a href="./seguridad.html">Seguridad</a>
+      <a href="./app.html">App</a>
+      <a href="./blog.html">Blog</a>
+      <a href="./contacto.html">Contacto</a>
+      <a class="nav-download" href="./app.html">Descargar App</a>
+    </nav>
+  </div>
+</header>
+
+<main id="contenido" class="page-main">
+  <section class="account-hero">
+    <div class="shell account-hero-inner">
+      <p class="kicker kicker-light">España Outdoor · Cuenta única</p>
+      <h1>Tu perfil.<br><em>En cada dispositivo.</em></h1>
+      <p>Utiliza la misma cuenta en la web y en la app Android. Los datos del perfil se guardan en el servidor, no solo en este navegador.</p>
+    </div>
+  </section>
+
+  <section class="section account-section">
+    <div class="shell account-layout">
+      <aside class="account-intro">
+        <img src="./assets/brand/mark.svg" alt="" width="64" height="64">
+        <h2>Una cuenta compartida.</h2>
+        <p>Keycloak gestiona el acceso. España Outdoor guarda el perfil y lo vincula de forma segura a tu identidad.</p>
+        <div class="account-benefit"><strong>Web + Android</strong><span>El mismo nombre, alias y presentación.</span></div>
+        <div class="account-benefit"><strong>Tu identidad protegida</strong><span>La contraseña se introduce únicamente en el proveedor de identidad.</span></div>
+        <div class="account-benefit"><strong>Sin duplicados locales</strong><span>La fuente principal del perfil es el servidor.</span></div>
+      </aside>
+
+      <div class="account-panel">
+        <p class="account-status" data-account-status role="status" aria-live="polite">Conectando con el servicio de cuentas…</p>
+
+        <section data-account-signed-out>
+          <h2>Accede a tu cuenta</h2>
+          <p>Si ya tienes una cuenta, inicia sesión. Si eres nuevo, crea una cuenta para utilizarla en web y app.</p>
+          <div class="account-actions">
+            <button class="button button-gold" type="button" data-account-login>Iniciar sesión</button>
+            <button class="button button-outline-dark" type="button" data-account-register>Crear cuenta</button>
+          </div>
+        </section>
+
+        <section data-account-signed-in hidden>
+          <div class="account-heading-row">
+            <div><p class="kicker">Perfil personal</p><h2>Mis datos</h2></div>
+            <button class="button button-text" type="button" data-account-logout>Cerrar sesión</button>
+          </div>
+          <form class="account-form" data-account-form>
+            <label for="account-display-name">Nombre visible <span>*</span></label>
+            <input id="account-display-name" name="displayName" type="text" minlength="2" maxlength="50" autocomplete="nickname" required>
+            <label for="account-username">Alias público <span>*</span></label>
+            <div class="account-handle"><span>@</span><input id="account-username" name="username" type="text" minlength="3" maxlength="20" pattern="[a-z0-9][a-z0-9._-]{2,19}" autocomplete="off" autocapitalize="none" spellcheck="false" required></div>
+            <small>Entre 3 y 20 caracteres: letras minúsculas, números, punto, guion o guion bajo. El alias debe ser único.</small>
+            <label for="account-home-area">Zona habitual (opcional)</label>
+            <input id="account-home-area" name="homeArea" type="text" maxlength="80" autocomplete="address-level1" placeholder="Provincia o zona habitual">
+            <label for="account-bio">Presentación (opcional)</label>
+            <textarea id="account-bio" name="bio" rows="4" maxlength="160" placeholder="Qué actividades disfrutas al aire libre"></textarea>
+            <p class="account-form-note">No incluyas domicilios ni información privada en los campos públicos del perfil.</p>
+            <button class="button button-gold" type="submit" data-account-save>Guardar perfil compartido</button>
+          </form>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="shell footer-inner">
+    <div class="brand footer-brand"><img src="./assets/brand/mark.svg" alt="" width="40"><span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span></div>
+    <div class="footer-links"><a href="./mapa.html">Mapa</a><a href="./rutas.html">Rutas</a><a href="./naturaleza.html">Naturaleza</a><a href="./seguridad.html">Seguridad</a><a href="./app.html">App</a><a href="./contacto.html">Contacto</a></div>
+    <div class="footer-copy">© <span data-year></span> España Outdoor</div>
+  </div>
+</footer>
+
+<script src="./app.js" defer></script>
+<script src="./profile-config.js"></script>
+<script type="module" src="./account.js"></script>
+</body>
+</html>
