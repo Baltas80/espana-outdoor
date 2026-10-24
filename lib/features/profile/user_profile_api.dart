@@ -145,9 +145,18 @@ final class UserProfileApi {
         message = 'Ese alias ya está utilizado. Elige otro.';
       } else if (response.statusCode == 400 &&
           decoded is Map<String, dynamic> &&
-          decoded['message'] is String &&
-          (decoded['message'] as String).trim().isNotEmpty) {
-        message = decoded['message'] as String;
+          decoded['error'] is String) {
+        message = switch (decoded['error']) {
+          'displayName must contain between 2 and 50 characters' =>
+            'El nombre debe tener entre 2 y 50 caracteres.',
+          'username must be 3-20 lowercase letters, numbers, dots, hyphens or underscores' =>
+            'El alias debe tener entre 3 y 20 caracteres válidos.',
+          'homeArea must contain at most 80 characters' =>
+            'La zona habitual admite un máximo de 80 caracteres.',
+          'bio must contain at most 160 characters' =>
+            'La presentación admite un máximo de 160 caracteres.',
+          _ => 'Revisa los datos del perfil e inténtalo de nuevo.',
+        };
       }
     } on Object {
       // Keep the stable, user-facing message when the body is not JSON.
