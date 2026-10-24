@@ -1,6 +1,10 @@
 name: Deploy profile fix to Cloudflare preview
 
 on:
+  push:
+    branches: [feature/profile-registration-20261024]
+    paths:
+      - '.github/workflows/deploy-profile-preview.yml'
   workflow_dispatch:
 
 permissions:
