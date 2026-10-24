@@ -1,0 +1,181 @@
+name: Provision Neon Auth profile data layer
+
+on:
+  push:
+    branches: [feature/profile-registration-20261024]
+    paths:
+      - '.github/workflows/provision-neon-profile-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: neon-profile-provisioning
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Enable Neon Data API and install profile RLS
+        id: provision
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${NEON_API_KEY:-}" || { echo "::error::NEON_API_KEY is missing."; exit 1; }
+          test -n "${NEON_PROJECT_ID:-}" || { echo "::error::NEON_PROJECT_ID is missing."; exit 1; }
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const apiBase = 'https://console.neon.tech/api/v2';
+          const projectId = process.env.NEON_PROJECT_ID;
+          const apiKey = process.env.NEON_API_KEY;
+          const headers = {
+            Accept: 'application/json',
+            Authorization: 'Bearer ' + apiKey,
+            'Content-Type': 'application/json',
+          };
+
+          async function neonRequest(path, options = {}) {
+            const response = await fetch(apiBase + path, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+            const text = await response.text();
+            let data = null;
+            try { data = text ? JSON.parse(text) : null; } catch {}
+            return { response, data, text };
+          }
+
+          function findDataApiUrl(value) {
+            const found = [];
+            const visit = (item) => {
+              if (!item || typeof item !== 'object') return;
+              if (Array.isArray(item)) {
+                item.forEach(visit);
+                return;
+              }
+              for (const [key, child] of Object.entries(item)) {
+                if (typeof child === 'string' && /^https:\/\//i.test(child) && child.includes('.apirest.') && child.includes('neon.build')) {
+                  found.push({ key, value: child });
+                } else {
+                  visit(child);
+                }
+              }
+            };
+            visit(value);
+            const preferred = found.find(x => /data.?api.?url|url|endpoint/i.test(x.key));
+            return (preferred || found[0] || {}).value || '';
+          }
+
+          async function executeSql(rootUrl, query) {
+            const response = await fetch(rootUrl.replace(/\/$/, '') + '/sql', {
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + apiKey,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+              },
+              body: JSON.stringify({ query }),
+            });
+            const text = await response.text();
+            if (!response.ok) {
+              throw new Error('Neon SQL API error ' + response.status + ': ' + text.slice(0, 900));
+            }
+          }
+
+          (async () => {
+            const branchResult = await neonRequest('/projects/' + encodeURIComponent(projectId) + '/branches?limit=10000');
+            if (!branchResult.response.ok) throw new Error('Cannot list Neon branches: HTTP ' + branchResult.response.status + ' ' + branchResult.text.slice(0, 500));
+            const branches = branchResult.data?.branches || [];
+            const roots = branches.filter(branch => !branch.parent_id);
+            if (roots.length !== 1 || !roots[0].id) {
+              throw new Error('Expected exactly one root/production branch, found ' + roots.length + '. No database changes were made.');
+            }
+
+            const branchId = roots[0].id;
+            const apiPath = '/projects/' + encodeURIComponent(projectId) + '/branches/' + encodeURIComponent(branchId) + '/data-api/neondb';
+            let result = await neonRequest(apiPath);
+
+            if (result.response.status === 404) {
+              result = await neonRequest(apiPath, {
+                method: 'POST',
+                body: JSON.stringify({ auth_provider: 'neon_auth', add_default_grants: false }),
+              });
+              if (!result.response.ok && result.response.status !== 409) {
+                throw new Error('Could not enable Neon Data API: HTTP ' + result.response.status + ' ' + result.text.slice(0, 700));
+              }
+            } else if (!result.response.ok) {
+              throw new Error('Could not inspect Neon Data API: HTTP ' + result.response.status + ' ' + result.text.slice(0, 700));
+            }
+
+            let dataApiConfig = null;
+            let rawUrl = '';
+            for (let attempt = 0; attempt < 12; attempt++) {
+              const current = await neonRequest(apiPath);
+              if (current.response.ok) {
+                dataApiConfig = current.data;
+                rawUrl = findDataApiUrl(current.data);
+                if (rawUrl) break;
+              }
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+            if (!rawUrl) throw new Error('Neon API did not return a Data API URL. Open the Neon Console and inspect the Data API status.');
+            const serialized = JSON.stringify(dataApiConfig || {}).toLowerCase();
+            if (serialized.includes('"auth_provider":"external"')) {
+              throw new Error('The existing Data API uses an external auth provider. Nothing was changed in that configuration; switch it to Neon Auth in the Neon Console first.');
+            }
+
+            const apiRoot = rawUrl.replace(/\/$/, '').replace(/\/rest\/v1$/i, '');
+            const restUrl = apiRoot + '/rest/v1';
+
+            const migration = fs.readFileSync('database/migrations/001_neon_auth_user_profiles.sql', 'utf8')
+              .replace(/--[^\n]*/g, '')
+              .replace(/^\s*BEGIN\s*;?/i, '')
+              .replace(/\bCOMMIT\s*;?\s*$/i, '');
+            const queries = migration.split(';').map(query => query.trim()).filter(Boolean);
+            for (const query of queries) await executeSql(apiRoot, query);
+
+            // Trigger a schema-cache refresh after creating the table and its RLS policies.
+            const refresh = await neonRequest(apiPath, {
+              method: 'PATCH',
+              body: JSON.stringify({ settings: {} }),
+            });
+            if (!refresh.response.ok) {
+              throw new Error('The profile table was applied, but Neon did not refresh the Data API schema cache: HTTP ' + refresh.response.status + ' ' + refresh.text.slice(0, 500));
+            }
+
+            const configPath = 'site/profile-config.js';
+            let configSource = fs.readFileSync(configPath, 'utf8');
+            const match = configSource.match(/dataApiUrl\s*:\s*'[^']*'/);
+            if (!match) throw new Error('Could not find dataApiUrl in site/profile-config.js.');
+            configSource = configSource.replace(match[0], "dataApiUrl: '" + restUrl + "'");
+            fs.writeFileSync(configPath, configSource);
+            fs.appendFileSync(process.env.GITHUB_ENV, 'PROFILE_DATA_API_URL=' + restUrl + '\n');
+
+            console.log('Neon Data API enabled/verified for the primary branch.');
+            console.log('Profile RLS migration applied and API schema cache refreshed.');
+            console.log('Data API URL written to site/profile-config.js.');
+          })().catch(error => {
+            console.error(error instanceof Error ? error.message : String(error));
+            process.exitCode = 1;
+          });
+          NODE
+
+      - name: Commit the generated public Data API URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/profile-config.js
+          if git diff --cached --quiet; then
+            echo "Profile configuration already points to the current Neon Data API URL."
+          else
+            git commit -m "Configure Neon Data API profile endpoint"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
