@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/photo_atlas.dart';
 import '../../core/auth/oidc_config.dart';
 import '../../core/auth/oidc_service.dart';
+import 'user_profile_store.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,13 +15,40 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final OidcService _auth =
       OidcService(config: OidcConfig.fromEnvironment());
+  final UserProfileStore _profileStore = UserProfileStore();
+
+  UserProfile? _profile;
+  bool _profileLoading = true;
   bool? _signedIn;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
+    _loadProfile();
     _refreshAuth();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await _profileStore.load();
+      if (mounted) setState(() => _profile = profile);
+    } on Object {
+      if (mounted) _show('No se pudo cargar el perfil guardado.');
+    } finally {
+      if (mounted) setState(() => _profileLoading = false);
+    }
+  }
+
+  Future<void> _openProfileEditor() async {
+    final updated = await context.push<UserProfile>('/profile/register');
+    if (!mounted) return;
+
+    if (updated != null) {
+      setState(() => _profile = updated);
+    } else {
+      await _loadProfile();
+    }
   }
 
   Future<void> _refreshAuth() async {
@@ -72,6 +99,8 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final signedIn = _signedIn == true;
+    final profile = _profile;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -94,13 +123,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Row(
                     children: [
-                      const ClipOval(
-                        child: OutdoorPhotoTile(
-                          index: 0,
-                          width: 78,
-                          height: 78,
-                          borderRadius: 0,
-                        ),
+                      CircleAvatar(
+                        radius: 39,
+                        backgroundColor: colors.primaryContainer,
+                        foregroundColor: colors.onPrimaryContainer,
+                        child: const Icon(Icons.person_outline, size: 42),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -108,31 +135,40 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Aventurero',
+                              profile?.displayName ?? 'Tu perfil outdoor',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
                                   ?.copyWith(fontWeight: FontWeight.w900),
                             ),
                             const SizedBox(height: 3),
-                            const Text('Usuario'),
+                            Text(
+                              profile == null
+                                  ? (_profileLoading
+                                      ? 'Cargando perfil…'
+                                      : 'Completa tus datos para empezar')
+                                  : '@${profile.username}',
+                            ),
                             const SizedBox(height: 8),
                             DecoratedBox(
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.15),
+                                color: colors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 6,
                                 ),
                                 child: Text(
-                                  'Explorador',
-                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                  profile == null
+                                      ? 'Perfil pendiente'
+                                      : 'Perfil local',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ),
@@ -140,23 +176,46 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       IconButton(
-                        tooltip:
-                            signedIn ? 'Cerrar sesión' : 'Iniciar sesión',
+                        tooltip: signedIn
+                            ? 'Cerrar sesión'
+                            : 'Crear cuenta o iniciar sesión',
                         onPressed:
                             _busy ? null : (signedIn ? _signOut : _signIn),
                         icon: Icon(signedIn ? Icons.logout : Icons.login),
                       ),
                     ],
                   ),
+                  if (profile?.homeArea.isNotEmpty == true) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        profile!.homeArea,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                  if (profile?.bio.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(profile!.bio),
+                    ),
+                  ],
                   const SizedBox(height: 18),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  const Row(
-                    children: [
-                      Expanded(child: _Stat(value: '24', label: 'Rutas')),
-                      Expanded(child: _Stat(value: '6', label: 'Parques')),
-                      Expanded(child: _Stat(value: '12', label: 'Favoritos')),
-                    ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _profileLoading ? null : _openProfileEditor,
+                      icon: Icon(
+                        profile == null
+                            ? Icons.person_add_alt_1
+                            : Icons.edit_outlined,
+                      ),
+                      label: Text(
+                        profile == null ? 'Crear mi perfil' : 'Editar mi perfil',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -207,28 +266,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 3),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
 }
 
 class _ProfileItem extends StatelessWidget {
