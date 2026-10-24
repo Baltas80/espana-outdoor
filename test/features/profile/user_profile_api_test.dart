@@ -155,4 +155,34 @@ void main() {
     expect(requestMade, isFalse);
     api.close();
   });
+
+  test('translates backend validation errors into Spanish', () async {
+    final api = UserProfileApi(
+      client: MockClient((_) async => http.Response(
+        jsonEncode({
+          'error': 'displayName must contain between 2 and 50 characters',
+        }),
+        400,
+      )),
+      baseUrl: 'https://api.example.com',
+    );
+
+    await expectLater(
+      api.saveMyProfile(
+        accessToken: validToken,
+        profile: const UserProfile(
+          displayName: 'Alex',
+          username: 'alex_1',
+        ),
+      ),
+      throwsA(
+        isA<UserProfileApiException>().having(
+          (error) => error.message,
+          'message',
+          'El nombre debe tener entre 2 y 50 caracteres.',
+        ),
+      ),
+    );
+    api.close();
+  });
 }
