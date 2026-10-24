@@ -124,7 +124,10 @@ jobs:
               }
               await new Promise(resolve => setTimeout(resolve, 5000));
             }
-            if (!rawUrl) {\n    console.error('Neon Data API configuration response:', JSON.stringify(dataApiConfig).slice(0, 6000));\n    throw new Error('Neon API did not return a recognizable Data API URL. The response was logged for diagnosis.');\n  }
+            if (!rawUrl) {
+    console.error('Neon Data API configuration response:', JSON.stringify(dataApiConfig).slice(0, 6000));
+    throw new Error('Neon API did not return a recognizable Data API URL. The response was logged for diagnosis.');
+  }
             const serialized = JSON.stringify(dataApiConfig || {}).toLowerCase();
             if (serialized.includes('"auth_provider":"external"')) {
               throw new Error('The existing Data API uses an external auth provider. Nothing was changed in that configuration; switch it to Neon Auth in the Neon Console first.');
