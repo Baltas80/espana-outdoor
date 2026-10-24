@@ -83,7 +83,7 @@ async function apiRequest(method, body) {
       throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
     }
     if (response.status === 400 && payload.error) {
-      throw new Error(payload.error);
+      throw new Error(payload.message || 'Revisa los datos del perfil e inténtalo de nuevo.');
     }
     throw new Error('El servicio de perfiles no está disponible. Inténtalo más tarde.');
   }
