@@ -60,7 +60,7 @@ jobs:
                 return;
               }
               for (const [key, child] of Object.entries(item)) {
-                if (typeof child === 'string' && /^https:\/\//i.test(child) && child.includes('.apirest.') && child.includes('neon.build')) {
+                if (typeof child === 'string' && /^https:\/\//i.test(child) && child.includes('neon.build') && (/apirest|data.?api|rest\/v1/i.test(key + ' ' + child))) {
                   found.push({ key, value: child });
                 } else {
                   visit(child);
@@ -124,7 +124,7 @@ jobs:
               }
               await new Promise(resolve => setTimeout(resolve, 5000));
             }
-            if (!rawUrl) throw new Error('Neon API did not return a Data API URL. Open the Neon Console and inspect the Data API status.');
+            if (!rawUrl) {\n    console.error('Neon Data API configuration response:', JSON.stringify(dataApiConfig).slice(0, 6000));\n    throw new Error('Neon API did not return a recognizable Data API URL. The response was logged for diagnosis.');\n  }
             const serialized = JSON.stringify(dataApiConfig || {}).toLowerCase();
             if (serialized.includes('"auth_provider":"external"')) {
               throw new Error('The existing Data API uses an external auth provider. Nothing was changed in that configuration; switch it to Neon Auth in the Neon Console first.');
