@@ -10,6 +10,8 @@ on:
       - 'site/cuenta.html'
       - 'site/account.js'
       - 'site/profile-config.js'
+      - 'site/_headers'
+      - 'database/migrations/**'
       - 'site/app.js'
       - 'site/styles.css'
       - 'infra/docker-compose.yml'
@@ -23,6 +25,8 @@ on:
       - 'site/cuenta.html'
       - 'site/account.js'
       - 'site/profile-config.js'
+      - 'site/_headers'
+      - 'database/migrations/**'
       - 'site/app.js'
       - 'site/styles.css'
       - 'infra/docker-compose.yml'
@@ -85,7 +89,8 @@ jobs:
           test -s site/cuenta.html
           test -s site/profile-config.js
           test -s site/account.js
-          grep -q 'https://api.espanaoutdoor.es' site/profile-config.js
-          grep -q "'/v1/me/profile'" site/account.js
+          grep -q 'dataApiUrl' site/profile-config.js
+          grep -q "'/user_profiles?on_conflict=user_id'" site/account.js
+          grep -q 'user_profiles' database/migrations/001_neon_auth_user_profiles.sql
           grep -q '@neondatabase/auth' site/account.js
           grep -q 'createAuthClient(config.authUrl)' site/account.js
