@@ -13,7 +13,7 @@ Optional:
 - PORT: HTTP listen port, default 8080.
 - WEB_ORIGINS: comma-separated HTTPS browser origins, default https://espanaoutdoor.es,https://www.espanaoutdoor.es.
 
-The API performs OIDC discovery at startup, verifies bearer tokens, checks the PostgreSQL connection and creates the profile table/index if absent. Deploy behind an HTTPS reverse proxy. Do not expose the service directly over public plaintext HTTP.
+The API performs OIDC discovery at startup, verifies bearer tokens, checks the PostgreSQL connection and fails startup if the profile table is missing. Apply infra/postgres/migrations/002-user-profiles.sql using a migration/admin role before deploying the service. The runtime database account should have only USAGE on schema outdoor and SELECT, INSERT, UPDATE on outdoor.user_profiles; it should not own the schema or have DDL privileges. Deploy behind an HTTPS reverse proxy. Do not expose the service directly over public plaintext HTTP.
 
 ## Keycloak requirements
 
