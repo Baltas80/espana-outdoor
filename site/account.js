@@ -16,7 +16,6 @@ const bio = document.querySelector('#account-bio');
 
 const apiBaseUrl = String(config?.apiBaseUrl || '').replace(/\/$/, '');
 let keycloak = null;
-let apiReady = false;
 
 function showStatus(message, kind = 'info') {
   if (!statusNode) return;
@@ -83,7 +82,20 @@ async function apiRequest(method, body) {
       throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
     }
     if (response.status === 400 && payload.error) {
-      throw new Error(payload.message || 'Revisa los datos del perfil e inténtalo de nuevo.');
+      const validationMessages = {
+        'displayName must contain between 2 and 50 characters':
+          'El nombre visible debe tener entre 2 y 50 caracteres.',
+        'username must be 3-20 lowercase letters, numbers, dots, hyphens or underscores':
+          'El alias debe tener entre 3 y 20 caracteres válidos.',
+        'homeArea must contain at most 80 characters':
+          'La zona habitual admite un máximo de 80 caracteres.',
+        'bio must contain at most 160 characters':
+          'La presentación admite un máximo de 160 caracteres.',
+      };
+      throw new Error(
+        validationMessages[payload.error] ||
+        'Revisa los datos del perfil e inténtalo de nuevo.',
+      );
     }
     throw new Error('El servicio de perfiles no está disponible. Inténtalo más tarde.');
   }
@@ -188,7 +200,6 @@ async function initialise() {
       checkLoginIframe: false,
       redirectUri: window.location.href,
     });
-    apiReady = true;
     showSession(authenticated);
     setBusy(false);
 
