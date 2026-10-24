@@ -1,46 +1,48 @@
-import Keycloak from 'https://esm.sh/keycloak-js@26.2.4';
+import { createAuthClient } from 'https://esm.sh/@neondatabase/auth@latest';
 
 const config = window.ESPANA_OUTDOOR_PROFILE_CONFIG;
+const auth = createAuthClient(config.authUrl);
 const statusNode = document.querySelector('[data-account-status]');
 const signedOutPanel = document.querySelector('[data-account-signed-out]');
 const signedInPanel = document.querySelector('[data-account-signed-in]');
 const form = document.querySelector('[data-account-form]');
+const authForm = document.querySelector('[data-auth-form]');
 const loginButton = document.querySelector('[data-account-login]');
 const registerButton = document.querySelector('[data-account-register]');
 const logoutButton = document.querySelector('[data-account-logout]');
 const saveButton = document.querySelector('[data-account-save]');
+const emailInput = document.querySelector('#account-email');
+const passwordInput = document.querySelector('#account-password');
+const nameInput = document.querySelector('#account-auth-name');
+const nameLabel = document.querySelector('[data-auth-name-label]');
 const displayName = document.querySelector('#account-display-name');
 const username = document.querySelector('#account-username');
 const homeArea = document.querySelector('#account-home-area');
 const bio = document.querySelector('#account-bio');
-
 const apiBaseUrl = String(config?.apiBaseUrl || '').replace(/\/$/, '');
-let keycloak = null;
+let currentSession = null;
+let authMode = 'login';
 
 function showStatus(message, kind = 'info') {
   if (!statusNode) return;
   statusNode.textContent = message;
   statusNode.dataset.kind = kind;
 }
-
 function setBusy(busy) {
   for (const button of [loginButton, registerButton, logoutButton, saveButton]) {
     if (button) button.disabled = busy;
   }
 }
-
 function showSession(authenticated) {
   if (signedOutPanel) signedOutPanel.hidden = authenticated;
   if (signedInPanel) signedInPanel.hidden = !authenticated;
 }
-
 function fillForm(profile) {
   displayName.value = profile?.displayName || '';
   username.value = profile?.username || '';
   homeArea.value = profile?.homeArea || '';
   bio.value = profile?.bio || '';
 }
-
 function readForm() {
   return {
     displayName: displayName.value.trim(),
@@ -49,189 +51,169 @@ function readForm() {
     bio: bio.value.trim(),
   };
 }
-
+function setAuthMode(mode) {
+  authMode = mode;
+  const registering = mode === 'register';
+  if (nameInput) {
+    nameInput.hidden = !registering;
+    nameInput.required = registering;
+  }
+  if (nameLabel) nameLabel.hidden = !registering;
+  if (passwordInput) passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
+  if (loginButton) loginButton.textContent = registering ? 'Crear cuenta' : 'Iniciar sesión';
+  if (registerButton) registerButton.textContent = registering ? 'Ya tengo cuenta' : 'Crear cuenta';
+}
+function getSessionData(result) {
+  return result?.data?.session || result?.data || result?.session || result || null;
+}
+async function getAccessToken() {
+  if (typeof auth.getJWTToken === 'function') return await auth.getJWTToken();
+  return null;
+}
 async function apiRequest(method, body) {
-  if (!keycloak?.authenticated) {
-    throw new Error('Inicia sesión para acceder a tu perfil.');
-  }
-  if (!apiBaseUrl.startsWith('https://')) {
-    throw new Error('La API de perfiles no tiene una URL HTTPS válida.');
-  }
-
-  await keycloak.updateToken(30);
+  if (!currentSession) throw new Error('Inicia sesión para acceder a tu perfil.');
+  if (!apiBaseUrl.startsWith('https://')) throw new Error('La API de perfiles no tiene una URL HTTPS válida.');
+  const token = await getAccessToken();
+  if (!token) throw new Error('Neon Auth ha iniciado sesión, pero falta un token para conectar la API de perfiles. El backend debe configurarse para validar Neon Auth.');
   const response = await fetch(apiBaseUrl + '/v1/me/profile', {
     method,
     headers: {
       Accept: 'application/json',
-      Authorization: 'Bearer ' + keycloak.token,
+      Authorization: 'Bearer ' + token,
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
     credentials: 'omit',
   });
-
   if (response.status === 404 && method === 'GET') return null;
-
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 409) {
-      throw new Error('Ese alias ya está en uso. Elige otro.');
-    }
-    if (response.status === 401) {
-      throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
-    }
+    if (response.status === 409) throw new Error('Ese alias ya está en uso. Elige otro.');
+    if (response.status === 401) throw new Error('La API todavía no acepta el token de Neon Auth. Hay que adaptar su validación en el servidor.');
     if (response.status === 400 && payload.error) {
-      const validationMessages = {
-        'displayName must contain between 2 and 50 characters':
-          'El nombre visible debe tener entre 2 y 50 caracteres.',
-        'username must be 3-20 lowercase letters, numbers, dots, hyphens or underscores':
-          'El alias debe tener entre 3 y 20 caracteres válidos.',
-        'homeArea must contain at most 80 characters':
-          'La zona habitual admite un máximo de 80 caracteres.',
-        'bio must contain at most 160 characters':
-          'La presentación admite un máximo de 160 caracteres.',
+      const messages = {
+        'displayName must contain between 2 and 50 characters': 'El nombre visible debe tener entre 2 y 50 caracteres.',
+        'username must be 3-20 lowercase letters, numbers, dots, hyphens or underscores': 'El alias debe tener entre 3 y 20 caracteres válidos.',
+        'homeArea must contain at most 80 characters': 'La zona habitual admite un máximo de 80 caracteres.',
+        'bio must contain at most 160 characters': 'La presentación admite un máximo de 160 caracteres.',
       };
-      throw new Error(
-        validationMessages[payload.error] ||
-        'Revisa los datos del perfil e inténtalo de nuevo.',
-      );
+      throw new Error(messages[payload.error] || 'Revisa los datos del perfil e inténtalo de nuevo.');
     }
     throw new Error('El servicio de perfiles no está disponible. Inténtalo más tarde.');
   }
   return payload;
 }
-
 async function loadProfile() {
-  const profile = await apiRequest('GET');
-  fillForm(profile);
-  showStatus(
-    profile
-      ? 'Cuenta conectada. Este perfil es el mismo que usa la aplicación Android.'
-      : 'Cuenta conectada. Completa el perfil y guárdalo para usarlo en web y app.',
-    'success',
-  );
-}
-
-async function authenticate(action) {
-  if (!keycloak) {
-    showStatus('No se ha podido inicializar el proveedor de cuentas.', 'error');
-    return;
-  }
-  setBusy(true);
   try {
-    const options = { redirectUri: window.location.href, scope: 'openid profile email' };
-    if (action === 'register') await keycloak.register(options);
-    else await keycloak.login(options);
-  } catch {
-    setBusy(false);
-    showStatus('No se pudo abrir el proveedor de cuentas. Revisa la conexión.', 'error');
+    const profile = await apiRequest('GET');
+    fillForm(profile);
+    showStatus(profile
+      ? 'Sesión iniciada. El perfil del servidor se ha cargado.'
+      : 'Sesión iniciada. Completa el perfil y guárdalo.', 'success');
+  } catch (error) {
+    fillForm(null);
+    showStatus(error instanceof Error ? error.message : 'La sesión funciona, pero no se pudo cargar el perfil.', 'error');
   }
 }
-
-loginButton?.addEventListener('click', () => authenticate('login'));
-registerButton?.addEventListener('click', () => authenticate('register'));
-
-logoutButton?.addEventListener('click', async () => {
-  if (!keycloak) return;
+authForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!authForm.reportValidity()) return;
   setBusy(true);
   try {
-    await keycloak.logout({ redirectUri: window.location.origin + '/cuenta.html' });
-  } catch {
+    let result;
+    if (authMode === 'register') {
+      result = await auth.signUp.email({
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        password: passwordInput.value,
+      });
+    } else {
+      result = await auth.signIn.email({
+        email: emailInput.value.trim(),
+        password: passwordInput.value,
+      });
+    }
+    if (result?.error) throw new Error(result.error.message || 'Neon Auth ha rechazado la operación.');
+    const sessionResult = await auth.getSession();
+    currentSession = getSessionData(sessionResult);
+    const user = currentSession?.user || sessionResult?.data?.user;
+    if (!currentSession || !user) {
+      showSession(false);
+      showStatus(authMode === 'register'
+        ? 'Solicitud de registro enviada. Revisa tu correo si Neon solicita verificar la dirección y vuelve a iniciar sesión después.'
+        : 'Inicio de sesión enviado, pero Neon no ha devuelto una sesión activa. Comprueba la verificación del correo.', 'info');
+      return;
+    }
+    showSession(true);
+    await loadProfile();
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : 'No se pudo completar la autenticación con Neon.', 'error');
+  } finally {
     setBusy(false);
-    showStatus('No se pudo cerrar la sesión en el proveedor.', 'error');
   }
 });
-
+registerButton?.addEventListener('click', () => {
+  setAuthMode(authMode === 'register' ? 'login' : 'register');
+});
+logoutButton?.addEventListener('click', async () => {
+  setBusy(true);
+  try {
+    const result = await auth.signOut();
+    if (result?.error) throw new Error(result.error.message || 'No se pudo cerrar la sesión.');
+    currentSession = null;
+    fillForm(null);
+    showSession(false);
+    showStatus('Has cerrado la sesión.', 'success');
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : 'No se pudo cerrar la sesión.', 'error');
+  } finally {
+    setBusy(false);
+  }
+});
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!form.reportValidity()) return;
-
   const profile = readForm();
-  const handlePattern = /^[a-z0-9][a-z0-9._-]{2,19}$/;
   if (profile.displayName.length < 2 || profile.displayName.length > 50) {
-    showStatus('El nombre visible debe tener entre 2 y 50 caracteres.', 'error');
-    return;
+    showStatus('El nombre visible debe tener entre 2 y 50 caracteres.', 'error'); return;
   }
-  if (!handlePattern.test(profile.username)) {
-    showStatus('El alias debe tener entre 3 y 20 caracteres válidos.', 'error');
-    return;
+  if (!/^[a-z0-9][a-z0-9._-]{2,19}$/.test(profile.username)) {
+    showStatus('El alias debe tener entre 3 y 20 caracteres válidos.', 'error'); return;
   }
   if (profile.homeArea.length > 80 || profile.bio.length > 160) {
-    showStatus('La zona o la presentación supera la longitud permitida.', 'error');
-    return;
+    showStatus('La zona o la presentación supera la longitud permitida.', 'error'); return;
   }
-
   setBusy(true);
   try {
     const saved = await apiRequest('PUT', profile);
     fillForm(saved);
-    showStatus('Perfil guardado en el servidor. Ya está disponible en la app y en la web.', 'success');
+    showStatus('Perfil guardado en el servidor.', 'success');
   } catch (error) {
     showStatus(error instanceof Error ? error.message : 'No se pudo guardar el perfil.', 'error');
   } finally {
     setBusy(false);
   }
 });
-
 async function initialise() {
-  if (!config?.authUrl || !config?.realm || !config?.webClientId) {
-    showSession(false);
-    showStatus('Falta configurar el proveedor de identidad para la web.', 'error');
-    return;
-  }
-  if (!apiBaseUrl.startsWith('https://')) {
-    showSession(false);
-    showStatus('Falta configurar la API HTTPS del perfil compartido.', 'error');
-    return;
-  }
-
+  setAuthMode('login');
   try {
-    keycloak = new Keycloak({
-      url: config.authUrl,
-      realm: config.realm,
-      clientId: config.webClientId,
-    });
-    const authenticated = await keycloak.init({
-      onLoad: 'check-sso',
-      pkceMethod: 'S256',
-      responseMode: 'fragment',
-      flow: 'standard',
-      checkLoginIframe: false,
-      redirectUri: window.location.href,
-    });
-    showSession(authenticated);
-    setBusy(false);
-
-    if (authenticated) {
-      try {
-        await loadProfile();
-      } catch {
-        showStatus('La sesión está conectada, pero no se pudo consultar la API del perfil. El servicio puede estar aún pendiente de despliegue.', 'error');
-      }
+    const result = await auth.getSession();
+    currentSession = getSessionData(result);
+    const user = currentSession?.user || result?.data?.user;
+    if (user) {
+      showSession(true);
+      await loadProfile();
     } else {
-      showStatus('Inicia sesión o crea una cuenta para sincronizar tu perfil.', 'info');
+      currentSession = null;
+      showSession(false);
+      showStatus('Inicia sesión o crea una cuenta con Neon Auth.', 'info');
     }
   } catch {
     showSession(false);
-    showStatus('No se pudo conectar con el proveedor de identidad. Comprueba la configuración OIDC.', 'error');
-  }
-
-  if (keycloak) {
-    keycloak.onAuthLogout = () => {
-      showSession(false);
-      fillForm(null);
-      showStatus('Has cerrado la sesión.', 'info');
-    };
-    keycloak.onTokenExpired = async () => {
-      try {
-        await keycloak.updateToken(30);
-      } catch {
-        showStatus('La sesión ha caducado. Inicia sesión de nuevo.', 'error');
-        showSession(false);
-      }
-    };
+    showStatus('No se pudo conectar con Neon Auth. Comprueba la URL y los dominios de confianza.', 'error');
+  } finally {
+    setBusy(false);
   }
 }
-
 void initialise();
