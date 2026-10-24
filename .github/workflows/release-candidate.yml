@@ -13,6 +13,10 @@ env:
   SOURCE_GATEWAY_BASE_URL: ${{ secrets.SOURCE_GATEWAY_BASE_URL }}
   OFFLINE_CATALOG_URL: ${{ secrets.OFFLINE_CATALOG_URL }}
   RESCUE_LINK_BASE_URL: ${{ secrets.RESCUE_LINK_BASE_URL }}
+  OIDC_ISSUER: ${{ vars.OIDC_ISSUER }}
+  OIDC_CLIENT_ID: ${{ vars.OIDC_CLIENT_ID }}
+  OIDC_REDIRECT_URI: ${{ vars.OIDC_REDIRECT_URI }}
+  PROFILE_API_BASE_URL: ${{ vars.PROFILE_API_BASE_URL }}
   MAP_ATTRIBUTION: ${{ vars.MAP_ATTRIBUTION }}
 
 jobs:
@@ -54,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in MAP_PMTILES_URL VALHALLA_BASE_URL OFFLINE_CATALOG_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          for name in MAP_PMTILES_URL VALHALLA_BASE_URL OFFLINE_CATALOG_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL PROFILE_API_BASE_URL; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
@@ -71,6 +75,14 @@ jobs:
                 ;;
             esac
           done
+          for name in OIDC_ISSUER OIDC_CLIENT_ID OIDC_REDIRECT_URI; do
+            value="${!name:-}"
+            if [[ -z "$value" ]]; then
+              echo "Missing required repository variable: $name"
+              exit 1
+            fi
+          done
+          case "$OIDC_ISSUER" in https://*) ;; *) echo "OIDC_ISSUER must use HTTPS"; exit 1;; esac
 
       - name: Verify production build profile
         run: python3 tool/verify_build_profile.py --profile production
@@ -99,6 +111,10 @@ jobs:
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL"
             --dart-define=OFFLINE_CATALOG_URL="$OFFLINE_CATALOG_URL"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
+            --dart-define=OIDC_ISSUER="$OIDC_ISSUER"
+            --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
+            --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+            --dart-define=PROFILE_API_BASE_URL="$PROFILE_API_BASE_URL"
             --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION"
           )
           flutter build apk --release "${DART_DEFINES[@]}"
