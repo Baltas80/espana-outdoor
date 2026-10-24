@@ -73,8 +73,9 @@ jobs:
           }
 
           async function executeSql(rootUrl, query, connectionString) {
-            // Neon SQL over HTTP requires the connection string in this header.
-            const sqlUrl = new URL(rootUrl).origin + '/sql';
+            // Administrative SQL runs on the PostgreSQL compute host, not the JWT-protected Data API host.
+            const databaseUrl = new URL(connectionString);
+            const sqlUrl = 'https://' + databaseUrl.hostname + '/sql';
             const response = await fetch(sqlUrl, {
               method: 'POST',
               headers: {
