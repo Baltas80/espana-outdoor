@@ -72,13 +72,13 @@ jobs:
             return (preferred || found[0] || {}).value || '';
           }
 
-          async function executeSql(rootUrl, query) {
-            // Neon Data API's administrative SQL endpoint is at the host root, not under /<database>.
+          async function executeSql(rootUrl, query, connectionString) {
+            // Neon SQL over HTTP requires the connection string in this header.
             const sqlUrl = new URL(rootUrl).origin + '/sql';
             const response = await fetch(sqlUrl, {
               method: 'POST',
               headers: {
-                Authorization: 'Bearer ' + apiKey,
+                'Neon-Connection-String': connectionString,
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
               },
@@ -138,12 +138,25 @@ jobs:
             const apiRoot = rawUrl.replace(/\/$/, '').replace(/\/rest\/v1$/i, '');
             const restUrl = apiRoot + '/rest/v1';
 
+            const connectionPath = '/projects/' + encodeURIComponent(projectId) +
+              '/connection_uri?branch_id=' + encodeURIComponent(branchId) +
+              '&database_name=neondb&role_name=neondb_owner';
+            const connectionResult = await neonRequest(connectionPath);
+            if (!connectionResult.response.ok) {
+              throw new Error('Could not obtain the Neon SQL connection URI: HTTP ' +
+                connectionResult.response.status + ' ' + connectionResult.text.slice(0, 600));
+            }
+            const connectionString = connectionResult.data?.uri || connectionResult.data?.connection_uri || '';
+            if (!/^postgres(ql)?:\/\//i.test(connectionString)) {
+              throw new Error('Neon returned no usable PostgreSQL connection URI for role neondb_owner.');
+            }
+
             const migration = fs.readFileSync('database/migrations/001_neon_auth_user_profiles.sql', 'utf8')
               .replace(/--[^\n]*/g, '')
               .replace(/^\s*BEGIN\s*;?/i, '')
               .replace(/\bCOMMIT\s*;?\s*$/i, '');
             const queries = migration.split(';').map(query => query.trim()).filter(Boolean);
-            for (const query of queries) await executeSql(apiRoot, query);
+            for (const query of queries) await executeSql(apiRoot, query, connectionString);
 
             // Trigger a schema-cache refresh after creating the table and its RLS policies.
             const refresh = await neonRequest(apiPath, {
