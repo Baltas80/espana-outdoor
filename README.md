@@ -162,3 +162,20 @@ lib/
 ## Web pública
 
 La carpeta `site/` contiene la web pública de España Outdoor, independiente de la aplicación Flutter. Está preparada para hosting estático y para `espanaoutdoor.es`. El sitio reutiliza la identidad visual del proyecto, mantiene sus recursos dentro de `site/assets` y puede desplegarse con Cloudflare Pages u otro proveedor estático.
+
+
+## Cuenta única y perfil compartido
+
+La web y Android usan el mismo realm de Keycloak (`espana-outdoor`) y el servicio central `services/user-profile`. El perfil canónico se almacena en PostgreSQL por identidad OIDC (`sub`), no en preferencias locales. La web lo administra en `site/cuenta.html`; la app utiliza `UserProfileApi`.
+
+Para compilar la app con perfil compartido, inyecta la URL de producción junto con la configuración OIDC:
+
+```bash
+flutter run \
+  --dart-define=OIDC_ISSUER="https://auth.espanaoutdoor.es/realms/espana-outdoor" \
+  --dart-define=OIDC_CLIENT_ID="espana-outdoors-mobile" \
+  --dart-define=OIDC_REDIRECT_URI="com.espanaoutdoors://oauth2redirect" \
+  --dart-define=PROFILE_API_BASE_URL="https://api.espanaoutdoor.es"
+```
+
+El despliegue real requiere activar el registro en Keycloak, configurar el audience `espana-outdoor-api` para los clientes móvil y web, desplegar el contenedor de perfil y enrutar `/v1/me/profile` desde el proxy HTTPS a dicho servicio. Consulta `services/user-profile/README.md` y `ops/keycloak/README.md`.
