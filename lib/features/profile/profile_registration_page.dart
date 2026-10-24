@@ -48,6 +48,7 @@ class _ProfileRegistrationPageState extends State<ProfileRegistrationPage> {
   Future<void> _loadSavedProfile() async {
     try {
       final profile = await _store.load();
+      if (!mounted) return;
       if (profile != null) {
         _displayNameController.text = profile.displayName;
         _usernameController.text = profile.username;
