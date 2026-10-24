@@ -73,7 +73,9 @@ jobs:
           }
 
           async function executeSql(rootUrl, query) {
-            const response = await fetch(rootUrl.replace(/\/$/, '') + '/sql', {
+            // Neon Data API's administrative SQL endpoint is at the host root, not under /<database>.
+            const sqlUrl = new URL(rootUrl).origin + '/sql';
+            const response = await fetch(sqlUrl, {
               method: 'POST',
               headers: {
                 Authorization: 'Bearer ' + apiKey,
