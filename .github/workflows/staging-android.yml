@@ -111,6 +111,7 @@ jobs:
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI" \
+            --dart-define=PROFILE_API_BASE_URL="$PROFILE_API_BASE_URL" \
             --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION" \
             --dart-define=ANDROID_OFFLINE_SMOKE=false
       - name: Verify APK
