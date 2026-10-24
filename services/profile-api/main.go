@@ -87,7 +87,7 @@ func main() {
 		slog.Error("database connection failed", "error", err)
 		os.Exit(1)
 	}
-	if err := ensureSchema(pingCtx, db); err != nil {
+	if err := verifySchema(pingCtx, db); err != nil {
 		slog.Error("profile schema initialization failed", "error", err)
 		os.Exit(1)
 	}
@@ -182,26 +182,16 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
-func ensureSchema(ctx context.Context, db *pgxpool.Pool) error {
-	const schema = `
-CREATE SCHEMA IF NOT EXISTS outdoor;
-CREATE TABLE IF NOT EXISTS outdoor.user_profiles (
-    subject TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    home_area TEXT NOT NULL DEFAULT '',
-    bio TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE UNIQUE INDEX IF NOT EXISTS user_profiles_username_ci_uidx
-    ON outdoor.user_profiles (lower(username));
-`
-	_, err := db.Exec(ctx, schema)
-	return err
+func verifySchema(ctx context.Context, db *pgxpool.Pool) error {
+	var exists bool
+	if err := db.QueryRow(ctx, "SELECT to_regclass('outdoor.user_profiles') IS NOT NULL").Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return errors.New("outdoor.user_profiles is missing; apply infra/postgres/migrations/002-user-profiles.sql")
+	}
+	return nil
 }
-
-type identityKey struct{}
 
 func (s *server) requireIdentity(next func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -217,11 +207,11 @@ func (s *server) requireIdentity(next func(http.ResponseWriter, *http.Request, s
 		}
 
 		token, err := s.verifier.Verify(r.Context(), strings.TrimSpace(parts[1]))
-		if err != nil || strings.TrimSpace(token.Subject) == "" {
+		if err != nil || token == nil || strings.TrimSpace(token.Subject) == "" {
 			writeError(w, http.StatusUnauthorized, "unauthorized", "La sesión no es válida o ha caducado.")
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, token.Subject)), token.Subject)
+		next(w, r, token.Subject)
 	}
 }
 
