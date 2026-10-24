@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/oidc_config.dart';
 import '../../core/auth/oidc_service.dart';
-import 'user_profile_store.dart';
+import 'user_profile.dart';
+import 'user_profile_api.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,26 +16,61 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late final OidcService _auth =
       OidcService(config: OidcConfig.fromEnvironment());
-  final UserProfileStore _profileStore = UserProfileStore();
+  late final UserProfileApi _profileApi = UserProfileApi();
 
   UserProfile? _profile;
   bool _profileLoading = true;
-  bool? _signedIn;
+  bool _signedIn = false;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
-    _refreshAuth();
+    _refreshAccount();
   }
 
-  Future<void> _loadProfile() async {
+  @override
+  void dispose() {
+    _profileApi.close();
+    super.dispose();
+  }
+
+  Future<void> _refreshAccount() async {
     try {
-      final profile = await _profileStore.load();
+      if (!_auth.isConfigured || !_profileApi.isConfigured) {
+        if (mounted) {
+          setState(() {
+            _signedIn = false;
+            _profile = null;
+          });
+        }
+        return;
+      }
+
+      final token = await _auth.accessToken();
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _signedIn = false;
+            _profile = null;
+          });
+        }
+        return;
+      }
+
+      if (mounted) setState(() => _signedIn = true);
+      final profile = await _profileApi.getMyProfile(token);
       if (mounted) setState(() => _profile = profile);
+    } on UserProfileApiException catch (error) {
+      if (mounted) {
+        setState(() => _profile = null);
+        _show(error.message);
+      }
     } on Object {
-      if (mounted) _show('No se pudo cargar el perfil guardado.');
+      if (mounted) {
+        setState(() => _profile = null);
+        _show('No se pudo conectar con el servicio de perfiles.');
+      }
     } finally {
       if (mounted) setState(() => _profileLoading = false);
     }
@@ -45,36 +81,31 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
 
     if (updated != null) {
-      setState(() => _profile = updated);
+      setState(() {
+        _profile = updated;
+        _signedIn = true;
+      });
     } else {
-      await _loadProfile();
-    }
-  }
-
-  Future<void> _refreshAuth() async {
-    if (!_auth.isConfigured) {
-      if (mounted) setState(() => _signedIn = false);
-      return;
-    }
-    try {
-      final value = await _auth.isSignedIn();
-      if (mounted) setState(() => _signedIn = value);
-    } on Object {
-      if (mounted) setState(() => _signedIn = false);
+      await _refreshAccount();
     }
   }
 
   Future<void> _signIn() async {
-    if (!_auth.isConfigured) {
-      _show('Identidad OIDC no configurada para este entorno.');
+    if (!_auth.isConfigured || !_profileApi.isConfigured) {
+      _show(
+        !_auth.isConfigured
+            ? 'Identidad OIDC no configurada en esta versión.'
+            : 'Servicio de perfiles no configurado en esta versión.',
+      );
       return;
     }
+
     setState(() => _busy = true);
     try {
       await _auth.signIn();
-      await _refreshAuth();
-    } on Object catch (error) {
-      if (mounted) _show('No se pudo iniciar sesión: $error');
+      await _refreshAccount();
+    } on Object {
+      if (mounted) _show('No se pudo iniciar sesión. Comprueba la conexión.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -84,9 +115,14 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _busy = true);
     try {
       await _auth.signOut();
-      await _refreshAuth();
-    } on Object catch (error) {
-      if (mounted) _show('No se pudo cerrar sesión: $error');
+      if (mounted) {
+        setState(() {
+          _signedIn = false;
+          _profile = null;
+        });
+      }
+    } on Object {
+      if (mounted) _show('No se pudo cerrar la sesión local.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -98,7 +134,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final signedIn = _signedIn == true;
     final profile = _profile;
     final colors = Theme.of(context).colorScheme;
 
@@ -135,7 +170,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              profile?.displayName ?? 'Tu perfil outdoor',
+                              profile?.displayName ??
+                                  (_profileLoading
+                                      ? 'Cargando perfil…'
+                                      : 'Tu perfil outdoor'),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
@@ -145,11 +183,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              profile == null
-                                  ? (_profileLoading
-                                      ? 'Cargando perfil…'
-                                      : 'Completa tus datos para empezar')
-                                  : '@${profile.username}',
+                              profile != null
+                                  ? '@${profile.username}'
+                                  : _signedIn
+                                      ? 'Completa tu perfil'
+                                      : 'Una cuenta para web y app',
                             ),
                             const SizedBox(height: 8),
                             DecoratedBox(
@@ -163,9 +201,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                   vertical: 6,
                                 ),
                                 child: Text(
-                                  profile == null
-                                      ? 'Perfil pendiente'
-                                      : 'Perfil local',
+                                  profile != null
+                                      ? 'Perfil sincronizado'
+                                      : _signedIn
+                                          ? 'Cuenta conectada'
+                                          : 'Cuenta no conectada',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -176,12 +216,13 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: signedIn
-                            ? 'Cerrar sesión'
+                        tooltip: _signedIn
+                            ? 'Cerrar sesión en este dispositivo'
                             : 'Crear cuenta o iniciar sesión',
-                        onPressed:
-                            _busy ? null : (signedIn ? _signOut : _signIn),
-                        icon: Icon(signedIn ? Icons.logout : Icons.login),
+                        onPressed: _busy
+                            ? null
+                            : (_signedIn ? _signOut : _signIn),
+                        icon: Icon(_signedIn ? Icons.logout : Icons.login),
                       ),
                     ],
                   ),
@@ -189,10 +230,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        profile!.homeArea,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      child: Text(profile!.homeArea),
                     ),
                   ],
                   if (profile?.bio.isNotEmpty == true) ...[
@@ -206,16 +244,25 @@ class _ProfilePageState extends State<ProfilePage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _profileLoading ? null : _openProfileEditor,
+                      onPressed:
+                          _profileLoading ? null : _openProfileEditor,
                       icon: Icon(
                         profile == null
                             ? Icons.person_add_alt_1
                             : Icons.edit_outlined,
                       ),
                       label: Text(
-                        profile == null ? 'Crear mi perfil' : 'Editar mi perfil',
+                        profile == null
+                            ? 'Crear mi perfil compartido'
+                            : 'Editar mi perfil',
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Los datos del perfil se guardan en el servidor y se comparten con la web.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
