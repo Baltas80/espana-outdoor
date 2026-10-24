@@ -32,9 +32,9 @@ Los recursos visuales se mantienen dentro de `site/assets` para que la web no de
 
 ## Cuenta compartida web + Android
 
-- `cuenta.html` is the browser account/profile screen.
-- `account.js` uses the official `keycloak-js` adapter pinned to version 26.2.4 and Authorization Code + PKCE. Access and refresh tokens are kept in memory by the adapter, not in localStorage.
-- `profile-config.js` contains public issuer/client/API URLs only; never place credentials or client secrets there.
-- Both clients use the `espana-outdoor` Keycloak realm. The browser client is `espana-outdoors-web`; Android uses `espana-outdoors-mobile`.
-- Profile reads/writes use `https://api.espanaoutdoor.es/v1/me/profile`. The API must be deployed, configured with the API audience mapper, and allow this site's exact CORS origin before the UI can save profiles.
-- New accounts are created in the hosted Keycloak registration screen. Enable self-registration and configure email verification/password policy in the realm before enabling the public link.
+- `cuenta.html` es la pantalla de cuenta y perfil de la web.
+- `account.js` usa Neon Auth para iniciar sesión y Neon Data API para consultar y guardar perfiles.
+- `profile-config.js` contiene la URL pública de Neon Auth y la URL pública de Neon Data API. No se deben guardar claves administrativas en el navegador.
+- Los perfiles se guardan en `public.user_profiles`. La migración `database/migrations/001_neon_auth_user_profiles.sql` instala la tabla, los permisos mínimos y las políticas RLS para que cada usuario solo pueda leer y modificar su propia fila.
+- Antes de publicar esta versión, habilita Neon Data API con proveedor `neon_auth` en la rama de producción; ejecuta la migración en Neon SQL Editor y copia la URL exacta de Data API en `dataApiUrl` de `site/profile-config.js`.
+- No se debe fusionar la rama de desarrollo completa con `main` sin revisar sus commits. Publica únicamente los cambios necesarios tras verificar el despliegue y las pruebas.
