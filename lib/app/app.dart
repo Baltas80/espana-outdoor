@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/contracts/routing_service.dart';
@@ -18,6 +18,7 @@ import '../features/offline/offline_page.dart';
 import '../features/pets/pets_page.dart';
 import '../features/profile/plans_page.dart';
 import '../features/profile/profile_page.dart';
+import '../features/profile/profile_registration_page.dart';
 import '../features/rescue/rescue_link_page.dart';
 import '../features/routes/route_detail_page.dart';
 import '../features/routes/route_planner_page.dart';
@@ -60,7 +61,8 @@ class EspanaOutdoorApp extends StatelessWidget {
             routes: [
               GoRoute(
                 path: '/map',
-                builder: (_, __) => _withBackNavigation(const MapLibreMapPage()),
+                builder: (_, __) =>
+                    _withBackNavigation(const MapLibreMapPage()),
               ),
             ],
           ),
@@ -124,44 +126,100 @@ class EspanaOutdoorApp extends StatelessWidget {
                       fallback: '/profile',
                     ),
                   ),
+                  GoRoute(
+                    path: 'register',
+                    builder: (_, __) => _withBackNavigation(
+                      const ProfileRegistrationPage(),
+                      fallback: '/profile',
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
         ],
       ),
-      GoRoute(path: '/explore', builder: (_, __) => _withBackNavigation(const ExplorePage())),
-      GoRoute(path: '/shop', builder: (_, __) => _withBackNavigation(const ShopPage())),
+      GoRoute(
+        path: '/explore',
+        builder: (_, __) => _withBackNavigation(const ExplorePage()),
+      ),
+      GoRoute(
+        path: '/shop',
+        builder: (_, __) => _withBackNavigation(const ShopPage()),
+      ),
       GoRoute(
         path: '/navigation',
         builder: (_, state) {
-          final route = state.extra is RouteResult ? state.extra as RouteResult : null;
-          return _withBackNavigation(NavigationPage(route: route), fallback: '/map');
+          final route =
+              state.extra is RouteResult ? state.extra as RouteResult : null;
+          return _withBackNavigation(
+            NavigationPage(route: route),
+            fallback: '/map',
+          );
         },
       ),
       GoRoute(
         path: '/navigation/backtrack',
-        builder: (_, __) => _withBackNavigation(const BacktrackPage(), fallback: '/navigation'),
+        builder: (_, __) => _withBackNavigation(
+          const BacktrackPage(),
+          fallback: '/navigation',
+        ),
       ),
       GoRoute(
         path: '/navigation/waypoints',
-        builder: (_, __) => _withBackNavigation(const WaypointsPage(), fallback: '/navigation'),
+        builder: (_, __) => _withBackNavigation(
+          const WaypointsPage(),
+          fallback: '/navigation',
+        ),
       ),
-      GoRoute(path: '/instruments', builder: (_, __) => _withBackNavigation(const InstrumentsPage())),
-      GoRoute(path: '/astronomy', builder: (_, __) => _withBackNavigation(const AstronomyPage(), fallback: '/instruments')),
-      GoRoute(path: '/weather/lightning', builder: (_, __) => _withBackNavigation(const LightningPage(), fallback: '/instruments')),
-      GoRoute(path: '/pets', builder: (_, __) => _withBackNavigation(const PetsPage())),
-      GoRoute(path: '/wildlife', builder: (_, __) => _withBackNavigation(const WildlifePage())),
-      GoRoute(path: '/natura', builder: (_, __) => _withBackNavigation(const NaturaProtectPage())),
-      GoRoute(path: '/alerts', builder: (_, __) => _withBackNavigation(const AlertsPage())),
-      GoRoute(path: '/rescue', builder: (_, __) => _withBackNavigation(const RescueLinkPage())),
-      GoRoute(path: '/offline', builder: (_, __) => _withBackNavigation(const OfflinePage())),
+      GoRoute(
+        path: '/instruments',
+        builder: (_, __) => _withBackNavigation(const InstrumentsPage()),
+      ),
+      GoRoute(
+        path: '/astronomy',
+        builder: (_, __) => _withBackNavigation(
+          const AstronomyPage(),
+          fallback: '/instruments',
+        ),
+      ),
+      GoRoute(
+        path: '/weather/lightning',
+        builder: (_, __) => _withBackNavigation(
+          const LightningPage(),
+          fallback: '/instruments',
+        ),
+      ),
+      GoRoute(
+        path: '/pets',
+        builder: (_, __) => _withBackNavigation(const PetsPage()),
+      ),
+      GoRoute(
+        path: '/wildlife',
+        builder: (_, __) => _withBackNavigation(const WildlifePage()),
+      ),
+      GoRoute(
+        path: '/natura',
+        builder: (_, __) => _withBackNavigation(const NaturaProtectPage()),
+      ),
+      GoRoute(
+        path: '/alerts',
+        builder: (_, __) => _withBackNavigation(const AlertsPage()),
+      ),
+      GoRoute(
+        path: '/rescue',
+        builder: (_, __) => _withBackNavigation(const RescueLinkPage()),
+      ),
+      GoRoute(
+        path: '/offline',
+        builder: (_, __) => _withBackNavigation(const OfflinePage()),
+      ),
     ],
   );
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-        title: 'EspaÃ±a Outdoor',
+        title: 'España Outdoor',
         debugShowCheckedModeBanner: false,
         theme: buildOutdoorTheme(Brightness.light),
         darkTheme: buildOutdoorTheme(Brightness.dark),
@@ -172,6 +230,7 @@ class EspanaOutdoorApp extends StatelessWidget {
 
 class _BackNavigationScope extends StatelessWidget {
   const _BackNavigationScope({required this.child, required this.fallback});
+
   final Widget child;
   final String fallback;
 
@@ -187,4 +246,3 @@ class _BackNavigationScope extends StatelessWidget {
     );
   }
 }
-
