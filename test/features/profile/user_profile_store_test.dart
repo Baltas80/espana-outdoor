@@ -40,8 +40,8 @@ void main() {
   test('rejects an invalid public username', () async {
     final store = UserProfileStore();
 
-    expect(
-      () => store.save(
+    await expectLater(
+      store.save(
         const UserProfile(
           displayName: 'Alex',
           username: 'a!',
@@ -54,8 +54,8 @@ void main() {
   test('rejects profile text longer than the supported limit', () async {
     final store = UserProfileStore();
 
-    expect(
-      () => store.save(
+    await expectLater(
+      store.save(
         UserProfile(
           displayName: 'Alex',
           username: 'alex_1',
