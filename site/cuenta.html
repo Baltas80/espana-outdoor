@@ -53,7 +53,7 @@
       <aside class="account-intro">
         <img src="./assets/brand/mark.svg" alt="" width="64" height="64">
         <h2>Una cuenta compartida.</h2>
-        <p>Keycloak gestiona el acceso. España Outdoor guarda el perfil y lo vincula de forma segura a tu identidad.</p>
+        <p>Neon Auth gestiona el acceso. España Outdoor guarda el perfil y lo vincula de forma segura a tu identidad.</p>
         <div class="account-benefit"><strong>Web + Android</strong><span>El mismo nombre, alias y presentación.</span></div>
         <div class="account-benefit"><strong>Tu identidad protegida</strong><span>La contraseña se introduce únicamente en el proveedor de identidad.</span></div>
         <div class="account-benefit"><strong>Sin duplicados locales</strong><span>La fuente principal del perfil es el servidor.</span></div>
@@ -65,10 +65,18 @@
         <section data-account-signed-out>
           <h2>Accede a tu cuenta</h2>
           <p>Si ya tienes una cuenta, inicia sesión. Si eres nuevo, crea una cuenta para utilizarla en web y app.</p>
-          <div class="account-actions">
-            <button class="button button-gold" type="button" data-account-login>Iniciar sesión</button>
-            <button class="button button-outline-dark" type="button" data-account-register>Crear cuenta</button>
-          </div>
+          <form class="account-form" data-auth-form>
+            <label for="account-email">Correo electrónico</label>
+            <input id="account-email" name="email" type="email" autocomplete="email" required>
+            <label for="account-password">Contraseña</label>
+            <input id="account-password" name="password" type="password" minlength="8" autocomplete="current-password" required>
+            <label for="account-auth-name" data-auth-name-label hidden>Nombre visible</label>
+            <input id="account-auth-name" name="name" type="text" minlength="2" maxlength="50" autocomplete="name" hidden>
+            <div class="account-actions">
+              <button class="button button-gold" type="submit" data-account-login>Iniciar sesión</button>
+              <button class="button button-outline-dark" type="button" data-account-register>Crear cuenta</button>
+            </div>
+          </form>
         </section>
 
         <section data-account-signed-in hidden>
