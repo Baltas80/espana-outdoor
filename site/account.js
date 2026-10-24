@@ -19,7 +19,7 @@ const displayName = document.querySelector('#account-display-name');
 const username = document.querySelector('#account-username');
 const homeArea = document.querySelector('#account-home-area');
 const bio = document.querySelector('#account-bio');
-const apiBaseUrl = String(config?.apiBaseUrl || '').replace(/\/$/, '');
+const dataApiUrl = String(config?.dataApiUrl || '').trim().replace(/\/$/, '');
 let currentSession = null;
 let authMode = 'login';
 
@@ -70,39 +70,76 @@ async function getAccessToken() {
   if (typeof auth.getJWTToken === 'function') return await auth.getJWTToken();
   return null;
 }
+function mapApiProfile(row) {
+  if (!row) return null;
+  return {
+    displayName: row.display_name || '',
+    username: row.username || '',
+    homeArea: row.home_area || '',
+    bio: row.bio || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+  };
+}
 async function apiRequest(method, body) {
   if (!currentSession) throw new Error('Inicia sesión para acceder a tu perfil.');
-  if (!apiBaseUrl.startsWith('https://')) throw new Error('La API de perfiles no tiene una URL HTTPS válida.');
+  if (!dataApiUrl.startsWith('https://')) {
+    throw new Error('Falta configurar la URL de Neon Data API. Hay que habilitar Data API en la rama de producción y añadir su URL a profile-config.js.');
+  }
   const token = await getAccessToken();
-  if (!token) throw new Error('Neon Auth ha iniciado sesión, pero falta un token para conectar la API de perfiles. El backend debe configurarse para validar Neon Auth.');
-  const response = await fetch(apiBaseUrl + '/v1/me/profile', {
-    method,
+  if (!token) throw new Error('La sesión de Neon Auth está activa, pero no se ha podido obtener el token para la base de datos.');
+  const isRead = method === 'GET';
+  const url = isRead
+    ? dataApiUrl + '/user_profiles?select=display_name,username,home_area,bio,created_at,updated_at&limit=1'
+    : dataApiUrl + '/user_profiles?on_conflict=user_id';
+  const response = await fetch(url, {
+    method: isRead ? 'GET' : 'POST',
     headers: {
       Accept: 'application/json',
+      'Accept-Profile': 'public',
       Authorization: 'Bearer ' + token,
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(isRead ? {} : {
+        'Content-Type': 'application/json',
+        'Content-Profile': 'public',
+        Prefer: 'resolution=merge-duplicates,return=representation',
+      }),
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(!isRead ? {
+      body: JSON.stringify({
+        display_name: body.displayName,
+        username: body.username,
+        home_area: body.homeArea,
+        bio: body.bio,
+      }),
+    } : {}),
     cache: 'no-store',
     credentials: 'omit',
   });
-  if (response.status === 404 && method === 'GET') return null;
-  const payload = await response.json().catch(() => ({}));
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 409) throw new Error('Ese alias ya está en uso. Elige otro.');
-    if (response.status === 401) throw new Error('La API todavía no acepta el token de Neon Auth. Hay que adaptar su validación en el servidor.');
-    if (response.status === 400 && payload.error) {
-      const messages = {
-        'displayName must contain between 2 and 50 characters': 'El nombre visible debe tener entre 2 y 50 caracteres.',
-        'username must be 3-20 lowercase letters, numbers, dots, hyphens or underscores': 'El alias debe tener entre 3 y 20 caracteres válidos.',
-        'homeArea must contain at most 80 characters': 'La zona habitual admite un máximo de 80 caracteres.',
-        'bio must contain at most 160 characters': 'La presentación admite un máximo de 160 caracteres.',
-      };
-      throw new Error(messages[payload.error] || 'Revisa los datos del perfil e inténtalo de nuevo.');
+    const serverMessage = typeof payload?.message === 'string' ? payload.message : '';
+    const serverError = typeof payload?.error === 'string' ? payload.error : '';
+    const code = typeof payload?.code === 'string' ? payload.code : '';
+    if (response.status === 409 || code === '23505') throw new Error('Ese alias ya está en uso. Elige otro.');
+    if (response.status === 400 && (code === '23514' || /check constraint|display_name|username/i.test(serverMessage + ' ' + serverError))) {
+      throw new Error('Revisa el nombre visible y el alias; alguno no cumple las reglas del perfil.');
     }
-    throw new Error('El servicio de perfiles no está disponible. Inténtalo más tarde.');
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Neon ha rechazado el acceso a los datos. Comprueba que Data API use Neon Auth y que estén instaladas las políticas RLS del perfil.');
+    }
+    if (response.status === 404) {
+      throw new Error('Neon Data API devuelve 404. Comprueba que la URL copiada sea la de Data API y que exista la tabla public.user_profiles.');
+    }
+    throw new Error('Neon Data API no ha podido ' + (isRead ? 'leer' : 'guardar') + ' el perfil. ' + (serverMessage || serverError || ('HTTP ' + response.status)));
   }
-  return payload;
+  if (isRead) {
+    if (!Array.isArray(payload)) throw new Error('Neon Data API devolvió una respuesta inesperada al cargar el perfil.');
+    return mapApiProfile(payload[0] || null);
+  }
+  if (!Array.isArray(payload) || !payload[0]) {
+    throw new Error('Neon Data API no devolvió el perfil guardado. Comprueba los permisos RLS de INSERT y UPDATE.');
+  }
+  return mapApiProfile(payload[0]);
 }
 async function loadProfile() {
   try {
