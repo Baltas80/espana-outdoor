@@ -28,3 +28,13 @@ Los recursos visuales se mantienen dentro de `site/assets` para que la web no de
 <!-- Deployment trigger: GitHub Pages deployment verification. -->
 
 - Sección pública: `flora-fauna.html` con catálogo inicial de biodiversidad.
+
+
+## Cuenta compartida web + Android
+
+- `cuenta.html` is the browser account/profile screen.
+- `account.js` uses the official `keycloak-js` adapter pinned to version 26.2.4 and Authorization Code + PKCE. Access and refresh tokens are kept in memory by the adapter, not in localStorage.
+- `profile-config.js` contains public issuer/client/API URLs only; never place credentials or client secrets there.
+- Both clients use the `espana-outdoor` Keycloak realm. The browser client is `espana-outdoors-web`; Android uses `espana-outdoors-mobile`.
+- Profile reads/writes use `https://api.espanaoutdoor.es/v1/me/profile`. The API must be deployed, configured with the API audience mapper, and allow this site's exact CORS origin before the UI can save profiles.
+- New accounts are created in the hosted Keycloak registration screen. Enable self-registration and configure email verification/password policy in the realm before enabling the public link.
