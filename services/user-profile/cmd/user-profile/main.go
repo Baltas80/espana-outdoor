@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -27,7 +28,6 @@ type config struct {
 	oidcAudience string
 	allowedOrigins map[string]struct{}
 	port string
-	allowHTTPDev bool
 }
 
 type profile struct {
@@ -39,17 +39,12 @@ type profile struct {
 	UpdatedAt   time.Time `json:"updatedAt,omitempty"`
 }
 
-type storedProfile struct {
-	Subject string
-	profile
-}
-
 type server struct {
 	cfg config
 	db *pgxpool.Pool
 	verifier *oidc.IDTokenVerifier
 	log *slog.Logger
-	limiterMu chan struct{}
+	limiterMu sync.Mutex
 	limiters map[string]*rate.Limiter
 	limiterLastSeen map[string]time.Time
 }
@@ -94,7 +89,6 @@ func main() {
 		db: db,
 		verifier: provider.Verifier(&oidc.Config{ClientID: cfg.oidcAudience}),
 		log: log,
-		limiterMu: make(chan struct{}, 1),
 		limiters: make(map[string]*rate.Limiter),
 		limiterLastSeen: make(map[string]time.Time),
 	}
@@ -159,7 +153,6 @@ func loadConfig() (config, error) {
 		oidcAudience: audience,
 		allowedOrigins: origins,
 		port: envOrDefault("PORT", "8080"),
-		allowHTTPDev: allowHTTP,
 	}, nil
 }
 
@@ -392,8 +385,8 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any, maxBytes int
 }
 
 func (s *server) allow(subject string) bool {
-	select { case s.limiterMu <- struct{}{}: case <-time.After(50 * time.Millisecond): return false }
-	defer func() { <-s.limiterMu }()
+	s.limiterMu.Lock()
+	defer s.limiterMu.Unlock()
 	now := time.Now()
 	for key, last := range s.limiterLastSeen {
 		if now.Sub(last) > 15*time.Minute {
@@ -423,4 +416,3 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func _unused(io.Reader, context.Context) {}
