@@ -1,0 +1,89 @@
+name: Shared profile integration
+
+on:
+  push:
+    branches: [feature/profile-registration-20261024]
+    paths:
+      - 'services/user-profile/**'
+      - 'lib/features/profile/**'
+      - 'test/features/profile/**'
+      - 'site/cuenta.html'
+      - 'site/account.js'
+      - 'site/profile-config.js'
+      - 'site/app.js'
+      - 'site/styles.css'
+      - 'infra/docker-compose.yml'
+      - '.github/workflows/profile-integration.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/user-profile/**'
+      - 'lib/features/profile/**'
+      - 'test/features/profile/**'
+      - 'site/cuenta.html'
+      - 'site/account.js'
+      - 'site/profile-config.js'
+      - 'site/app.js'
+      - 'site/styles.css'
+      - 'infra/docker-compose.yml'
+      - '.github/workflows/profile-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile-api:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/user-profile
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: services/user-profile/go.mod
+          cache-dependency-path: services/user-profile/go.sum
+      - name: Verify locked dependencies
+        run: go mod verify
+      - name: Test API validation and request contracts
+        run: go test -race ./...
+      - name: Static analysis
+        run: go vet ./...
+      - name: Build API
+        run: go build ./...
+
+  android-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze Flutter application
+        run: flutter analyze --no-fatal-infos
+      - name: Test shared profile API client
+        run: flutter test test/features/profile/user_profile_api_test.dart
+
+  web-account:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v6.0.0
+        with:
+          node-version: '22'
+      - name: Validate browser module syntax
+        run: node --input-type=module --check < site/account.js
+      - name: Validate public profile page assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s site/cuenta.html
+          test -s site/profile-config.js
+          test -s site/account.js
+          grep -q 'https://api.espanaoutdoor.es/v1/me/profile' site/account.js
+          grep -q 'keycloak-js@26.2.4' site/account.js
