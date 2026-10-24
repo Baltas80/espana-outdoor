@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'user_profile_store.dart';
+import 'user_profile.dart';
 
 /// Errors returned by the shared España Outdoor profile API.
 final class UserProfileApiException implements Exception {
