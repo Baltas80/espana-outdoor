@@ -6,6 +6,7 @@ analyzer:
   exclude:
     - build/**
     - android/**
+    - espana_outdoor_backtrack_patch/**
 
 linter:
   rules:
