@@ -1,0 +1,58 @@
+name: Deploy profile fix to Cloudflare preview
+
+on:
+  push:
+    branches: [feature/profile-registration-20261024]
+    paths:
+      - 'site/**'
+      - 'database/migrations/**'
+      - '.github/workflows/deploy-profile-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-profile-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Check Cloudflare deployment credentials
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "::error::Missing repository secret CLOUDFLARE_API_TOKEN; no deployment was attempted."; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::Missing repository secret CLOUDFLARE_ACCOUNT_ID; no deployment was attempted."; exit 1; }
+
+      - name: Build route catalogue
+        run: python3 scripts/build-route-catalog.py
+
+      - name: Sync MITECO catalogue
+        run: python3 scripts/build-miteco-catalog.py
+
+      - name: Inject public Shopify configuration
+        shell: bash
+        env:
+          SHOPIFY_STOREFRONT_PUBLIC_TOKEN: ${{ vars.SHOPIFY_STOREFRONT_PUBLIC_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          token = os.environ.get("SHOPIFY_STOREFRONT_PUBLIC_TOKEN", "")
+          with open("site/shopify-config.js", "w", encoding="utf-8") as f:
+              f.write("window.ESPANA_OUTDOOR_SHOPIFY_STOREFRONT_TOKEN=" + json.dumps(token) + ";\n")
+          PY
+
+      - name: Deploy isolated Cloudflare Pages preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./site --project-name=espana-outdoor --branch=feature-profile-registration-20261024
