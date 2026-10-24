@@ -19,6 +19,16 @@ if (nav && !nav.querySelector('a[href="./tienda.html"]')) {
   else nav.appendChild(storeLink);
 }
 
+// Cuenta compartida entre la web y la aplicación Android.
+if (nav && !nav.querySelector('a[href="./cuenta.html"]')) {
+  const accountLink = document.createElement('a');
+  accountLink.href = './cuenta.html';
+  accountLink.textContent = 'Mi cuenta';
+  const downloadLink = nav.querySelector('.nav-download');
+  if (downloadLink) nav.insertBefore(accountLink, downloadLink);
+  else nav.appendChild(accountLink);
+}
+
 const footerLinks = document.querySelector('.footer-links');
 if (footerLinks && !footerLinks.querySelector('a[href="./tienda.html"]')) {
   const storeFooterLink = document.createElement('a');
@@ -43,5 +53,12 @@ menu?.addEventListener('click', () => {
   const open = nav?.classList.toggle('open') ?? false;
   menu.setAttribute('aria-expanded', String(open));
 });
+
+if (footerLinks && !footerLinks.querySelector('a[href="./cuenta.html"]')) {
+  const accountFooterLink = document.createElement('a');
+  accountFooterLink.href = './cuenta.html';
+  accountFooterLink.textContent = 'Mi cuenta';
+  footerLinks.appendChild(accountFooterLink);
+}
 
 if (year) year.textContent = new Date().getFullYear();
