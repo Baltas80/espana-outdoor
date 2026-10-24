@@ -85,5 +85,6 @@ jobs:
           test -s site/cuenta.html
           test -s site/profile-config.js
           test -s site/account.js
-          grep -q 'https://api.espanaoutdoor.es/v1/me/profile' site/account.js
+          grep -q 'https://api.espanaoutdoor.es' site/profile-config.js
+          grep -q "'/v1/me/profile'" site/account.js
           grep -q 'keycloak-js@26.2.4' site/account.js
