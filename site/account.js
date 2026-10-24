@@ -190,13 +190,20 @@ async function initialise() {
     });
     apiReady = true;
     showSession(authenticated);
-    if (authenticated) await loadProfile();
-    else showStatus('Inicia sesión o crea una cuenta para sincronizar tu perfil.', 'info');
+    setBusy(false);
+
+    if (authenticated) {
+      try {
+        await loadProfile();
+      } catch {
+        showStatus('La sesión está conectada, pero no se pudo consultar la API del perfil. El servicio puede estar aún pendiente de despliegue.', 'error');
+      }
+    } else {
+      showStatus('Inicia sesión o crea una cuenta para sincronizar tu perfil.', 'info');
+    }
   } catch {
     showSession(false);
     showStatus('No se pudo conectar con el proveedor de identidad. Comprueba la configuración OIDC.', 'error');
-  } finally {
-    if (apiReady) setBusy(false);
   }
 
   if (keycloak) {
