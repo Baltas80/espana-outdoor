@@ -27,7 +27,7 @@ Enable user self-registration in the realm only after configuring email verifica
 - GET /v1/me/profile — returns the authenticated user's profile; 404 means a profile has not been created.
 - PUT /v1/me/profile — creates or updates that user's profile. The alias is case-insensitive and globally unique; duplicate aliases return 409.
 
-The browser may call the API from the origins listed in WEB_ORIGINS. Native Android requests do not depend on browser CORS. Restrict access to the database network, use managed backups, configure edge rate limits, and monitor health checks without logging access tokens or profile contents.
+The browser may call the API from the origins listed in WEB_ORIGINS. Native Android requests do not depend on browser CORS. For a dedicated runtime database role, provision it separately and grant only the permissions listed above. Restrict access to the database network, use managed backups, configure edge rate limits, and monitor health checks without logging access tokens or profile contents.
 
 ## Deployment note
 
