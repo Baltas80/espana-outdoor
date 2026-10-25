@@ -67,11 +67,21 @@ function getSessionData(result) {
   return result?.data?.session || result?.data || result?.session || result || null;
 }
 async function getAccessToken() {
-  const token = typeof currentSession?.access_token === 'string'
-    ? currentSession.access_token.trim()
-    : '';
-  if (token.split('.').length !== 3 || token.split('.').some(part => !part)) {
-    throw new Error('La sesión de Neon Auth no contiene un JWT válido para acceder al perfil. Vuelve a iniciar sesión.');
+  // Con el cliente Better Auth predeterminado de Neon, el JWT de Data API
+  // se obtiene con auth.token(); session.token es solo el identificador
+  // opaco de la cookie y no debe enviarse como Bearer.
+  const result = await auth.token();
+  if (result?.error) {
+    throw new Error(result.error.message || 'Neon Auth no ha podido emitir el token de acceso al perfil.');
+  }
+  const token = typeof result?.data?.token === 'string'
+    ? result.data.token.trim()
+    : typeof result?.token === 'string'
+      ? result.token.trim()
+      : '';
+  const parts = token.split('.');
+  if (parts.length !== 3 || parts.some(part => !part)) {
+    throw new Error('Neon Auth no ha devuelto un JWT válido para acceder al perfil. Vuelve a iniciar sesión.');
   }
   return token;
 }
@@ -208,7 +218,12 @@ logoutButton?.addEventListener('click', async () => {
     showSession(false);
     showStatus('Has cerrado la sesión.', 'success');
   } catch (error) {
-    showStatus(error instanceof Error ? error.message : 'No se pudo cerrar la sesión.', 'error');
+    const message = error instanceof Error ? error.message : 'No se pudo cerrar la sesión.';
+    if (/invalid origin|invalid domain/i.test(message)) {
+      showStatus('Neon Auth rechaza el dominio de esta web (' + window.location.origin + '). Añade ese origen, sin barra final, a los dominios de confianza de la rama de Neon Auth configurada en profile-config.js.', 'error');
+    } else {
+      showStatus(message, 'error');
+    }
   } finally {
     setBusy(false);
   }
