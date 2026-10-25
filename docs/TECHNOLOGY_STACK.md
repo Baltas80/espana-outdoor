@@ -9,7 +9,7 @@ Before writing custom infrastructure, the project must first check whether Flutt
 - Flutter/Dart for the cross-platform application.
 - Riverpod for feature state.
 - go_router for navigation.
-- flutter_map + latlong2 for GIS presentation.
+- MapLibre via `maplibre_gl` as the only cartographic renderer.
 - geolocator for location and distance calculations.
 - file_picker for file import/export.
 - path_provider for platform paths.
@@ -25,9 +25,9 @@ Before writing custom infrastructure, the project must first check whether Flutt
 
 Preferred architecture:
 
-1. Native: MBTiles through flutter_map_vector_tiles_mbtiles.
-2. Web: PMTiles through flutter_map_vector_tiles.
-3. Keep the application map-provider interface independent of both.
+1. Android map rendering through the existing `maplibre_gl` integration.
+2. PMTiles as the vector-data distribution format for offline use, rendered by MapLibre.
+3. Keep catalog, downloading, integrity verification and local storage separated from the renderer.
 
 Do not build a custom tile renderer or custom SQLite tile reader.
 Do not use tile.openstreetmap.org for bulk offline downloading. Production offline packages must use a provider or infrastructure whose terms explicitly permit prefetch/offline use.
@@ -86,7 +86,7 @@ Use existing libraries aggressively where they remove infrastructure work, but d
 
 Priority evaluations:
 
-- flutter_map_vector_tiles + native MBTiles companion for true offline maps.
+- Validate the existing MapLibre + PMTiles offline flow end-to-end on Android.
 - Drift for structured local data as the domain expands.
 - Marker clustering when POI density requires it.
 - Routing adapter after the route domain is stable.
