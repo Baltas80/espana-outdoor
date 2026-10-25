@@ -66,11 +66,21 @@
       <div data-profile-content hidden>
         <article class="eo-profile-card">
           <div class="eo-profile-card-top">
-            <div class="eo-profile-avatar" data-profile-avatar aria-hidden="true">EO</div>
+            <div class="eo-profile-avatar" data-profile-avatar aria-hidden="true">
+              <img data-profile-avatar-image alt="" hidden>
+              <span data-profile-avatar-initials>EO</span>
+            </div>
             <div class="eo-profile-identity">
               <p class="kicker">Mi perfil personal</p>
               <h2 data-profile-name>Nombre visible</h2>
               <p class="eo-profile-handle" data-profile-handle>@alias</p>
+              <div class="eo-profile-photo-controls">
+                <label class="button button-outline-dark eo-profile-photo-pick" for="profile-photo-file">Elegir foto</label>
+                <input id="profile-photo-file" data-profile-photo-input type="file" accept="image/jpeg,image/png,image/webp" hidden>
+                <button class="button button-gold" type="button" data-profile-photo-save hidden>Guardar foto</button>
+                <button class="button button-text" type="button" data-profile-photo-remove hidden>Quitar foto</button>
+                <small>JPEG, PNG o WebP. Se recorta y optimiza automáticamente; máximo 8 MB.</small>
+              </div>
             </div>
             <a class="button button-outline-dark eo-profile-edit" href="./cuenta.html">Editar perfil</a>
           </div>
