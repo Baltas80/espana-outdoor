@@ -101,7 +101,12 @@ jobs:
           grep -q 'user_profiles' database/migrations/001_neon_auth_user_profiles.sql
           grep -q '@neondatabase/auth' site/account.js
           grep -q 'createAuthClient(config.authUrl)' site/account.js
+          grep -q 'avatar_data' database/migrations/001_neon_auth_user_profiles.sql
+          grep -q 'data-account-avatar-file' site/cuenta.html
+          grep -q 'avatar_data: body.avatarData' site/account.js
           test -s site/mi-perfil.html
           test -s site/mi-perfil.js
           grep -q 'data-profile-content' site/mi-perfil.html
+          grep -q 'data-profile-photo-input' site/mi-perfil.html
+          grep -q 'optimizeProfileImage' site/mi-perfil.js
           grep -q 'auth.getSession()' site/mi-perfil.js
