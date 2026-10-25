@@ -19,8 +19,13 @@ const displayName = document.querySelector('#account-display-name');
 const username = document.querySelector('#account-username');
 const homeArea = document.querySelector('#account-home-area');
 const bio = document.querySelector('#account-bio');
+const avatarFileInput = document.querySelector('[data-account-avatar-file]');
+const avatarImage = document.querySelector('[data-account-avatar-image]');
+const avatarPlaceholder = document.querySelector('[data-account-avatar-placeholder]');
+const avatarRemoveButton = document.querySelector('[data-account-avatar-remove]');
 const dataApiUrl = String(config?.dataApiUrl || '').trim().replace(/\/$/, '');
 let currentSession = null;
+let currentAvatarData = '';
 let authMode = 'login';
 
 function showStatus(message, kind = 'info') {
@@ -37,11 +42,56 @@ function showSession(authenticated) {
   if (signedOutPanel) signedOutPanel.hidden = authenticated;
   if (signedInPanel) signedInPanel.hidden = !authenticated;
 }
+function updateAccountAvatarPreview() {
+  const hasPhoto = typeof currentAvatarData === 'string' &&
+    currentAvatarData.startsWith('data:image/jpeg;base64,');
+  if (avatarImage) {
+    avatarImage.hidden = !hasPhoto;
+    if (hasPhoto && avatarImage.src !== currentAvatarData) avatarImage.src = currentAvatarData;
+    if (!hasPhoto) avatarImage.removeAttribute('src');
+  }
+  if (avatarPlaceholder) avatarPlaceholder.hidden = hasPhoto;
+  if (avatarRemoveButton) avatarRemoveButton.hidden = !hasPhoto;
+}
+async function optimizeAvatarImage(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Selecciona una imagen JPEG, PNG o WebP.');
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error('La imagen original no puede superar los 8 MB.');
+  }
+  if (typeof createImageBitmap !== 'function') {
+    throw new Error('Este navegador no permite procesar la foto. Actualiza el navegador e inténtalo de nuevo.');
+  }
+  const bitmap = await createImageBitmap(file);
+  try {
+    const side = Math.min(bitmap.width, bitmap.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = 384;
+    canvas.height = 384;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('No se pudo preparar la imagen seleccionada.');
+    context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 384, 384);
+    let data = '';
+    for (const quality of [0.84, 0.76, 0.68, 0.60, 0.52]) {
+      data = canvas.toDataURL('image/jpeg', quality);
+      if (data.length <= 360000) break;
+    }
+    if (!data.startsWith('data:image/jpeg;base64,') || data.length > 360000) {
+      throw new Error('La foto ocupa demasiado incluso después de optimizarla. Elige otra imagen.');
+    }
+    return data;
+  } finally {
+    bitmap.close?.();
+  }
+}
 function fillForm(profile) {
   displayName.value = profile?.displayName || '';
   username.value = profile?.username || '';
   homeArea.value = profile?.homeArea || '';
   bio.value = profile?.bio || '';
+  currentAvatarData = profile?.avatarData || '';
+  updateAccountAvatarPreview();
 }
 function readForm() {
   return {
@@ -49,6 +99,7 @@ function readForm() {
     username: username.value.trim().toLowerCase(),
     homeArea: homeArea.value.trim(),
     bio: bio.value.trim(),
+    avatarData: currentAvatarData,
   };
 }
 function setAuthMode(mode) {
@@ -131,6 +182,7 @@ function mapApiProfile(row) {
     username: row.username || '',
     homeArea: row.home_area || '',
     bio: row.bio || '',
+    avatarData: row.avatar_data || '',
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || '',
   };
@@ -144,7 +196,7 @@ async function apiRequest(method, body) {
   if (!token) throw new Error('La sesión de Neon Auth está activa, pero no se ha podido obtener el token para la base de datos.');
   const isRead = method === 'GET';
   const url = isRead
-    ? dataApiUrl + '/user_profiles?select=display_name,username,home_area,bio,created_at,updated_at&limit=1'
+    ? dataApiUrl + '/user_profiles?select=display_name,username,home_area,bio,avatar_data,created_at,updated_at&limit=1'
     : dataApiUrl + '/user_profiles?on_conflict=user_id';
   const response = await fetch(url, {
     method: isRead ? 'GET' : 'POST',
@@ -164,6 +216,7 @@ async function apiRequest(method, body) {
         username: body.username,
         home_area: body.homeArea,
         bio: body.bio,
+        avatar_data: body.avatarData || '',
       }),
     } : {}),
     cache: 'no-store',
@@ -248,6 +301,25 @@ authForm?.addEventListener('submit', async (event) => {
   } finally {
     setBusy(false);
   }
+});
+avatarFileInput?.addEventListener('change', async () => {
+  const file = avatarFileInput.files?.[0];
+  if (!file) return;
+  try {
+    showStatus('Preparando la foto…', 'info');
+    currentAvatarData = await optimizeAvatarImage(file);
+    updateAccountAvatarPreview();
+    showStatus('Foto preparada. Pulsa «Guardar perfil compartido» para guardarla.', 'success');
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : 'No se pudo preparar la foto.', 'error');
+  } finally {
+    avatarFileInput.value = '';
+  }
+});
+avatarRemoveButton?.addEventListener('click', () => {
+  currentAvatarData = '';
+  updateAccountAvatarPreview();
+  showStatus('La foto se quitará cuando guardes los cambios del perfil.', 'info');
 });
 registerButton?.addEventListener('click', () => {
   setAuthMode(authMode === 'register' ? 'login' : 'register');
