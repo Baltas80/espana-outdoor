@@ -238,6 +238,11 @@ authForm?.addEventListener('submit', async (event) => {
     }
     showSession(true);
     await loadProfile();
+    const nextPage = new URLSearchParams(window.location.search).get('next');
+    if (nextPage === 'mi-perfil.html') {
+      window.location.href = './mi-perfil.html';
+      return;
+    }
   } catch (error) {
     showStatus(error instanceof Error ? error.message : 'No se pudo completar la autenticación con Neon.', 'error');
   } finally {
@@ -284,7 +289,9 @@ form?.addEventListener('submit', async (event) => {
   try {
     const saved = await apiRequest('PUT', profile);
     fillForm(saved);
-    showStatus('Perfil guardado en el servidor.', 'success');
+    showStatus('Perfil guardado en el servidor. Abriendo tu perfil…', 'success');
+    window.location.href = './mi-perfil.html?guardado=1';
+    return;
   } catch (error) {
     showStatus(error instanceof Error ? error.message : 'No se pudo guardar el perfil.', 'error');
   } finally {
