@@ -14,7 +14,7 @@
 - Persistencia y lectura de los datos de perfil mediante Neon Data API y la tabla `public.user_profiles`, protegida con RLS.
 - Página independiente `site/mi-perfil.html`, que presenta los datos guardados y permite volver a editarlos.
 - Foto de perfil: selección en «Mi cuenta» y «Mi perfil», vista previa, recorte cuadrado y compresión a JPEG de 384 × 384, guardado persistente en `public.user_profiles.avatar_data` y opción de quitarla.
-- La migración añade `avatar_data` de forma compatible con perfiles existentes (`ADD COLUMN IF NOT EXISTS`); el flujo de Neon vuelve a aplicar la migración y refresca la caché de Data API.
+- La migración añade `avatar_data` de forma compatible con perfiles existentes (`ADD COLUMN IF NOT EXISTS`) y crea `public.user_photos` con RLS por usuario; el flujo de Neon aplica la migración y refresca la caché de Data API.
 - Al guardar cambios desde `site/cuenta.html`, el usuario es redirigido a `mi-perfil.html?guardado=1`.
 - Enlace «Mi perfil» añadido a la navegación y al pie de página.
 - Estilos de escritorio y móvil para la nueva vista.
@@ -45,6 +45,7 @@
 - `site/mi-perfil.js` — lectura autenticada, carga/compresión/guardado/eliminación de foto y renderizado de perfil.
 - `site/app.js` — navegación compartida de la web.
 - `site/styles.css` — estilos del perfil.
-- `database/migrations/001_neon_auth_user_profiles.sql` — esquema y políticas RLS.
+- `database/migrations/001_neon_auth_user_profiles.sql` — esquema y políticas RLS para perfiles y galería.
+- `public.user_photos` — tabla persistente de fotos personales, protegida por RLS.
 
-**Regla de continuidad:** continuar desde esta rama y conservar el código existente. Prioridad siguiente: completar «Mis fotos» de extremo a extremo sin perder el perfil ya operativo; después integrar «Mis logros» con una fuente de datos real.
+**Regla de continuidad:** continuar desde esta rama y conservar el código existente. Prioridad siguiente: probar con una cuenta real la subida y eliminación de una foto en «Mis fotos»; después integrar «Mis logros» con una fuente de datos real.
