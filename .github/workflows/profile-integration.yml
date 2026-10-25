@@ -104,9 +104,16 @@ jobs:
           grep -q 'avatar_data' database/migrations/001_neon_auth_user_profiles.sql
           grep -q 'data-account-avatar-file' site/cuenta.html
           grep -q 'avatar_data: body.avatarData' site/account.js
+          grep -q 'CREATE TABLE IF NOT EXISTS public.user_photos' database/migrations/001_neon_auth_user_profiles.sql
+          grep -q 'user_photos_select_own' database/migrations/001_neon_auth_user_profiles.sql
+          grep -q 'user_photos_delete_own' database/migrations/001_neon_auth_user_profiles.sql
           test -s site/mi-perfil.html
           test -s site/mi-perfil.js
           grep -q 'data-profile-content' site/mi-perfil.html
           grep -q 'data-profile-photo-input' site/mi-perfil.html
-          grep -q 'optimizeProfileImage' site/mi-perfil.js
+          grep -q 'data-gallery-files' site/mi-perfil.html
+          grep -q 'data-gallery-grid' site/mi-perfil.html
+          grep -q 'loadGallery(token)' site/mi-perfil.js
+          grep -q 'uploadGalleryPhotos' site/mi-perfil.js
+          grep -q "method: 'DELETE'" site/mi-perfil.js
           grep -q 'auth.getSession()' site/mi-perfil.js
