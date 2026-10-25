@@ -723,3 +723,28 @@ a{color:inherit;text-decoration:none}
   .account-avatar-controls{flex-basis:calc(100% - 94px)}
   .eo-profile-photo-controls .button{padding:8px 10px;font-size:.78rem}
 }
+
+
+/* Galería personal de fotografías */
+.eo-profile-gallery{grid-column:1/-1}
+.eo-profile-gallery-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;margin:12px 0 4px}
+.eo-profile-gallery-pick{cursor:pointer}
+.eo-profile-gallery-controls>span{color:#61706a;font-size:.88rem}
+.eo-profile-gallery-controls .button{margin:0}
+.eo-profile-gallery-controls button:disabled{opacity:.55;cursor:not-allowed}
+.eo-profile-gallery-status{min-height:1.4em;width:100%;margin:8px 0;color:#61706a;font-size:.9rem}
+.eo-profile-gallery-status[data-kind="success"]{color:#1d5a35}
+.eo-profile-gallery-status[data-kind="error"]{padding:10px 12px;border-radius:9px;background:#f9e7e2;color:#8a2e20}
+.eo-profile-gallery-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;width:100%;margin-top:12px}
+.eo-profile-gallery-empty{grid-column:1/-1;margin-top:0}
+.eo-profile-gallery-card{min-width:0;overflow:hidden;border:1px solid rgba(12,25,21,.1);border-radius:14px;background:#f8f7f1}
+.eo-profile-gallery-image{display:block;width:100%;height:200px;object-fit:cover;background:#e7e5db}
+.eo-profile-gallery-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px}
+.eo-profile-gallery-date{color:#66736a;font-size:.78rem}
+.eo-profile-gallery-delete{border:0;border-radius:8px;background:#f4e4e0;color:#8a2e20;padding:7px 10px;font:inherit;font-size:.8rem;font-weight:800;cursor:pointer}
+.eo-profile-gallery-delete:hover{background:#ead0ca}
+.eo-profile-gallery-delete:disabled{opacity:.6;cursor:wait}
+.eo-profile-gallery-note{margin:6px 0 0;color:#66736a;font-size:.82rem;line-height:1.5}
+@media(max-width:1000px){.eo-profile-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.eo-profile-gallery-image{height:180px}}
+@media(max-width:700px){.eo-profile-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eo-profile-gallery-image{height:170px}}
+@media(max-width:420px){.eo-profile-gallery-grid{grid-template-columns:1fr 1fr;gap:9px}.eo-profile-gallery-image{height:135px}.eo-profile-gallery-card-footer{align-items:flex-start;flex-direction:column;gap:6px;padding:9px}.eo-profile-gallery-controls{align-items:stretch;flex-direction:column}.eo-profile-gallery-controls .button{width:100%;text-align:center}}
