@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última auditoría: 2026-09-30
+Última auditoría estática: 2026-10-26 (véase `docs/AUDIT_2026-10-26.md`). Validación física Android pendiente.
 
 ## Objetivo MVP
 
@@ -8,31 +8,20 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 
 ## Arquitectura fijada
 
-- Renderer Android: `agus_maps_flutter 0.1.18` + CoMaps/MWM.
+- Renderer cartográfico móvil actual: `maplibre_gl 0.27.1` (confirmado en `pubspec.yaml` y `lib/features/map/maplibre_map_page.dart`).
 - Flutter/Riverpod/go_router.
-- PMTiles no forma parte del renderer Android.
+- PMTiles se distribuye/valida como fuente cartográfica para el flujo offline de MapLibre; la apertura offline real requiere prueba en dispositivo.
 - iOS queda fuera del MVP.
 - Web/desktop quedan fuera del camino crítico del MVP.
 
 ## Auditoría ejecutada
 
 - [x] Revisión de arquitectura Flutter: `app/`, `core/`, `domain/`, `features/`, `infrastructure/`.
-- [x] Revisión del proveedor cartográfico actual: Agus Maps / CoMaps.
-- [x] Confirmado que las dependencias directas antiguas `flutter_map`, `flutter_map_vector_tiles` y `pmtiles` ya no están en `pubspec.yaml`.
-- [x] Guard de CI para impedir imports de MapLibre/flutter_map/PMTiles en Dart.
-- [x] Revisión del lifecycle de `AgusMapsRuntime`.
-- [x] Validación de `World.mwm` y `WorldCoasts.mwm` por tamaño + SHA-1 antes de registrarlos.
-- [x] Validación de recursos críticos de CoMaps antes de `initWithPaths()`.
-- [x] Limpieza de mapas parciales `.mwm.download`.
-- [x] Validación de mapas persistidos por tamaño + SHA-256.
-- [x] Descargas MWM: SHA-1 upstream + cálculo SHA-256 antes de promoción.
-- [x] SHA-256 almacenado en `MwmMetadata` para revalidación en posteriores arranques.
-- [x] Impeller Android desactivado en configuración nativa generada por compatibilidad con el renderer Agus Maps.
-- [x] Smoke test Android que navega a `Mapa` y comprueba que el proceso sigue vivo.
-- [x] Smoke test preparado para conservar `logcat` y jerarquía UI como artifacts.
-- [x] Agus Maps fijado en 0.1.18.
-- [x] SDK Agus Maps fijado por SHA-256 en CI.
-- [x] Redraw nativo explícito después del registro de mapas.
+- [x] Revisión estática de la integración MapLibre actual y su configuración en Dart.
+- [ ] Smoke test Android que abra Mapa y compruebe que el proceso sigue vivo con el renderer actual.
+- [ ] Verificación de cartografía real online y de PMTiles locales sin conexión.
+- [ ] Confirmar que los workflows Android aplican al commit actual y guardan logcat cuando falle el renderer.
+- [ ] Verificar configuración de estilo, fuentes, sprites, recursos remotos/locales y atribución en staging.
 - [x] Foreground notification GPS configurada como ongoing + wake lock.
 - [x] Tests de Home/widget alineados con la UI actual, eliminando expectativas obsoletas.
 - [x] Documento de arquitectura de alta gama creado en `docs/ARCHITECTURE_HIGH_END.md`.
@@ -68,7 +57,7 @@ Pendiente fuente DEM + pipeline local + integración soportada por Agus Maps. No
 - `assets/backgrounds/`: conservar hasta completar búsqueda de referencias; no borrar por suposición.
 - `lib/app/outdoor_visuals.dart`: conservar mientras existan features que dependan de sus SVG.
 - `LICENSE` y `LICENSE.md`: no eliminar sin revisar diferencias legales/licencia.
-- PMTiles/R2: aislar del Android MVP y tratar como legado/web hasta su retirada formal; no debe entrar en la cadena de renderizado Android.
+- PMTiles/R2: forman parte del flujo cartográfico previsto para MapLibre/offline. No declarar operativo el modo offline hasta verificar descarga, integridad, recursos de estilo y apertura local en dispositivo.
 - `services/source-gateway` y `services/rescue-link`: conservar; forman parte de la arquitectura de producto.
 
 ## Lista de tareas
@@ -83,27 +72,30 @@ Pendiente fuente DEM + pipeline local + integración soportada por Agus Maps. No
 - Integridad MWM base.
 - Integridad SHA-256 de MWM descargados/persistidos.
 - Foreground notification GPS persistente.
-- Smoke test de navegación al mapa.
-- Corrección de tests obsoletos de UI.
+- Implementación de la pantalla MapLibre y abstracciones cartográficas actuales (existencia de código; QA en dispositivo pendiente).
+- Corrección de tests obsoletos de UI (según historial/documentación previa; confirmar CI en el commit actual).
 - Sistema visual premium con fotografía propia.
 
 ### Pendientes — orden de ejecución
 
-1. **PASS Android staging + `Mapa` smoke test.**
-2. **Capturar/analizar logcat nativo si vuelve a caer.**
-3. **Nuevo APK staging.**
-4. **Prueba física del APK en móvil.**
-5. **Registrar MWM regional de España y comprobar carreteras, caminos, pueblos, ciudades, ríos, lagos y etiquetas.**
-6. **Manifiesto SHA-256 de producción.**
-7. **Recuperación automática de descarga corrupta.**
-8. **Foreground service con engine dedicado para resiliencia extrema.**
-9. **Caching predictivo de corredor 500 m.**
-10. **DEM/hillshading profesional.**
-11. **Valhalla y navegación.**
-12. **QA Android 14/15/16 + dispositivos OEM.**
-13. **Auditoría final de assets no utilizados.**
-14. **Release candidate Android.**
+1. **Ejecutar CI de la rama actual y registrar análisis/tests reales.**
+2. **APK staging + smoke test Android de Mapa con el renderer MapLibre actual.**
+3. **Instalar y probar físicamente el APK; conservar logcat en caso de fallo.**
+4. **Verificar estilo, fuentes, atribución y cobertura cartográfica de España.**
+5. **Descargar un paquete PMTiles real, validar SHA-256 y abrir MapLibre en modo avión.**
+6. **Validar recuperación de descargas interrumpidas/corruptas.**
+7. **Auditar Rescue Link end-to-end con backend, OIDC y base de datos de staging.**
+8. **Probar Valhalla real y su integración con navegación.**
+9. **Pruebas de grabación GPS, recuperación tras interrupción y backtrack en dispositivo.**
+10. **QA Android 14/15/16 y restricciones OEM/batería.**
+11. **Auditoría final de recursos no utilizados.**
+12. **Release candidate Android.**
 
 ## Criterio de cierre del incidente del mapa
 
 No se considera resuelto porque compile. El incidente queda cerrado únicamente cuando el smoke test abre `Mapa`, el proceso Android permanece vivo, el renderer registra MWM sin error nativo y el APK resultante se instala y se comprueba físicamente sin cierre de la aplicación.
+
+
+## Nota de auditoría 2026-10-26
+
+La auditoría vigente está en `docs/AUDIT_2026-10-26.md`. Esta revisión corrige contradicciones históricas: el código actual utiliza MapLibre, no Agus Maps/CoMaps. Los checks anteriores de MWM/CoMaps no deben tratarse como criterios de aceptación del renderer actual. Ningún smoke test físico ni funcionamiento offline se considera acreditado por esta actualización documental.
