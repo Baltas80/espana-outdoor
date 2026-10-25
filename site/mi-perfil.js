@@ -135,6 +135,142 @@ function renderGallery() {
   }
   updateGallerySelection();
 }
+
+function renderAchievements(profile = currentProfile) {
+  const grid = document.querySelector('[data-achievements-grid]');
+  const unlockedCountNode = document.querySelector('[data-achievements-unlocked]');
+  const totalNode = document.querySelector('[data-achievements-total]');
+  if (!grid || !profile) return;
+
+  const areaReady = Boolean(String(profile.home_area || '').trim());
+  const bioReady = Boolean(String(profile.bio || '').trim());
+  const personalizedFields = Number(areaReady) + Number(bioReady);
+  const photoCount = galleryPhotos.length;
+
+  // These achievements are awarded only from saved server data.
+  const activeAchievements = [
+    {
+      id: 'profile-created',
+      icon: '✓',
+      title: 'Perfil creado',
+      description: 'Tu identidad personal está guardada en el servidor.',
+      unlocked: Boolean(profile.display_name && profile.username),
+      progress: 1,
+      target: 1,
+      progressText: 'Perfil registrado',
+    },
+    {
+      id: 'outdoor-identity',
+      icon: '◎',
+      title: 'Identidad outdoor',
+      description: 'Completa tu zona habitual y tu presentación personal.',
+      unlocked: personalizedFields === 2,
+      progress: personalizedFields,
+      target: 2,
+      progressText: personalizedFields + ' de 2 datos completados',
+    },
+    {
+      id: 'first-photo',
+      icon: '▧',
+      title: 'Primera foto',
+      description: 'Añade tu primera fotografía a «Mis fotos».',
+      unlocked: photoCount >= 1,
+      progress: Math.min(photoCount, 1),
+      target: 1,
+      progressText: Math.min(photoCount, 1) + ' de 1 foto',
+    },
+    {
+      id: 'gallery-starter',
+      icon: '▦',
+      title: 'Galería en marcha',
+      description: 'Guarda tres fotografías en tu galería personal.',
+      unlocked: photoCount >= 3,
+      progress: Math.min(photoCount, 3),
+      target: 3,
+      progressText: Math.min(photoCount, 3) + ' de 3 fotos',
+    },
+    {
+      id: 'photo-collector',
+      icon: '★',
+      title: 'Coleccionista outdoor',
+      description: 'Reúne ocho fotografías de tus experiencias al aire libre.',
+      unlocked: photoCount >= 8,
+      progress: Math.min(photoCount, 8),
+      target: 8,
+      progressText: Math.min(photoCount, 8) + ' de 8 fotos',
+    },
+  ];
+  const routeAchievements = [
+    {
+      id: 'first-route',
+      icon: '⌖',
+      title: 'Primera ruta',
+      description: 'Completa una ruta GPS y sincronízala con tu cuenta.',
+    },
+    {
+      id: 'route-explorer',
+      icon: '↗',
+      title: 'Explorador frecuente',
+      description: 'Sincroniza cinco rutas GPS finalizadas.',
+    },
+  ];
+  const unlockedCount = activeAchievements.filter(item => item.unlocked).length;
+  if (unlockedCountNode) unlockedCountNode.textContent = String(unlockedCount);
+  if (totalNode) totalNode.textContent = String(activeAchievements.length);
+
+  grid.replaceChildren();
+  for (const achievement of activeAchievements) {
+    const card = document.createElement('article');
+    card.className = 'eo-profile-achievement-card' +
+      (achievement.unlocked ? ' is-unlocked' : ' is-locked');
+    const icon = document.createElement('span');
+    icon.className = 'eo-profile-achievement-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = achievement.icon;
+
+    const title = document.createElement('h3');
+    title.textContent = achievement.title;
+    const description = document.createElement('p');
+    description.textContent = achievement.description;
+
+    const footer = document.createElement('div');
+    footer.className = 'eo-profile-achievement-progress';
+    const status = document.createElement('strong');
+    status.textContent = achievement.unlocked ? 'Conseguido' : achievement.progressText;
+    footer.append(status);
+
+    const track = document.createElement('div');
+    track.className = 'eo-profile-achievement-track';
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', String(achievement.target));
+    track.setAttribute('aria-valuenow', String(achievement.progress));
+    track.setAttribute('aria-label', achievement.title + ': ' + achievement.progressText);
+    const fill = document.createElement('span');
+    fill.style.width = Math.round((achievement.progress / achievement.target) * 100) + '%';
+    track.append(fill);
+    card.append(icon, title, description, footer, track);
+    grid.append(card);
+  }
+  for (const achievement of routeAchievements) {
+    const card = document.createElement('article');
+    card.className = 'eo-profile-achievement-card is-unavailable';
+    const icon = document.createElement('span');
+    icon.className = 'eo-profile-achievement-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = achievement.icon;
+    const title = document.createElement('h3');
+    title.textContent = achievement.title;
+    const description = document.createElement('p');
+    description.textContent = achievement.description;
+    const status = document.createElement('strong');
+    status.className = 'eo-profile-achievement-unavailable';
+    status.textContent = 'Pendiente de sincronización GPS';
+    card.append(icon, title, description, status);
+    grid.append(card);
+  }
+}
+
 async function optimizeGalleryImage(file) {
   if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     throw new Error('Selecciona fotos JPEG, PNG o WebP.');
@@ -249,6 +385,7 @@ async function uploadGalleryPhotos() {
       });
       uploaded++;
       renderGallery();
+      renderAchievements(currentProfile);
     }
     selectedGalleryFiles = [];
     if (galleryFilesInput) galleryFilesInput.value = '';
@@ -289,6 +426,7 @@ async function deleteGalleryPhoto(photoId, button) {
     }
     galleryPhotos = galleryPhotos.filter(photo => String(photo.id) !== String(photoId));
     renderGallery();
+    renderAchievements(currentProfile);
     setGalleryStatus('Foto eliminada de tu galería.', 'success');
   } catch (error) {
     setGalleryStatus(error instanceof Error ? error.message : 'No se pudo eliminar la foto.', 'error');
@@ -420,6 +558,7 @@ function renderProfile(profile) {
   showPanel(incompletePanel, false);
   const saved = new URLSearchParams(window.location.search).get('guardado') === '1';
   showStatus(saved ? 'Perfil guardado correctamente.' : 'Este es tu perfil personal.', 'success');
+  renderAchievements(profile);
 }
 async function load() {
   try {
@@ -469,6 +608,7 @@ async function load() {
       setGalleryStatus(galleryError instanceof Error ? galleryError.message : 'No se pudo cargar la galería.', 'error');
       renderGallery();
     }
+    renderAchievements(profile);
   } catch (error) {
     showPanel(signedOutPanel, false);
     showPanel(incompletePanel, false);
