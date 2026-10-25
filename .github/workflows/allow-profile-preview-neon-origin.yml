@@ -1,0 +1,78 @@
+name: Allow profile preview origin in Neon Auth
+
+on:
+  push:
+    branches: [feature/profile-registration-20261024]
+    paths:
+      - '.github/workflows/allow-profile-preview-neon-origin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  allow-preview-origin:
+    runs-on: ubuntu-24.04
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+      PREVIEW_ORIGIN: https://feature-profile-registration.espana-outdoor.pages.dev
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Validate Neon credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${NEON_API_KEY:-}" || { echo "::error::Missing repository secret NEON_API_KEY."; exit 1; }
+          test -n "${NEON_PROJECT_ID:-}" || { echo "::error::Missing repository variable NEON_PROJECT_ID."; exit 1; }
+
+      - name: Resolve the production branch used by profile-config.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const projectId = process.env.NEON_PROJECT_ID;
+          const url = 'https://console.neon.tech/api/v2/projects/' +
+            encodeURIComponent(projectId) + '/branches?limit=10000';
+          (async () => {
+            const response = await fetch(url, {
+              headers: {
+                Accept: 'application/json',
+                Authorization: 'Bearer ' + process.env.NEON_API_KEY,
+              },
+            });
+            const text = await response.text();
+            if (!response.ok) {
+              throw new Error('Could not list Neon branches: HTTP ' + response.status + ' ' + text.slice(0, 500));
+            }
+            const payload = JSON.parse(text);
+            const roots = (payload.branches || []).filter(branch => !branch.parent_id);
+            if (roots.length !== 1 || !roots[0].name) {
+              throw new Error('Expected exactly one production/root branch; found ' + roots.length + '. No origin was changed.');
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, 'NEON_ROOT_BRANCH_NAME=' + roots[0].name + '\n');
+            console.log('Resolved Neon production branch: ' + roots[0].name);
+          })().catch(error => {
+            console.error(error instanceof Error ? error.message : String(error));
+            process.exitCode = 1;
+          });
+          NODE
+
+      - name: Install Neon CLI
+        run: npm install --global neon@latest
+
+      - name: Add and verify the exact preview origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking trusted domains on Neon branch: ${NEON_ROOT_BRANCH_NAME}"
+          if neon neon-auth domain list --project-id "${NEON_PROJECT_ID}" --branch "${NEON_ROOT_BRANCH_NAME}" | tee /tmp/neon-trusted-domains.txt | grep -Fq "${PREVIEW_ORIGIN}"; then
+            echo "Preview origin is already trusted."
+          else
+            neon neon-auth domain add "${PREVIEW_ORIGIN}" --project-id "${NEON_PROJECT_ID}" --branch "${NEON_ROOT_BRANCH_NAME}"
+          fi
+          neon neon-auth domain list --project-id "${NEON_PROJECT_ID}" --branch "${NEON_ROOT_BRANCH_NAME}" | tee /tmp/neon-trusted-domains-final.txt
+          grep -Fq "${PREVIEW_ORIGIN}" /tmp/neon-trusted-domains-final.txt
+          echo "Verified trusted origin: ${PREVIEW_ORIGIN}"
