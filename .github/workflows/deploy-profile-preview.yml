@@ -5,6 +5,7 @@ on:
     branches: [feature/profile-registration-20261024]
     paths:
       - '.github/workflows/deploy-profile-preview.yml'
+      - 'site/account.js'
   workflow_dispatch:
 
 permissions:
