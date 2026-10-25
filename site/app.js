@@ -29,6 +29,18 @@ if (nav && !nav.querySelector('a[href="./cuenta.html"]')) {
   else nav.appendChild(accountLink);
 }
 
+// Acceso directo al perfil personal.
+if (nav && !nav.querySelector('a[href="./mi-perfil.html"]')) {
+  const profileLink = document.createElement('a');
+  profileLink.href = './mi-perfil.html';
+  profileLink.textContent = 'Mi perfil';
+  const accountLink = nav.querySelector('a[href="./cuenta.html"]');
+  const downloadLink = nav.querySelector('.nav-download');
+  if (accountLink) accountLink.after(profileLink);
+  else if (downloadLink) nav.insertBefore(profileLink, downloadLink);
+  else nav.appendChild(profileLink);
+}
+
 const footerLinks = document.querySelector('.footer-links');
 if (footerLinks && !footerLinks.querySelector('a[href="./tienda.html"]')) {
   const storeFooterLink = document.createElement('a');
@@ -59,6 +71,13 @@ if (footerLinks && !footerLinks.querySelector('a[href="./cuenta.html"]')) {
   accountFooterLink.href = './cuenta.html';
   accountFooterLink.textContent = 'Mi cuenta';
   footerLinks.appendChild(accountFooterLink);
+}
+
+if (footerLinks && !footerLinks.querySelector('a[href="./mi-perfil.html"]')) {
+  const profileFooterLink = document.createElement('a');
+  profileFooterLink.href = './mi-perfil.html';
+  profileFooterLink.textContent = 'Mi perfil';
+  footerLinks.appendChild(profileFooterLink);
 }
 
 if (year) year.textContent = new Date().getFullYear();
