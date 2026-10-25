@@ -10,6 +10,9 @@
   if (!results) return;
 
   let routes = [];
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialPlace = searchParams.get('localidad') || searchParams.get('q') || '';
+  if (place && initialPlace) place.value = initialPlace;
   const normalize = (value) => String(value || '').toLocaleLowerCase('es-ES').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
@@ -86,7 +89,9 @@
       render();
     })
     .catch(() => {
-      results.innerHTML = '<div class="route-empty"><strong>No se ha podido cargar el catálogo.</strong><span>El catálogo oficial CNIG / FEDME sigue disponible como fuente externa.</span></div>';
+      if (count) count.textContent = '—';
+      if (countLabel) countLabel.textContent = 'catálogo no disponible';
+      results.innerHTML = '<div class="route-empty"><strong>No se ha podido cargar el catálogo.</strong><span>El catálogo oficial CNIG / FEDME sigue disponible como fuente externa. Comprueba la conexión o accede a las fuentes oficiales.</span></div>';
     });
 
   searchButton?.addEventListener('click', render);
