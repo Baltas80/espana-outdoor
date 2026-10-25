@@ -748,3 +748,5 @@ a{color:inherit;text-decoration:none}
 @media(max-width:1000px){.eo-profile-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.eo-profile-gallery-image{height:180px}}
 @media(max-width:700px){.eo-profile-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eo-profile-gallery-image{height:170px}}
 @media(max-width:420px){.eo-profile-gallery-grid{grid-template-columns:1fr 1fr;gap:9px}.eo-profile-gallery-image{height:135px}.eo-profile-gallery-card-footer{align-items:flex-start;flex-direction:column;gap:6px;padding:9px}.eo-profile-gallery-controls{align-items:stretch;flex-direction:column}.eo-profile-gallery-controls .button{width:100%;text-align:center}}
+
+.eo-profile-sections > .eo-profile-feature:not(.eo-profile-gallery){grid-column:1/-1}
