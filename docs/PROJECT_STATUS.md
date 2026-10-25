@@ -89,7 +89,7 @@ Pendiente una fuente DEM, pipeline local e integración compatible con el estilo
 
 ## Criterio de cierre del incidente del mapa
 
-No se considera resuelto porque compile. El incidente queda cerrado únicamente cuando el smoke test abre `Mapa`, el proceso Android permanece vivo, el renderer registra MWM sin error nativo y el APK resultante se instala y se comprueba físicamente sin cierre de la aplicación.
+No se considera resuelto porque compile. El incidente queda cerrado únicamente cuando el smoke test abre `Mapa`, el proceso Android permanece vivo, el renderer carga los recursos vectoriales sin error nativo y el APK resultante se instala y se comprueba físicamente sin cierre de la aplicación.
 
 
 ## Nota de auditoría 2026-10-26
