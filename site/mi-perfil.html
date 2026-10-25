@@ -125,14 +125,24 @@
             <p class="eo-profile-gallery-note">Máximo 12 fotos. JPEG, PNG o WebP; 8 MB por archivo antes de optimizar. Las imágenes se redimensionan y comprimen antes de guardarse.</p>
           </section>
 
-          <section class="eo-profile-feature">
+          <section class="eo-profile-feature eo-profile-achievements" data-achievements aria-labelledby="profile-achievements-heading">
             <div class="eo-profile-feature-icon" aria-hidden="true">✦</div>
             <div class="eo-profile-feature-heading">
-              <p class="kicker">Tu actividad</p>
-              <h2>Mis logros</h2>
+              <p class="kicker">Tu progreso</p>
+              <h2 id="profile-achievements-heading">Mis logros</h2>
             </div>
-            <p class="eo-profile-feature-copy">Los reconocimientos se vincularán a tus rutas y actividades verificadas.</p>
-            <div class="eo-profile-empty"><strong>Aún no hay logros sincronizados</strong><span>Esta sección se conectará al sistema de rutas y actividad cuando esté implementado.</span></div>
+            <p class="eo-profile-feature-copy">Los logros se calculan a partir de los datos guardados de tu perfil y de tu galería. No concedemos logros de rutas hasta poder verificar la actividad sincronizada.</p>
+            <div class="eo-profile-achievement-summary">
+              <div><strong data-achievements-unlocked>0</strong><span>Logros conseguidos</span></div>
+              <div><strong data-achievements-total>0</strong><span>Disponibles ahora</span></div>
+            </div>
+            <div class="eo-profile-achievement-grid" data-achievements-grid aria-live="polite">
+              <div class="eo-profile-empty"><strong>Calculando tus logros…</strong><span>Se actualizarán con los datos reales de tu cuenta.</span></div>
+            </div>
+            <div class="eo-profile-route-achievement-note">
+              <strong>Logros de rutas</strong>
+              <span>La app conserva las rutas GPS terminadas en el dispositivo. La sincronización de ese historial con el perfil web es el siguiente paso; hasta entonces, estos logros permanecen bloqueados.</span>
+            </div>
           </section>
         </div>
       </div>
