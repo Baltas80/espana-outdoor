@@ -66,24 +66,63 @@ function setAuthMode(mode) {
 function getSessionData(result) {
   return result?.data?.session || result?.data || result?.session || result || null;
 }
+function isJwt(value) {
+  if (typeof value !== 'string') return false;
+  const parts = value.trim().split('.');
+  return parts.length === 3 && parts.every(part => part.length > 0);
+}
 async function getAccessToken() {
-  // Con el cliente Better Auth predeterminado de Neon, el JWT de Data API
-  // se obtiene con auth.token(); session.token es solo el identificador
-  // opaco de la cookie y no debe enviarse como Bearer.
-  const result = await auth.token();
-  if (result?.error) {
-    throw new Error(result.error.message || 'Neon Auth no ha podido emitir el token de acceso al perfil.');
+  // Preferir un JWT ya incluido en la sesión, si el SDK lo expone.
+  // No usar session.token: Better Auth lo usa como identificador de sesión,
+  // no como Bearer token de Neon Data API.
+  const sessionCandidates = [
+    currentSession?.access_token,
+    currentSession?.data?.access_token,
+    currentSession?.session?.access_token,
+  ];
+  const sessionToken = sessionCandidates.find(isJwt);
+  if (sessionToken) return sessionToken.trim();
+
+  // Algunas versiones beta de @neondatabase/auth devuelven el objeto de
+  // sesión en auth.token() en lugar del JWT. Pedimos el endpoint oficial
+  // /token directamente y dejamos que el navegador adjunte la cookie HttpOnly.
+  const authBaseUrl = String(config?.authUrl || '').trim().replace(/\/+$/, '');
+  if (!authBaseUrl.startsWith('https://')) {
+    throw new Error('La URL de Neon Auth no está configurada correctamente.');
   }
-  const token = typeof result?.data?.token === 'string'
-    ? result.data.token.trim()
-    : typeof result?.token === 'string'
-      ? result.token.trim()
+  let response;
+  try {
+    response = await fetch(authBaseUrl + '/token', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+    });
+  } catch {
+    throw new Error('No se pudo solicitar el JWT a Neon Auth. Comprueba la conexión y los dominios de confianza.');
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof payload?.message === 'string' ? payload.message
+      : typeof payload?.error === 'string' ? payload.error
       : '';
-  const parts = token.split('.');
-  if (parts.length !== 3 || parts.some(part => !part)) {
-    throw new Error('Neon Auth no ha devuelto un JWT válido para acceder al perfil. Vuelve a iniciar sesión.');
+    throw new Error('Neon Auth no ha podido emitir el JWT para el perfil (HTTP ' +
+      response.status + '). ' + (detail || 'Vuelve a iniciar sesión e inténtalo de nuevo.'));
   }
-  return token;
+
+  const candidates = [
+    payload?.token,
+    payload?.data?.token,
+    payload?.data?.access_token,
+    payload?.access_token,
+    payload?.session?.access_token,
+    typeof payload?.data === 'string' ? payload.data : '',
+  ];
+  const token = candidates.find(isJwt);
+  if (!token) {
+    throw new Error('Neon Auth respondió a /token, pero no devolvió un JWT reconocible. Revisa la respuesta del endpoint sin compartir cookies ni credenciales.');
+  }
+  return token.trim();
 }
 function mapApiProfile(row) {
   if (!row) return null;
