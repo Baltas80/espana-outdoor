@@ -5,6 +5,7 @@ on:
     branches: [feature/profile-registration-20261024]
     paths:
       - '.github/workflows/provision-neon-profile-api.yml'
+      - 'database/migrations/001_neon_auth_user_profiles.sql'
   workflow_dispatch:
 
 permissions:
