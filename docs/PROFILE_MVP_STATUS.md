@@ -48,4 +48,9 @@
 - `database/migrations/001_neon_auth_user_profiles.sql` — esquema y políticas RLS para perfiles y galería.
 - `public.user_photos` — tabla persistente de fotos personales, protegida por RLS.
 
-**Regla de continuidad:** continuar desde esta rama y conservar el código existente. Prioridad siguiente: probar con una cuenta real la subida y eliminación de una foto en «Mis fotos»; después integrar «Mis logros» con una fuente de datos real.
+**Regla de continuidad:** continuar desde esta rama y conservar el código existente. Próximo trabajo: resolver la identidad y sincronización de rutas completadas entre Android y web para habilitar logros GPS verificables, sin conceder medallas a rutas no sincronizadas.
+
+
+## Logros
+
+La vista calcula logros de perfil y galería usando información real guardada. Los logros GPS permanecen bloqueados hasta integrar y validar la sincronización del historial entre Android y el perfil web.
