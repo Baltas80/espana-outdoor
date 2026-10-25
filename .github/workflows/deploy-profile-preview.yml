@@ -6,6 +6,11 @@ on:
     paths:
       - '.github/workflows/deploy-profile-preview.yml'
       - 'site/account.js'
+      - 'site/cuenta.html'
+      - 'site/mi-perfil.html'
+      - 'site/mi-perfil.js'
+      - 'site/app.js'
+      - 'site/styles.css'
   workflow_dispatch:
 
 permissions:
