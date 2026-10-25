@@ -750,3 +750,30 @@ a{color:inherit;text-decoration:none}
 @media(max-width:420px){.eo-profile-gallery-grid{grid-template-columns:1fr 1fr;gap:9px}.eo-profile-gallery-image{height:135px}.eo-profile-gallery-card-footer{align-items:flex-start;flex-direction:column;gap:6px;padding:9px}.eo-profile-gallery-controls{align-items:stretch;flex-direction:column}.eo-profile-gallery-controls .button{width:100%;text-align:center}}
 
 .eo-profile-sections > .eo-profile-feature:not(.eo-profile-gallery){grid-column:1/-1}
+
+
+/* Logros calculados desde los datos persistidos del perfil y la galería */
+.eo-profile-achievements{grid-column:1/-1}
+.eo-profile-achievement-summary{display:flex;gap:14px;flex-wrap:wrap;width:100%;margin:12px 0 20px}
+.eo-profile-achievement-summary>div{display:flex;align-items:baseline;gap:9px;min-width:190px;padding:13px 16px;border:1px solid rgba(12,25,21,.1);border-radius:12px;background:#f8f7f1}
+.eo-profile-achievement-summary strong{color:#145a43;font-size:1.55rem;line-height:1}
+.eo-profile-achievement-summary span{color:#61706a;font-size:.88rem;font-weight:700}
+.eo-profile-achievement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;width:100%}
+.eo-profile-achievement-card{display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:225px;padding:18px;border:1px solid rgba(12,25,21,.12);border-radius:15px;background:#fbfaf6}
+.eo-profile-achievement-card.is-unlocked{border-color:rgba(20,90,67,.28);background:linear-gradient(145deg,#f3f8f3,#fff)}
+.eo-profile-achievement-card.is-locked{opacity:.9}
+.eo-profile-achievement-card.is-unavailable{border-style:dashed;background:#f5f3ed}
+.eo-profile-achievement-icon{display:grid;place-items:center;width:42px;height:42px;margin-bottom:12px;border-radius:13px;background:#ece5d0;color:#7d5814;font-size:1.3rem;font-weight:900}
+.eo-profile-achievement-card.is-unlocked .eo-profile-achievement-icon{background:#dcecdf;color:#1c6948}
+.eo-profile-achievement-card h3{margin:0 0 6px;color:#173a2b;font-size:1.03rem;line-height:1.3}
+.eo-profile-achievement-card p{margin:0 0 14px;color:#61706a;font-size:.87rem;line-height:1.45}
+.eo-profile-achievement-progress{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-top:auto;color:#61706a;font-size:.78rem}
+.eo-profile-achievement-progress strong{font-size:.78rem;color:#315847}
+.eo-profile-achievement-track{overflow:hidden;width:100%;height:6px;margin-top:8px;border-radius:999px;background:#e6e4dc}
+.eo-profile-achievement-track span{display:block;height:100%;border-radius:inherit;background:#2a7654;transition:width .25s ease}
+.eo-profile-achievement-unavailable{display:inline-block;margin-top:auto;padding:7px 9px;border-radius:8px;background:#e9e6dc;color:#6e6756;font-size:.76rem;line-height:1.4}
+.eo-profile-route-achievement-note{display:flex;flex-direction:column;gap:5px;width:100%;margin-top:18px;padding:14px 16px;border-left:3px solid #c6a55b;background:#f8f6ed}
+.eo-profile-route-achievement-note strong{color:#4c432f;font-size:.91rem}
+.eo-profile-route-achievement-note span{color:#6e6756;font-size:.85rem;line-height:1.5}
+@media(max-width:900px){.eo-profile-achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.eo-profile-achievement-grid{grid-template-columns:1fr}.eo-profile-achievement-card{min-height:0}.eo-profile-achievement-summary{flex-direction:column}.eo-profile-achievement-summary>div{width:100%}}
