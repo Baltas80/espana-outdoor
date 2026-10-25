@@ -9,6 +9,7 @@ on:
       - 'site/cuenta.html'
       - 'site/mi-perfil.html'
       - 'site/mi-perfil.js'
+      - 'database/migrations/001_neon_auth_user_profiles.sql'
       - 'site/app.js'
       - 'site/styles.css'
   workflow_dispatch:
