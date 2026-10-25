@@ -32,13 +32,13 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 
 El código ya contiene defensas de lifecycle, pero el cierre físico de la aplicación no se considera resuelto hasta que el smoke test Android ejecute realmente `Mapa` y capture un resultado PASS. La última ejecución que falló no llegó al smoke test porque el análisis/tests fallaron antes.
 
-### P0 — Cartografía detallada
+### P0 — Cobertura cartográfica detallada
 
-`World.mwm` + `WorldCoasts.mwm` son mapas base. Para mostrar el nivel de detalle esperado de España hay que disponer y registrar los MWM regionales de España. No se debe confundir que el renderer funcione con que exista cobertura regional detallada.
+Debe verificarse que el estilo y el catálogo configurados ofrecen cobertura vectorial suficiente para España. La existencia del renderer no demuestra que haya datos regionales disponibles.
 
 ### P1 — SHA-256 de confianza externa
 
-El catálogo CoMaps expone SHA-1. La app ya calcula y persiste SHA-256, pero el cierre definitivo del requisito de alta seguridad exige un manifiesto propio de producción con SHA-256 esperado por versión/archivo, preferiblemente firmado.
+El cierre definitivo del requisito de integridad exige un manifiesto de producción con SHA-256 esperado por versión/archivo, preferiblemente firmado.
 
 ### P1 — Foreground service resiliente
 
@@ -46,11 +46,11 @@ El catálogo CoMaps expone SHA-1. La app ya calcula y persiste SHA-256, pero el 
 
 ### P1 — Caching predictivo 500 m
 
-Pendiente integrar con el planificador de rutas y convertir el corredor de 500 m en una selección de regiones MWM a descargar de forma preventiva.
+Pendiente integrar con el planificador de rutas y convertir el corredor de 500 m en una selección de regiones PMTiles a descargar de forma preventiva.
 
 ### P2 — Hillshading
 
-Pendiente fuente DEM + pipeline local + integración soportada por Agus Maps. No se implementará un falso sombreado visual.
+Pendiente una fuente DEM, pipeline local e integración compatible con el estilo MapLibre. No se implementará un falso sombreado visual.
 
 ## Limpieza / conservación
 
@@ -67,10 +67,6 @@ Pendiente fuente DEM + pipeline local + integración soportada por Agus Maps. No
 - Auditoría inicial y clasificación de arquitectura.
 - Limpieza de dependencias cartográficas antiguas.
 - Protección CI contra regresión del renderer.
-- Correcciones de lifecycle Agus Maps.
-- Validación de CoMaps data/assets.
-- Integridad MWM base.
-- Integridad SHA-256 de MWM descargados/persistidos.
 - Foreground notification GPS persistente.
 - Implementación de la pantalla MapLibre y abstracciones cartográficas actuales (existencia de código; QA en dispositivo pendiente).
 - Corrección de tests obsoletos de UI (según historial/documentación previa; confirmar CI en el commit actual).
@@ -98,4 +94,4 @@ No se considera resuelto porque compile. El incidente queda cerrado únicamente 
 
 ## Nota de auditoría 2026-10-26
 
-La auditoría vigente está en `docs/AUDIT_2026-10-26.md`. Esta revisión corrige contradicciones históricas: el código actual utiliza MapLibre, no Agus Maps/CoMaps. Los checks anteriores de MWM/CoMaps no deben tratarse como criterios de aceptación del renderer actual. Ningún smoke test físico ni funcionamiento offline se considera acreditado por esta actualización documental.
+La auditoría vigente está en `docs/AUDIT_2026-10-26.md`. Ningún smoke test físico ni funcionamiento offline se considera acreditado por esta actualización documental.
