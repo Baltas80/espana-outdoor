@@ -12,18 +12,92 @@ class RoutesPage extends StatefulWidget {
   State<RoutesPage> createState() => _RoutesPageState();
 }
 
+class _RouteDiscoveryItem {
+  const _RouteDiscoveryItem({
+    required this.asset,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.meta,
+    required this.activity,
+  });
+
+  final String asset;
+  final String icon;
+  final String title;
+  final String subtitle;
+  final String meta;
+  final String activity;
+
+  bool matches(String query, String selectedActivity) {
+    final normalizedQuery = query.trim().toLowerCase();
+    final matchesQuery = normalizedQuery.isEmpty ||
+        title.toLowerCase().contains(normalizedQuery) ||
+        subtitle.toLowerCase().contains(normalizedQuery) ||
+        meta.toLowerCase().contains(normalizedQuery) ||
+        activity.toLowerCase().contains(normalizedQuery);
+    final matchesActivity =
+        selectedActivity == 'Todas' || activity == selectedActivity;
+    return matchesQuery && matchesActivity;
+  }
+}
+
+const _routeDiscoveryItems = <_RouteDiscoveryItem>[
+  _RouteDiscoveryItem(
+    asset: 'assets/images/routes/lagos_covadonga.jpg',
+    icon: 'assets/visuals/icons/routes.svg',
+    title: 'Lagos de Covadonga',
+    subtitle: 'Picos de Europa · Asturias',
+    meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
+    activity: 'Senderismo',
+  ),
+  _RouteDiscoveryItem(
+    asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
+    icon: 'assets/visuals/icons/natura.svg',
+    title: 'Mulhacén · Sierra Nevada',
+    subtitle: 'Sierra Nevada · Granada',
+    meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
+    activity: 'Senderismo',
+  ),
+  _RouteDiscoveryItem(
+    asset: 'assets/images/routes/caminito_del_rey.jpg',
+    icon: 'assets/visuals/icons/map.svg',
+    title: 'Caminito del Rey',
+    subtitle: 'Málaga · Andalucía',
+    meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
+    activity: 'Senderismo',
+  ),
+];
+
 class _RoutesPageState extends State<RoutesPage> {
   final _gpx = const GpxImportService();
   final _store = LocalRouteStore();
+  final _searchController = TextEditingController();
 
   ImportedTrack? _imported;
   String? _error;
   String _filter = 'Todas';
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _imported = _store.loadLatestImportedTrack();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    if (query == _query) return;
+    setState(() => _query = query);
   }
 
   Future<void> _importGpx() async {
@@ -42,14 +116,23 @@ class _RoutesPageState extends State<RoutesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleRoutes = _routeDiscoveryItems
+        .where((route) => route.matches(_query, _filter))
+        .toList(growable: false);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutas'),
         actions: [
           IconButton(
-            tooltip: 'Filtrar',
-            onPressed: () {},
-            icon: const Icon(Icons.tune),
+            tooltip: 'Limpiar búsqueda y filtros',
+            onPressed: _query.isEmpty && _filter == 'Todas'
+                ? null
+                : () {
+                    _searchController.clear();
+                    setState(() => _filter = 'Todas');
+                  },
+            icon: const Icon(Icons.filter_alt_off_outlined),
           ),
           IconButton(
             tooltip: 'Importar GPX',
@@ -67,7 +150,7 @@ class _RoutesPageState extends State<RoutesPage> {
             subtitle: 'Rutas con contexto y preparación offline.',
           ),
           const SizedBox(height: 14),
-          const _SearchField(),
+          _SearchField(controller: _searchController),
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -91,31 +174,41 @@ class _RoutesPageState extends State<RoutesPage> {
             ),
           ),
           const SizedBox(height: 16),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/lagos_covadonga.jpg',
-            icon: 'assets/visuals/icons/routes.svg',
-            title: 'Lagos de Covadonga',
-            subtitle: 'Picos de Europa · Asturias',
-            meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
-            onTap: () => context.push('/routes/planner'),
-          ),
-          const SizedBox(height: 12),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
-            icon: 'assets/visuals/icons/natura.svg',
-            title: 'Mulhacén · Sierra Nevada',
-            subtitle: 'Sierra Nevada · Granada',
-            meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
-            onTap: () => context.push('/routes/planner'),
-          ),
-          const SizedBox(height: 12),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/caminito_del_rey.jpg',
-            icon: 'assets/visuals/icons/map.svg',
-            title: 'Caminito del Rey',
-            subtitle: 'Málaga · Andalucía',
-            meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
-            onTap: () => context.push('/routes/planner'),
+          if (visibleRoutes.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off_outlined, size: 32),
+                    SizedBox(height: 8),
+                    Text(
+                      'No hay rutas de descubrimiento que coincidan.',
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Prueba otra búsqueda o selecciona «Todas».',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            for (var i = 0; i < visibleRoutes.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _RouteVisualCard(
+                item: visibleRoutes[i],
+                onTap: () => context.push('/routes/planner'),
+              ),
+            ],
+          const SizedBox(height: 18),
+          const Text(
+            'Estas tarjetas son ejemplos editoriales de descubrimiento. '
+            'Para calcular y navegar una ruta se necesita seleccionar un '
+            'destino en el planificador y disponer de un endpoint Valhalla '
+            'configurado.',
           ),
           const SizedBox(height: 18),
           if (_error != null)
@@ -151,35 +244,34 @@ class _RoutesPageState extends State<RoutesPage> {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField();
+  const _SearchField({required this.controller});
+
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
-    return const TextField(
+    return TextField(
+      controller: controller,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Buscar rutas, refugios…',
+        prefixIcon: const Icon(Icons.search),
+        hintText: 'Buscar rutas y zonas…',
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Borrar búsqueda',
+                onPressed: controller.clear,
+                icon: const Icon(Icons.close),
+              ),
       ),
     );
   }
 }
 
 class _RouteVisualCard extends StatelessWidget {
-  const _RouteVisualCard({
-    required this.asset,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.meta,
-    required this.onTap,
-  });
+  const _RouteVisualCard({required this.item, required this.onTap});
 
-  final String asset;
-  final String icon;
-  final String title;
-  final String subtitle;
-  final String meta;
+  final _RouteDiscoveryItem item;
   final VoidCallback onTap;
 
   @override
@@ -192,10 +284,10 @@ class _RouteVisualCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Image.asset(
-              asset,
+              item.asset,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
-              semanticLabel: title,
+              semanticLabel: item.title,
             ),
             DecoratedBox(
               decoration: BoxDecoration(
@@ -223,11 +315,11 @@ class _RouteVisualCard extends StatelessWidget {
                       color: Colors.black.withValues(alpha: .34),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: OutdoorAssetIcon(asset: icon, size: 26),
+                    child: OutdoorAssetIcon(asset: item.icon, size: 26),
                   ),
                   const Spacer(),
                   Text(
-                    meta.split(' · ').first,
+                    item.meta.split(' · ').first,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -244,7 +336,7 @@ class _RouteVisualCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    item.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 21,
@@ -253,7 +345,7 @@ class _RouteVisualCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    subtitle,
+                    item.subtitle,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -261,7 +353,7 @@ class _RouteVisualCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    meta,
+                    item.meta,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
