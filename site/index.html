@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#071511">
-  <meta name="description" content="España Outdoor — descubre, explora y conecta con la naturaleza de España. Mapas, rutas, naturaleza y seguridad.">
+  <meta name="description" content="España Outdoor: descubre rutas, cartografía, naturaleza y biodiversidad. Conoce el estado de la aplicación Android y consulta fuentes oficiales para planificar tus salidas.">
   <meta property="og:title" content="España Outdoor">
-  <meta property="og:description" content="Descubre. Explora. Conecta.">
+  <meta property="og:description" content="Cartografía, rutas, naturaleza y fuentes oficiales para preparar tus salidas por España.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="España Outdoor">
   <meta name="twitter:description" content="Descubre rutas, naturaleza, biodiversidad y territorio de España.">
-  <meta property="og:image" content="https://espanaoutdoor.es/assets/backgrounds/bg_home.svg">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1618655327618-158670e68739?auto=format&fit=crop&w=1200&q=85">
   <meta property="og:image:alt" content="España Outdoor">
+  <link rel="canonical" href="https://espanaoutdoor.es/">
   <link rel="icon" href="./assets/brand/mark.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <title>España Outdoor — Descubre. Explora. Conecta.</title>
@@ -58,14 +59,14 @@
       <a href="./app.html">App</a>
       <a href="./blog.html">Blog</a>
       <a href="./contacto.html">Contacto</a>
-      <a class="nav-download" href="./app.html">Descargar App</a>
+      <a class="nav-download" href="./app.html">Conocer la App</a>
     </nav>
   </div>
 </header>
 
 <main id="contenido">
   <section class="hero-redesign">
-    <img class="hero-backdrop" src="https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3-pro-image/images/c1020e67-464b-494a-aa39-c4e81469d08e/b53a49d4-47bc-4092-be11-79b7186ecdf6/Wide_cinematic_editorial_outdoor_photograph_for_the_cover_of.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiYjI2ZDI0ZDQ5MmRhYjEwOCIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDcyMjkwMH0.qr9R0Tm-lBHzRe8JKFb74bMrvvO0m2HBs2M_12h936Y" alt="" width="2000" height="1200" fetchpriority="high" decoding="async">
+    <img class="hero-backdrop" src="https://images.unsplash.com/photo-1765100482540-538903138ab3?auto=format&fit=crop&w=2000&q=85" alt="" width="2000" height="1200" fetchpriority="high" decoding="async">
     <div class="hero-original-art" aria-hidden="true"></div>
     <div class="hero-vignette" aria-hidden="true"></div>
     <div class="hero-scanlines" aria-hidden="true"></div>
@@ -75,22 +76,28 @@
         <p class="hero-kicker">La plataforma outdoor de España</p>
         <h1><span>ESPAÑA</span> <em>OUTDOOR</em></h1>
         <h2>Descubre. Explora. Conecta.</h2>
-        <p class="hero-description">Mapas offline, rutas detalladas, naturaleza, puntos de interés y seguridad, todo en una sola aplicación.<br><strong>Vive España al aire libre.</strong></p>
+        <p class="hero-description">Un proyecto outdoor para reunir cartografía, rutas, naturaleza y herramientas de preparación en una experiencia pensada para el terreno.<br><strong>Explora España con información contrastable.</strong></p>
+
+        <form class="home-route-search" action="./rutas.html" method="get" role="search">
+          <label class="sr-only" for="home-route-query">Localidad, provincia o nombre de ruta</label>
+          <input id="home-route-query" type="search" name="localidad" placeholder="Buscar ruta, localidad o provincia" autocomplete="off">
+          <button class="home-route-search-button" type="submit"><span aria-hidden="true">⌕</span> Buscar</button>
+        </form>
 
         <div class="hero-actions">
-          <a class="button button-gold" href="./app.html">Descargar App<br><small>Android</small></a>
-          <a class="button button-outline" href="./app.html">Conocer la App</a>
+          <a class="button button-gold" href="./app.html">Conocer la App<br><small>Android en desarrollo</small></a>
+          <a class="button button-outline" href="./rutas.html">Explorar rutas</a>
         </div>
 
         <div class="hero-benefits" aria-label="Características">
-          <div><img src="./assets/visuals/icons/offline.svg" alt=""><span>Mapas offline<br><b>sin cobertura</b></span></div>
-          <div><img src="./assets/visuals/icons/routes.svg" alt=""><span>Miles de rutas<br><b>por toda España</b></span></div>
+          <div><img src="./assets/visuals/icons/offline.svg" alt=""><span>Mapas offline<br><b>funciones en desarrollo</b></span></div>
+          <div><img src="./assets/visuals/icons/routes.svg" alt=""><span>Rutas oficiales<br><b>catálogo inicial</b></span></div>
           <div><img src="./assets/visuals/icons/natura.svg" alt=""><span>Naturaleza<br><b>y biodiversidad</b></span></div>
-          <div><img src="./assets/visuals/icons/safety.svg" alt=""><span>Seguridad<br><b>y emergencias</b></span></div>
+          <div><img src="./assets/visuals/icons/safety.svg" alt=""><span>Seguridad<br><b>módulos en desarrollo</b></span></div>
         </div>
       </div>
 
-      <div class="device-stage" aria-label="Vista previa de la aplicación España Outdoor">
+      <div class="device-stage" aria-label="Maqueta visual de la aplicación; no es una navegación interactiva">
         <div class="phone">
           <div class="phone-speaker"></div>
           <div class="phone-screen">
@@ -141,10 +148,10 @@
       <div>
         <p class="kicker kicker-light">Cartografía</p>
         <h2>El territorio en tus manos.</h2>
-        <p>La plataforma está preparada para PMTiles, cartografía vectorial y experiencias offline regionales, con el mapa como superficie principal del producto.</p>
+        <p>La arquitectura de la app utiliza MapLibre y prepara la distribución controlada de datos cartográficos mediante PMTiles. Las capas y regiones disponibles dependen de una configuración de producción verificada.</p>
         <div class="metric-row">
-          <span><b>Offline</b> preparado</span>
-          <span><b>GPS</b> en tiempo real</span>
+          <span><b>Offline</b> básico</span>
+          <span><b>GPS</b> y registro de ruta</span>
           <span><b>GPX</b> compatible</span>
         </div>
       </div>
@@ -159,7 +166,7 @@
         <p>Planifica, importa GPX, registra recorridos y consulta información territorial desde una experiencia orientada al terreno.</p>
       </div>
       <div class="routes-grid">
-        <article class="large-route-card"><img class="real-photo" src="https://images.unsplash.com/photo-1671918585326-6c31d8ee1b42?auto=format&fit=crop&w=1600&q=84" alt="Senderista en Cabo de Gata, España" loading="lazy"><img class="route-art" src="./assets/visuals/hero_routes.svg" alt=""><div><span>Rutas & navegación</span><h3>De la planificación al sendero.</h3><p>Una experiencia de ruta integrada con mapas, GPS y routing preparado.</p></div></article>
+        <article class="large-route-card"><img class="real-photo" src="https://images.unsplash.com/photo-1671918585326-6c31d8ee1b42?auto=format&fit=crop&w=1600&q=84" alt="Senderista en Cabo de Gata, España" loading="lazy"><img class="route-art" src="./assets/visuals/hero_routes.svg" alt=""><div><span>Rutas & navegación</span><h3>De la planificación al sendero.</h3><p>La grabación GPS y el trabajo con GPX forman parte de la base; el cálculo de navegación depende de un servicio externo configurado y validado.</p></div></article>
         <article class="info-card"><img src="./assets/visuals/icons/routes.svg" alt=""><strong>GPX</strong><p>Importación y exportación.</p></article>
         <article class="info-card"><img src="./assets/visuals/icons/location.svg" alt=""><strong>GPS</strong><p>Posición y trazado.</p></article>
       </div>
@@ -183,7 +190,7 @@
   <section class="safety-section section">
     <div class="shell safety-hero">
       <div class="safety-visual"><img src="./assets/visuals/hero_safety.svg" alt="Seguridad en España Outdoor"></div>
-      <div class="safety-copy"><p class="kicker">Seguridad</p><h2>Prepararte también forma parte de la aventura.</h2><p>SOS, contactos de confianza, Rescue Link y alertas se plantean como módulos claros y auditables, integrados en el flujo de salida.</p><a class="button button-small" href="./seguridad.html">Conocer las funciones de seguridad <span>›</span></a></div>
+      <div class="safety-copy"><p class="kicker">Seguridad</p><h2>Prepararte también forma parte de la aventura.</h2><p>Los módulos SOS, contactos de confianza y Rescue Link forman parte del diseño del producto. Hasta validar su despliegue, no deben considerarse un servicio de rescate ni sustituir al 112.</p><a class="button button-small" href="./seguridad.html">Conocer las funciones de seguridad <span>›</span></a></div>
     </div>
   </section>
 
@@ -193,7 +200,7 @@
         <p class="kicker kicker-light">La aplicación</p>
         <h2>Todo España Outdoor.<br>En tu bolsillo.</h2>
         <p>La experiencia operativa está pensada para móvil, con Android como prioridad actual y una arquitectura preparada para crecer.</p>
-        <div class="hero-actions"><a class="button button-gold" href="./app.html">Descargar App <small>Android</small></a><a class="button button-outline" href="./contacto.html">Conocer el proyecto</a></div>
+        <div class="hero-actions"><a class="button button-gold" href="./app.html">Estado de la App <small>Android</small></a><a class="button button-outline" href="./contacto.html">Conocer el proyecto</a></div>
       </div>
       <div class="download-visual"><img class="download-photo" src="https://images.unsplash.com/photo-1756922480395-72718dcf6c7f?auto=format&fit=crop&w=1600&q=84" alt="Paisaje de montaña en España" loading="lazy"><div class="download-badge"><img src="./assets/brand/mark.svg" alt=""><span>ESPAÑA<br><b>OUTDOOR</b></span></div></div>
     </div>
