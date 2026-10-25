@@ -1,4 +1,4 @@
-import { createAuthClient } from 'https://esm.sh/@neondatabase/auth@latest';
+import { createAuthClient } from 'https://esm.sh/@neondatabase/auth@0.7.0-beta';
 
 const config = window.ESPANA_OUTDOOR_PROFILE_CONFIG;
 const auth = createAuthClient(config.authUrl);
@@ -67,8 +67,13 @@ function getSessionData(result) {
   return result?.data?.session || result?.data || result?.session || result || null;
 }
 async function getAccessToken() {
-  if (typeof auth.getJWTToken === 'function') return await auth.getJWTToken();
-  return null;
+  const token = typeof currentSession?.access_token === 'string'
+    ? currentSession.access_token.trim()
+    : '';
+  if (token.split('.').length !== 3 || token.split('.').some(part => !part)) {
+    throw new Error('La sesión de Neon Auth no contiene un JWT válido para acceder al perfil. Vuelve a iniciar sesión.');
+  }
+  return token;
 }
 function mapApiProfile(row) {
   if (!row) return null;
