@@ -117,3 +117,7 @@ jobs:
           grep -q 'uploadGalleryPhotos' site/mi-perfil.js
           grep -q "method: 'DELETE'" site/mi-perfil.js
           grep -q 'auth.getSession()' site/mi-perfil.js
+          grep -q 'data-achievements-grid' site/mi-perfil.html
+          grep -q 'function renderAchievements(profile = currentProfile)' site/mi-perfil.js
+          grep -q 'Coleccionista outdoor' site/mi-perfil.js
+          grep -q 'Pendiente de sincronización GPS' site/mi-perfil.js
