@@ -10,9 +10,11 @@
 
 - Registro, inicio y cierre de sesión con Neon Auth en la web de pruebas.
 - Dominio `https://feature-profile-registration.espana-outdoor.pages.dev` añadido y verificado en los dominios de confianza de Neon Auth.
-- Formulario de edición de perfil: nombre visible, alias público, zona habitual y presentación.
+- Formulario de edición de perfil: nombre visible, alias público, zona habitual, presentación y selector de foto.
 - Persistencia y lectura de los datos de perfil mediante Neon Data API y la tabla `public.user_profiles`, protegida con RLS.
 - Página independiente `site/mi-perfil.html`, que presenta los datos guardados y permite volver a editarlos.
+- Foto de perfil: selección en «Mi cuenta» y «Mi perfil», vista previa, recorte cuadrado y compresión a JPEG de 384 × 384, guardado persistente en `public.user_profiles.avatar_data` y opción de quitarla.
+- La migración añade `avatar_data` de forma compatible con perfiles existentes (`ADD COLUMN IF NOT EXISTS`); el flujo de Neon vuelve a aplicar la migración y refresca la caché de Data API.
 - Al guardar cambios desde `site/cuenta.html`, el usuario es redirigido a `mi-perfil.html?guardado=1`.
 - Enlace «Mi perfil» añadido a la navegación y al pie de página.
 - Estilos de escritorio y móvil para la nueva vista.
@@ -29,7 +31,7 @@
 
 ## Pendiente — no fingir que está implementado
 
-1. **Mis fotos:** el apartado visual existe, pero todavía no está conectado a subida, almacenamiento, borrado ni galería persistente.
+1. **Mis fotos (galería):** la foto de perfil ya se guarda, pero la galería independiente de múltiples fotografías por ruta aún no está conectada a subida ni almacenamiento.
 2. **Mis logros:** el apartado visual existe, pero aún no hay una fuente de actividad/rutas que otorgue y sincronice logros.
 3. **Prueba adicional recomendada:** modificar los datos, guardar, volver a entrar y confirmar que se mantienen tras cerrar sesión y entrar de nuevo.
 4. Antes de promover cambios a producción, probar también el dominio definitivo y confirmar que sus dominios de confianza están configurados en Neon Auth.
@@ -40,7 +42,7 @@
 - `site/account.js` — flujo de autenticación, lectura y guardado de perfil.
 - `site/profile-config.js` — URLs públicas de Neon Auth y Neon Data API.
 - `site/mi-perfil.html` — página independiente de perfil personal.
-- `site/mi-perfil.js` — lectura autenticada y renderizado de perfil.
+- `site/mi-perfil.js` — lectura autenticada, carga/compresión/guardado/eliminación de foto y renderizado de perfil.
 - `site/app.js` — navegación compartida de la web.
 - `site/styles.css` — estilos del perfil.
 - `database/migrations/001_neon_auth_user_profiles.sql` — esquema y políticas RLS.
