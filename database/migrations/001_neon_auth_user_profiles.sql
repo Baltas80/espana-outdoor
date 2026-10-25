@@ -13,9 +13,14 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     CHECK (username ~ '^[a-z0-9][a-z0-9._-]{2,19}$'),
   home_area VARCHAR(80) NOT NULL DEFAULT '',
   bio VARCHAR(160) NOT NULL DEFAULT '',
+  avatar_data TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Añade la foto a las instalaciones existentes sin borrar los perfiles guardados.
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS avatar_data TEXT NOT NULL DEFAULT '';
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles FORCE ROW LEVEL SECURITY;
