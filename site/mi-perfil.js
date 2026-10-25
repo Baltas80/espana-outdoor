@@ -254,6 +254,10 @@ async function uploadGalleryPhotos() {
     if (galleryFilesInput) galleryFilesInput.value = '';
     setGalleryStatus(uploaded + (uploaded === 1 ? ' foto subida y guardada.' : ' fotos subidas y guardadas.'), 'success');
   } catch (error) {
+    // Si algunas fotos ya se guardaron, conserva seleccionadas solo las que
+    // faltan; así al reintentar no se duplican las que ya se subieron.
+    selectedGalleryFiles = files.slice(uploaded);
+    if (galleryFilesInput) galleryFilesInput.value = '';
     setGalleryStatus(
       (uploaded ? uploaded + ' foto(s) guardada(s). ' : '') +
       (error instanceof Error ? error.message : 'No se pudieron guardar todas las fotos.'),
