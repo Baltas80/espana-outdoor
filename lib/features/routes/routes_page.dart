@@ -150,7 +150,10 @@ class _RoutesPageState extends State<RoutesPage> {
             subtitle: 'Rutas con contexto y preparación offline.',
           ),
           const SizedBox(height: 14),
-          _SearchField(controller: _searchController),
+          _SearchField(
+            controller: _searchController,
+            query: _query,
+          ),
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -244,9 +247,10 @@ class _RoutesPageState extends State<RoutesPage> {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller});
+  const _SearchField({required this.controller, required this.query});
 
   final TextEditingController controller;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +260,7 @@ class _SearchField extends StatelessWidget {
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.search),
         hintText: 'Buscar rutas y zonas…',
-        suffixIcon: controller.text.isEmpty
+        suffixIcon: query.isEmpty
             ? null
             : IconButton(
                 tooltip: 'Borrar búsqueda',
@@ -417,8 +421,8 @@ class _ImportedTrackCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 Text('${(track.distanceMeters / 1000).toStringAsFixed(1)} km'),
-                Text('+${track.ascentMeters.toStringAsFixed(0)} m'),
-                Text('-${track.descentMeters.toStringAsFixed(0)} m'),
+                Text('+ ${track.ascentMeters.toStringAsFixed(0)} m'),
+                Text('- ${track.descentMeters.toStringAsFixed(0)} m'),
                 Text('${track.points.length} puntos'),
               ],
             ),
