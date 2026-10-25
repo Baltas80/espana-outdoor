@@ -105,14 +105,24 @@
         </article>
 
         <div class="eo-profile-sections">
-          <section class="eo-profile-feature">
+          <section class="eo-profile-feature eo-profile-gallery" data-gallery aria-labelledby="profile-gallery-heading">
             <div class="eo-profile-feature-icon" aria-hidden="true">▧</div>
             <div class="eo-profile-feature-heading">
-              <p class="kicker">Tu galería</p>
-              <h2>Mis fotos</h2>
+              <p class="kicker">Tus experiencias outdoor</p>
+              <h2 id="profile-gallery-heading">Mis fotos</h2>
             </div>
-            <p class="eo-profile-feature-copy">Aquí se mostrarán las fotografías que compartas de tus rutas, paisajes y experiencias outdoor.</p>
-            <div class="eo-profile-empty"><strong>La galería todavía no está activa</strong><span>La subida de imágenes y su almacenamiento deben integrarse en una siguiente fase.</span></div>
+            <p class="eo-profile-feature-copy">Guarda las imágenes de tus rutas, paisajes y aventuras. Solo tú puedes consultar y eliminar las fotos de esta galería.</p>
+            <div class="eo-profile-gallery-controls">
+              <label class="button button-outline-dark eo-profile-gallery-pick" for="profile-gallery-files">Seleccionar fotos</label>
+              <input id="profile-gallery-files" data-gallery-files type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+              <button class="button button-gold" data-gallery-upload type="button" disabled>Subir fotos seleccionadas</button>
+              <span data-gallery-selection aria-live="polite">Ninguna foto seleccionada</span>
+            </div>
+            <p class="eo-profile-gallery-status" data-gallery-status role="status" aria-live="polite"></p>
+            <div class="eo-profile-gallery-grid" data-gallery-grid>
+              <div class="eo-profile-empty eo-profile-gallery-empty" data-gallery-empty><strong>Aún no has añadido fotos</strong><span>Selecciona una o varias imágenes para crear tu galería personal.</span></div>
+            </div>
+            <p class="eo-profile-gallery-note">Máximo 12 fotos. JPEG, PNG o WebP; 8 MB por archivo antes de optimizar. Las imágenes se redimensionan y comprimen antes de guardarse.</p>
           </section>
 
           <section class="eo-profile-feature">
