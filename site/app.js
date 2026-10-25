@@ -1,6 +1,7 @@
 const header = document.querySelector('[data-header]');
 const menu = document.querySelector('[data-menu]');
 const nav = document.querySelector('#main-nav');
+const menuLabel = menu?.querySelector('.sr-only');
 const year = document.querySelector('[data-year]');
 
 const onScroll = () => {
@@ -36,12 +37,23 @@ nav?.querySelectorAll('a[href]').forEach((link) => {
   link.addEventListener('click', () => {
     nav.classList.remove('open');
     menu?.setAttribute('aria-expanded', 'false');
+    if (menuLabel) menuLabel.textContent = 'Abrir menú';
   });
 });
 
 menu?.addEventListener('click', () => {
   const open = nav?.classList.toggle('open') ?? false;
   menu.setAttribute('aria-expanded', String(open));
+  if (menuLabel) menuLabel.textContent = open ? 'Cerrar menú' : 'Abrir menú';
+  if (open) nav?.querySelector('a[href]')?.focus();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !nav?.classList.contains('open')) return;
+  nav.classList.remove('open');
+  menu?.setAttribute('aria-expanded', 'false');
+  if (menuLabel) menuLabel.textContent = 'Abrir menú';
+  menu?.focus();
 });
 
 if (year) year.textContent = new Date().getFullYear();
