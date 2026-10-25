@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071511">
+  <meta name="description" content="Tu perfil personal de España Outdoor: tus datos, fotos y logros de exploración.">
+  <meta property="og:title" content="Mi perfil — España Outdoor">
+  <meta property="og:description" content="Tu espacio personal en la comunidad España Outdoor.">
+  <link rel="canonical" href="https://espanaoutdoor.es/mi-perfil.html">
+  <link rel="icon" href="./assets/brand/mark.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Mi perfil — España Outdoor</title>
+</head>
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido</a>
+<header class="site-header" data-header>
+  <div class="shell header-inner">
+    <a class="brand" href="./index.html" aria-label="España Outdoor">
+      <img src="./assets/brand/mark.svg" alt="" width="48" height="48">
+      <span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span>
+    </a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" data-menu>
+      <span></span><span></span><span></span><span class="sr-only">Abrir menú</span>
+    </button>
+    <nav id="main-nav" class="main-nav" aria-label="Principal">
+      <a href="./index.html">Inicio</a>
+      <a href="./mapa.html">Mapa</a>
+      <a href="./rutas.html">Rutas</a>
+      <a href="./naturaleza.html">Naturaleza</a>
+      <a href="./seguridad.html">Seguridad</a>
+      <a href="./app.html">App</a>
+      <a href="./blog.html">Blog</a>
+      <a href="./contacto.html">Contacto</a>
+      <a class="nav-download" href="./app.html">Descargar App</a>
+    </nav>
+  </div>
+</header>
+
+<main id="contenido" class="page-main eo-profile-page">
+  <section class="eo-profile-hero">
+    <div class="shell eo-profile-hero-inner">
+      <p class="kicker kicker-light">Comunidad España Outdoor</p>
+      <h1>Mi <em>perfil</em></h1>
+      <p>Tu identidad outdoor, tus experiencias y todo lo que irás descubriendo.</p>
+    </div>
+  </section>
+
+  <section class="section eo-profile-section">
+    <div class="shell">
+      <p class="eo-profile-status" data-profile-status role="status" aria-live="polite">Cargando tu perfil…</p>
+
+      <section class="eo-profile-signin" data-profile-signed-out hidden>
+        <h2>Inicia sesión para ver tu perfil</h2>
+        <p>Tu perfil personal solo se muestra cuando has iniciado sesión.</p>
+        <a class="button button-gold" href="./cuenta.html?next=mi-perfil.html">Iniciar sesión</a>
+      </section>
+
+      <section data-profile-incomplete hidden class="eo-profile-signin">
+        <h2>Completa tu perfil</h2>
+        <p>Aún no hay datos de perfil guardados. Añade tu nombre visible y un alias para configurar tu espacio personal.</p>
+        <a class="button button-gold" href="./cuenta.html">Completar perfil</a>
+      </section>
+
+      <div data-profile-content hidden>
+        <article class="eo-profile-card">
+          <div class="eo-profile-card-top">
+            <div class="eo-profile-avatar" data-profile-avatar aria-hidden="true">EO</div>
+            <div class="eo-profile-identity">
+              <p class="kicker">Mi perfil personal</p>
+              <h2 data-profile-name>Nombre visible</h2>
+              <p class="eo-profile-handle" data-profile-handle>@alias</p>
+            </div>
+            <a class="button button-outline-dark eo-profile-edit" href="./cuenta.html">Editar perfil</a>
+          </div>
+          <div class="eo-profile-details">
+            <div class="eo-profile-detail" data-profile-area-wrap hidden>
+              <span>Zona habitual</span>
+              <strong data-profile-area></strong>
+            </div>
+            <div class="eo-profile-bio-wrap" data-profile-bio-wrap hidden>
+              <span>Sobre mí</span>
+              <p data-profile-bio></p>
+            </div>
+            <div class="eo-profile-detail">
+              <span>Miembro desde</span>
+              <strong data-profile-created>—</strong>
+            </div>
+          </div>
+          <div class="eo-profile-card-actions">
+            <a class="button button-gold" href="./cuenta.html">Modificar mis datos</a>
+            <button class="button button-outline-dark" type="button" data-profile-logout>Cerrar sesión</button>
+          </div>
+        </article>
+
+        <div class="eo-profile-sections">
+          <section class="eo-profile-feature">
+            <div class="eo-profile-feature-icon" aria-hidden="true">▧</div>
+            <div class="eo-profile-feature-heading">
+              <p class="kicker">Tu galería</p>
+              <h2>Mis fotos</h2>
+            </div>
+            <p class="eo-profile-feature-copy">Aquí se mostrarán las fotografías que compartas de tus rutas, paisajes y experiencias outdoor.</p>
+            <div class="eo-profile-empty"><strong>La galería todavía no está activa</strong><span>La subida de imágenes y su almacenamiento deben integrarse en una siguiente fase.</span></div>
+          </section>
+
+          <section class="eo-profile-feature">
+            <div class="eo-profile-feature-icon" aria-hidden="true">✦</div>
+            <div class="eo-profile-feature-heading">
+              <p class="kicker">Tu actividad</p>
+              <h2>Mis logros</h2>
+            </div>
+            <p class="eo-profile-feature-copy">Los reconocimientos se vincularán a tus rutas y actividades verificadas.</p>
+            <div class="eo-profile-empty"><strong>Aún no hay logros sincronizados</strong><span>Esta sección se conectará al sistema de rutas y actividad cuando esté implementado.</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="shell footer-inner">
+    <div class="brand footer-brand"><img src="./assets/brand/mark.svg" alt="" width="40"><span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span></div>
+    <div class="footer-links"><a href="./mapa.html">Mapa</a><a href="./rutas.html">Rutas</a><a href="./naturaleza.html">Naturaleza</a><a href="./seguridad.html">Seguridad</a><a href="./app.html">App</a><a href="./contacto.html">Contacto</a></div>
+    <div class="footer-copy">© <span data-year></span> España Outdoor</div>
+  </div>
+</footer>
+
+<script src="./app.js" defer></script>
+<script src="./profile-config.js"></script>
+<script type="module" src="./mi-perfil.js"></script>
+</body>
+</html>
