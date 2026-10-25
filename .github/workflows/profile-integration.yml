@@ -8,6 +8,8 @@ on:
       - 'lib/features/profile/**'
       - 'test/features/profile/**'
       - 'site/cuenta.html'
+      - 'site/mi-perfil.html'
+      - 'site/mi-perfil.js'
       - 'site/account.js'
       - 'site/profile-config.js'
       - 'site/_headers'
@@ -23,6 +25,8 @@ on:
       - 'lib/features/profile/**'
       - 'test/features/profile/**'
       - 'site/cuenta.html'
+      - 'site/mi-perfil.html'
+      - 'site/mi-perfil.js'
       - 'site/account.js'
       - 'site/profile-config.js'
       - 'site/_headers'
@@ -94,3 +98,7 @@ jobs:
           grep -q 'user_profiles' database/migrations/001_neon_auth_user_profiles.sql
           grep -q '@neondatabase/auth' site/account.js
           grep -q 'createAuthClient(config.authUrl)' site/account.js
+          test -s site/mi-perfil.html
+          test -s site/mi-perfil.js
+          grep -q 'data-profile-content' site/mi-perfil.html
+          grep -q 'auth.getSession()' site/mi-perfil.js
