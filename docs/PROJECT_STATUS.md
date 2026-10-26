@@ -105,3 +105,14 @@ Actualización respecto a la revisión anterior:
 - Sigue siendo provisional `applicationId = com.example.espana_outdoors`; no se ha inventado un identificador definitivo. La configuración `release` continúa usando firma `debug`, por lo que no es publicable.
 - No se ha ejecutado Flutter/Gradle localmente desde esta sesión. Los cambios anteriores son commits remotos, pendientes de que CI los valide.
 - La auditoría del directorio local de elevación `Espana-outdoor-maps` no se ha podido reconstruir con el historial accesible. No hay evidencia disponible de archivos concretos que falten en ese directorio.
+
+
+## Hallazgos de código adicionales (no equivalen a pruebas de ejecución)
+
+- `lib/features/map/maplibre_map_page.dart` usa la integración `maplibre_gl`; el estilo es producido por `lib/core/maps/maplibre_style_loader.dart`.
+- El cargador da prioridad a un PMTiles local verificado. Si no lo hay, intenta un PMTiles remoto o el catálogo, y el estilo por defecto incluye `https://tiles.openfreemap.org/styles/liberty`. Por tanto, sin paquete local y sin endpoint/catálogo de producción, no hay garantía de mapa funcional sin conexión.
+- El verificador `OfflinePackageVerifier` valida existencia, tamaño opcional y SHA-256; el downloader ofrece pausa/reanudación y verificación. No se ha ejecutado en este entorno contra un archivo productivo real ni contra almacenamiento Android.
+- `LocationController` utiliza `geolocator` para revisar permisos/servicio y abrir el stream de posiciones. `RouteRecorder` y `RouteRecordingStore` implementan recuperación/persistencia con Hive CE; existen pruebas de recuperación de sesiones, pero no se han ejecutado aquí.
+- `ValhallaRoutingService` realiza POST HTTP con timeout de 20 s, parsea shape polyline6 y maniobras. Las pruebas disponibles usan un cliente HTTP simulado; no demuestran conexión al Valhalla real.
+- GPX: dependencia `gpx` presente en `pubspec.yaml`; el flujo de importación/exportación requiere una prueba integral en dispositivo.
+- Rescue Link: gateway HTTP y pruebas de política están en el árbol; no se ha verificado un backend real ni el envío/recuperación extremo a extremo.
