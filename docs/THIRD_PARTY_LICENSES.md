@@ -1,11 +1,11 @@
 # ESPAÑA OUTDOOR — THIRD-PARTY SOFTWARE & LICENCE REGISTER
 
-Estado: registro reconciliado con `pubspec.yaml` y los módulos Go presentes en `master`.
-Fecha de revisión: 2026-10-05.
+Estado: revisión documental parcial contrastada con `main` el 2026-10-26. No es todavía un SBOM de release.
+Fecha de revisión: 2026-10-26.
 Alcance: dependencias de ejecución declaradas directamente por la aplicación y módulos Go declarados directamente por los servicios backend.
 
 > Este documento es un registro de licencias de dependencias directas. No sustituye el inventario completo de dependencias transitivas que se debe generar para cada release.
-> En el repositorio actual no existe `pubspec.lock`; por tanto, la resolución transitiva de Dart no queda fijada en Git y este documento no la presenta como si fuera determinista.
+> El repositorio actual sí contiene `pubspec.lock`. Debe verificarse en CI que sus versiones resueltas concuerdan con `pubspec.yaml` y generar el SBOM de dependencias empaquetadas para cada release.
 > Para una release, el inventario final debe incluir las dependencias transitivas realmente empaquetadas y sus notices/licencias.
 
 ## Criterio de registro
@@ -33,8 +33,6 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 |---|---|---|---|---|
 | flutter_svg | ^2.3.0 | Renderizado SVG | MIT | https://pub.dev/packages/flutter_svg/license |
 | cupertino_icons | ^2.0.0 | Recursos de iconos Cupertino | MIT | https://pub.dev/packages/cupertino_icons |
-| flutter_map | ^8.3.2 | Mapas | BSD-3-Clause | https://pub.dev/packages/flutter_map/license |
-| flutter_map_vector_tiles | ^2.9.0 | Vector tiles | BSD-3-Clause | https://pub.dev/packages/flutter_map_vector_tiles |
 | latlong2 | ^0.10.1 | Cálculos geográficos | Apache-2.0 | https://pub.dev/packages/latlong2 |
 | flutter_riverpod | ^3.4.3 | Estado/inyección | MIT | https://pub.dev/packages/flutter_riverpod/license |
 | go_router | ^18.0.2 | Navegación/deep links | BSD-3-Clause | https://pub.dev/packages/go_router/license |
@@ -52,7 +50,7 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 | purchases_flutter | ^10.14.0 | Compras/entitlements RevenueCat | MIT | https://pub.dev/packages/purchases_flutter |
 | purchases_ui_flutter | ^10.14.0 | UI de paywalls RevenueCat | MIT | https://pub.dev/packages/purchases_ui_flutter |
 | background_downloader | ^9.6.3 | Descargas en segundo plano | BSD-3-Clause + MIT | https://pub.dev/packages/background_downloader |
-| openidconnect | ^3.0.0 | OIDC/OAuth 2.0 | Apache-2.0 | https://pub.dev/packages/openidconnect |
+| flutter_appauth | ^12.1.0 | OAuth/OIDC móvil | Verificar licencia en la versión resuelta | https://pub.dev/packages/flutter_appauth |
 | sentry_flutter | ^9.30.1 | Telemetría de errores | MIT | https://pub.dev/packages/sentry_flutter/license |
 | battery_plus | ^7.1.1 | Estado de batería | BSD-3-Clause | https://pub.dev/packages/battery_plus/versions/7.1.1 |
 | sensors_plus | ^7.1.0 | Sensores de dispositivo | BSD-3-Clause | https://pub.dev/packages/sensors_plus/license |
@@ -87,10 +85,8 @@ Los módulos indirectos registrados en `go.mod/go.sum` no se presentan aquí com
 
 ## No incorporado / no distribuido como dependencia actual
 
-Los siguientes elementos se eliminan del inventario de dependencias actuales porque no aparecen como dependencias directas en el `pubspec.yaml` o en los módulos Go actuales:
+Los siguientes elementos no aparecen como dependencias directas actuales de la aplicación Flutter o de los módulos Go identificados; verifica dependencias transitivas y herramientas de infraestructura por separado:
 
-- maplibre_gl
-- pmtiles
 - firebase_messaging
 - Drift
 - Martin
@@ -111,3 +107,10 @@ Antes de distribuir una release:
 5. bloquear la release ante una dependencia con licencia no verificada, desconocida o incompatible con la distribución prevista.
 
 Este archivo es un registro técnico; no constituye asesoramiento jurídico.
+
+
+## Hallazgos de reconciliación del 2026-10-26
+
+La rama `main` contiene `pubspec.lock` (SHA del blob: `bda9f965deb41fe383c689dc0a361b7438451224`). El archivo fija, entre otros, el paquete `maplibre_gl` y `flutter_appauth`; no contiene entradas para `flutter_map`, `flutter_map_vector_tiles` ni `openidconnect`. Esto concuerda con las dependencias directas actuales declaradas en `pubspec.yaml`, pero todavía debe comprobarse con `flutter pub get --enforce-lockfile` en el entorno de CI.
+
+El inventario de arriba continúa siendo parcial: la licencia concreta de `flutter_appauth` y todas las licencias transitivas deben confirmarse desde los metadatos de las versiones resueltas. La etiqueta `master` en registros antiguos se ha eliminado de la declaración de estado; la rama oficial de trabajo es `main`.
