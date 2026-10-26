@@ -54,3 +54,10 @@ The basemap distribution must retain OpenStreetMap attribution and comply with t
 ## Why PMTiles
 
 PMTiles is an open, single-file tiled-data format designed for HTTP range access and direct cloud/object-storage distribution. This keeps the map stack portable and makes it possible to self-host the production archive instead of coupling the application to a proprietary map API.
+
+
+## Evidencia de inventario del repositorio (2026-10-26)
+
+La revisión remota de `main` encontró `assets/maps/offline_style.json`, pero no un archivo PMTiles regional de producción bajo `assets/maps/`. En `assets/testing/` existe `offline_smoke.pmtiles` de 508 bytes, que es un fixture de pruebas y no debe promocionarse a paquete productivo. La presencia del estilo y del fixture no acredita un mapa offline completo: faltan evidencias de un paquete regional real publicado, sus recursos de fuente/glifos, la integridad del conjunto, selección local y renderizado en Android sin red.
+
+Esta comprobación es del inventario Git de la rama `main`; no describe el inventario local de `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`.
