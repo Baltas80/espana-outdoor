@@ -2,6 +2,8 @@
 
 Estado: revisión documental parcial contrastada con `main` el 2026-10-26. No es todavía un SBOM de release.
 Fecha de revisión: 2026-10-26.
+
+Nota posterior: el workflow `Security baseline` ha generado un SBOM en CI el 2026-10-26. La tabla siguiente es el registro manual de dependencias directas; no sustituye el artefacto SBOM de la ejecución concreta.
 Alcance: dependencias de ejecución declaradas directamente por la aplicación y módulos Go declarados directamente por los servicios backend.
 
 > Este documento es un registro de licencias de dependencias directas. No sustituye el inventario completo de dependencias transitivas que se debe generar para cada release.
