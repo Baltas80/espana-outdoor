@@ -202,7 +202,11 @@ Future<OfflineRegion> _loadCatalogRegion() async {
     endpoint: Uri.parse(_catalogUrl),
   ).fetch();
   for (final entry in entries) {
-    if (entry.id.toLowerCase() == 'spain') return entry;
+    if (entry.id.toLowerCase() != 'spain') continue;
+    if (entry.providerId != 'approved-pmtiles-catalog') {
+      throw StateError('El catálogo declara un proveedor PMTiles no aprobado.');
+    }
+    return entry;
   }
   throw StateError(
     'El catálogo cartográfico no contiene la región requerida "spain".',
