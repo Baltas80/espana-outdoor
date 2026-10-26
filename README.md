@@ -162,3 +162,12 @@ lib/
 ## Web pública
 
 La carpeta `site/` contiene la web pública de España Outdoor, independiente de la aplicación Flutter. Está preparada para hosting estático y para `espanaoutdoor.es`. El sitio reutiliza la identidad visual del proyecto, mantiene sus recursos dentro de `site/assets` y puede desplegarse con Cloudflare Pages u otro proveedor estático.
+
+
+## Estado verificable de Android y cartografía (26/10/2026)
+
+La rama `main` contiene integración MapLibre y lógica de catálogo/descarga PMTiles, pero todavía no hay evidencia suficiente para afirmar que exista un APK de demostración validado en dispositivo o que la cartografía funcione sin conexión con datos regionales de producción. El inventario del repositorio contiene `assets/maps/offline_style.json` y un fixture de pruebas `assets/testing/offline_smoke.pmtiles` de 508 bytes; este fixture no es un mapa de España.
+
+La revisión técnica está registrada en `docs/PROJECT_STATUS.md`, `docs/MAP_OFFLINE.md` y `docs/OFFLINE_STRATEGY.md`. El identificador Android provisional y la firma de release debug deben resolverse antes de un release; los permisos de ubicación y los triggers de CI también necesitan corrección y comprobación.
+
+El inventario de la carpeta cartográfica del ordenador es independiente del inventario Git. No se deben deducir faltantes locales a partir de los archivos versionados.
