@@ -94,3 +94,14 @@ La integración de DEM/hillshading requiere una fuente de elevación y un pipeli
 ## Criterio de cierre del incidente del mapa
 
 El incidente queda cerrado cuando el smoke test abre la pantalla del mapa, el proceso Android permanece vivo, la fuente cartográfica se carga sin error nativo y el APK resultante se instala y comprueba físicamente sin cierre de la aplicación.
+
+
+### Seguimiento de auditoría — 26/10/2026
+
+Actualización respecto a la revisión anterior:
+
+- Se han corregido los filtros de rama de `.github/workflows/ci.yml` y `.github/workflows/staging-android.yml` para que apunten a `main`.
+- Se han declarado permisos Android de ubicación y servicios de ubicación, y se ha fijado `minSdk = 24`, alineándolo con el guard nativo de CI.
+- Sigue siendo provisional `applicationId = com.example.espana_outdoors`; no se ha inventado un identificador definitivo. La configuración `release` continúa usando firma `debug`, por lo que no es publicable.
+- No se ha ejecutado Flutter/Gradle localmente desde esta sesión. Los cambios anteriores son commits remotos, pendientes de que CI los valide.
+- La auditoría del directorio local de elevación `Espana-outdoor-maps` no se ha podido reconstruir con el historial accesible. No hay evidencia disponible de archivos concretos que falten en ese directorio.
