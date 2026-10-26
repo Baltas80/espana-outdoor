@@ -5,16 +5,29 @@ import 'package:http/http.dart' as http;
 import 'offline_region.dart';
 
 class OfflineRegionCatalog {
-  OfflineRegionCatalog({required Uri endpoint, http.Client? client})
-      : _endpoint = _validateEndpoint(endpoint),
-        _client = client ?? http.Client();
+  OfflineRegionCatalog({
+    required Uri endpoint,
+    http.Client? client,
+    Duration requestTimeout = const Duration(seconds: 15),
+  })  : _endpoint = _validateEndpoint(endpoint),
+        _client = client ?? http.Client(),
+        _requestTimeout = requestTimeout {
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'Must be positive.',
+      );
+    }
+  }
 
   final Uri _endpoint;
   final http.Client _client;
+  final Duration _requestTimeout;
 
   Future<List<OfflineRegion>> fetch() async {
     final response =
-        await _client.get(_endpoint).timeout(const Duration(seconds: 15));
+        await _client.get(_endpoint).timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
         'Offline region catalog failed: HTTP ${response.statusCode}',
@@ -29,11 +42,26 @@ class OfflineRegionCatalog {
     }
 
     if (decoded is List) {
-      return [
-        for (final item in decoded)
-          if (item is Map)
-            OfflineRegion.fromJson(Map<String, Object?>.from(item)),
-      ];
+      if (decoded.isEmpty) {
+        throw const FormatException('Offline region catalog must not be empty.');
+      }
+      final entries = <OfflineRegion>[];
+      final identifiers = <String>{};
+      for (final item in decoded) {
+        if (item is! Map) {
+          throw const FormatException(
+            'Every offline catalog entry must be a JSON object.',
+          );
+        }
+        final entry = OfflineRegion.fromJson(Map<String, Object?>.from(item));
+        if (!identifiers.add(entry.id)) {
+          throw FormatException(
+            'Offline region catalog contains duplicate id: ${entry.id}.',
+          );
+        }
+        entries.add(entry);
+      }
+      return entries;
     }
 
     throw const FormatException(
