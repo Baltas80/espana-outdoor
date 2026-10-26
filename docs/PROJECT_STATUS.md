@@ -116,3 +116,11 @@ Actualización respecto a la revisión anterior:
 - `ValhallaRoutingService` realiza POST HTTP con timeout de 20 s, parsea shape polyline6 y maniobras. Las pruebas disponibles usan un cliente HTTP simulado; no demuestran conexión al Valhalla real.
 - GPX: dependencia `gpx` presente en `pubspec.yaml`; el flujo de importación/exportación requiere una prueba integral en dispositivo.
 - Rescue Link: gateway HTTP y pruebas de política están en el árbol; no se ha verificado un backend real ni el envío/recuperación extremo a extremo.
+
+
+## Incidencias secundarias de CI/seguridad detectadas (2026-10-26)
+
+- `security.yml` también se ha corregido para ejecutarse en `main`.
+- La política de imagen Open Graph fallaba porque `site/index.html` referenciaba una imagen externa de Unsplash con parámetros de consulta. Se cambió a un recurso first-party que ya existe en `site/assets/brand/mark.svg`, para eliminar host/query no permitidos. Pendiente confirmar el siguiente job de política; la marca SVG puede no ser óptima para un preview social 1200×630, aunque cumple la restricción del validador.
+- `infra/.env.example` ya deja `LOCATION_ENCRYPTION_KEY` vacía, en vez de incluir un valor de ejemplo que Gitleaks interpretaba como posible secreto. El servicio requiere configurar una clave real mediante el gestor de secretos antes de operar.
+- El scan de secretos previo registró también dos coincidencias en la URL de imagen de Unsplash y una constante de almacenamiento de preferencias de waypoints; no muestran por sí solas una credencial operativa. No se ha divulgado ningún valor detectado. Debe repetirse el scan tras los cambios y comprobar el historial antes de concluir que no hay secretos expuestos.
