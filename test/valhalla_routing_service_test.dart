@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:espana_outdoors/core/contracts/routing_service.dart';
@@ -7,15 +8,22 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 class _FakeClient extends http.BaseClient {
-  _FakeClient(this.payload);
+  _FakeClient(
+    this.payload, {
+    this.statusCode = 200,
+    this.delay = Duration.zero,
+  });
 
   final Map<String, dynamic> payload;
+  final int statusCode;
+  final Duration delay;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
     return http.StreamedResponse(
       Stream.value(utf8.encode(jsonEncode(payload))),
-      200,
+      statusCode,
       headers: const {'content-type': 'application/json'},
       request: request,
     );
@@ -165,4 +173,84 @@ void main() {
     expect(result.points.last.latitude, closeTo(40.42, 0.000001));
     expect(result.points.last.longitude, closeTo(-3.69, 0.000001));
   });
+
+  test('rejects HTTP error responses without treating them as routes', () async {
+    final client = _FakeClient(
+      {'error': 'No suitable edges near location'},
+      statusCode: 400,
+    );
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: client,
+    );
+
+    await expectLater(
+      service.route(
+        const RouteRequest(
+          points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+        ),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('HTTP 400'),
+        ),
+      ),
+    );
+  });
+
+  test('times out a slow Valhalla response using configured request timeout', () async {
+    final client = _FakeClient(
+      {'trip': {'legs': []}},
+      delay: const Duration(milliseconds: 100),
+    );
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: client,
+      requestTimeout: const Duration(milliseconds: 5),
+    );
+
+    await expectLater(
+      service.route(
+        const RouteRequest(
+          points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+        ),
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
+
+  test('rejects out-of-range coordinates before making a request', () async {
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: _FakeClient({}),
+    );
+
+    await expectLater(
+      service.route(
+        const RouteRequest(
+          points: [LatLng(95, -3.70), LatLng(40.42, -3.69)],
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('rejects responses without usable route geometry', () async {
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: _FakeClient({'trip': {'legs': []}}),
+    );
+
+    await expectLater(
+      service.route(
+        const RouteRequest(
+          points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+        ),
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
 }
