@@ -171,13 +171,6 @@ Future<String?> _findStoredVerifiedPmTiles() async {
     return file.path;
   }
 
-  if (recordedModified == null) {
-    await OfflineRegionStore().put(
-      record.copyWith(fileModifiedAt: stat.modified),
-    );
-    return file.path;
-  }
-
   try {
     await const OfflinePackageVerifier().verifyFile(
       file,
