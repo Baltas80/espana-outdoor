@@ -8,18 +8,25 @@ import '../../core/contracts/routing_service.dart';
 /// Thin provider adapter around the mature Valhalla HTTP engine.
 /// Routing algorithms remain outside the application.
 class ValhallaRoutingService implements RoutingService {
-  ValhallaRoutingService({required Uri baseUri, http.Client? client})
-      : _baseUri = _normalizeBaseUri(baseUri),
-        _client = client ?? http.Client();
+  ValhallaRoutingService({
+    required Uri baseUri,
+    http.Client? client,
+    Duration requestTimeout = const Duration(seconds: 20),
+  })  : _baseUri = _normalizeBaseUri(baseUri),
+        _client = client ?? http.Client(),
+        _requestTimeout = requestTimeout {
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(requestTimeout, 'requestTimeout', 'Must be positive.');
+    }
+  }
 
   final Uri _baseUri;
   final http.Client _client;
+  final Duration _requestTimeout;
 
   @override
   Future<RouteResult> route(RouteRequest request) async {
-    if (request.points.length < 2) {
-      throw ArgumentError('At least two route points are required.');
-    }
+    _validatePoints(request.points, 'route');
     final response = await _post('route', {
       'locations': [
         for (final p in request.points)
@@ -39,9 +46,7 @@ class ValhallaRoutingService implements RoutingService {
 
   @override
   Future<RouteResult> match(List<LatLng> track) async {
-    if (track.length < 2) {
-      throw ArgumentError('At least two track points are required.');
-    }
+    _validatePoints(track, 'track');
     final response = await _post('trace_route', {
       'shape': [
         for (final p in track) {'lat': p.latitude, 'lon': p.longitude}
@@ -68,7 +73,7 @@ class ValhallaRoutingService implements RoutingService {
         },
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 20));
+        .timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final detail = response.body.trim();
       final suffix = detail.isEmpty
@@ -218,6 +223,22 @@ class ValhallaRoutingService implements RoutingService {
   static double? _number(Object? value, {double multiplier = 1}) {
     final number = value as num?;
     return number == null ? null : number.toDouble() * multiplier;
+  }
+
+  void _validatePoints(List<LatLng> points, String label) {
+    if (points.length < 2) {
+      throw ArgumentError('At least two $label points are required.');
+    }
+    for (final point in points) {
+      if (!point.latitude.isFinite ||
+          !point.longitude.isFinite ||
+          point.latitude < -90 ||
+          point.latitude > 90 ||
+          point.longitude < -180 ||
+          point.longitude > 180) {
+        throw ArgumentError('Invalid coordinate in $label.');
+      }
+    }
   }
 
   String _costing(String profile) {
