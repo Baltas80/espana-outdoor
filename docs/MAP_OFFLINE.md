@@ -25,10 +25,11 @@ A missing production `MAP_PMTILES_URL` with no local offline archive is treated 
 
 ## Offline lifecycle
 
-1. The region catalog publishes an immutable region id, URL, byte size, update timestamp and SHA-256 digest.
-2. `background_downloader` stores the completed archive under application support in `offline_regions/<region>.pmtiles`.
-3. The package verifier validates metadata and SHA-256 before the archive becomes active.
-4. Mobile MapLibre resolves the newest verified local PMTiles archive before using the configured remote archive.
+1. The region catalog publishes an immutable region id, HTTPS URL, byte size, update timestamp, licence, attribution and SHA-256 digest. Invalid entries, duplicate ids and empty catalog responses are rejected.
+2. When `OFFLINE_CATALOG_URL` is configured, its validated entry is authoritative for the PMTiles URL, checksum and attribution; `MAP_PMTILES_URL` is only the direct-source fallback when no catalog is configured.
+3. `background_downloader` stores the completed archive under application support in `offline_regions/<region>-<sha256-prefix>.pmtiles`.
+4. Before activation, the app validates expected size, SHA-256, PMTiles v3 signature and header length. A matching checksum alone is not treated as proof that a file is a PMTiles archive.
+5. Mobile MapLibre resolves a locally stored verified PMTiles archive before requiring a remote source.
 5. If connectivity disappears, the verified local archive remains usable for map rendering.
 6. Dynamic safety/weather information is never inferred from the age of the map archive; freshness must be represented separately.
 7. A future update may publish a newer archive for the same region. The downloader can resume interrupted transfers where the origin supports HTTP range requests.
@@ -37,7 +38,7 @@ A missing production `MAP_PMTILES_URL` with no local offline archive is treated 
 
 The production pipeline is defined in `.github/workflows/pmtiles-production-release.yml` and uses an immutable versioned object path in Cloudflare R2. The pipeline verifies the generated PMTiles archive, records SHA-256 and size metadata, publishes a catalog entry and performs HTTPS byte-range verification before producing release evidence.
 
-The real R2 account, bucket, public base URL, license URL and attribution are environment configuration. They must never be replaced with invented values in the application or release documentation.
+The real R2 account, bucket, public base URL, license URL and attribution are environment configuration. They must never be replaced with invented values in the application or release documentation. The current release runbook remains blocked until these values and the real object are provisioned and verified.
 
 ## Licensing and attribution
 
