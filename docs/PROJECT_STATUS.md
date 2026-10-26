@@ -26,14 +26,14 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 
 ## Evidencias verificadas el 2026-10-26
 
-- Rama consultada: `main`; HEAD previo a esta revisión: `ec0c1fdc2f19284a157273ed426f13b238df147b`.
+- Rama consultada: `main`; HEAD auditado antes de cambios documentales: `ec0c1fdc2f19284a157273ed426f13b238df147b`. Los cambios de auditoría están en commits posteriores de `main`.
 - Existe `pubspec.lock` y declara versiones resueltas para `maplibre_gl` y `flutter_appauth`. El registro de licencias se corrigió en un commit separado; el cambio documental no valida licencias transitivas ni produce un SBOM.
 - `assets/maps/` contiene `offline_style.json` y `.gitkeep`; no contiene un PMTiles regional de producción.
 - `assets/testing/` contiene `offline_smoke.pmtiles` (508 bytes, fixture de pruebas) y `.gitkeep`. No es cartografía de producción ni acredita cobertura de España.
 - El manifiesto consultado en la rama `main` contiene permiso de Internet, pero no declara permisos de ubicación gruesa/fina ni de ubicación en segundo plano. El guard `tool/verify_mobile_native.py` exige esos permisos, además de `minSdk 24`; por tanto, los archivos nativos actuales y el guard deben reconciliarse en CI antes de dar por válida la configuración Android.
 - `android/app/build.gradle.kts` conserva `com.example.espana_outdoors` como `applicationId` y firma `release` con la configuración `debug`. Esto no es una configuración apta para publicar; el identificador definitivo y la firma de release deben configurarse con los valores/secretos reales autorizados.
-- El workflow Android staging se dispara por pushes/PR sobre `master`, no `main`. La rama de trabajo real es `main`; por ello, este trigger no garantiza CI automático sobre cambios de la rama principal.
-- GitHub Actions consultado el 2026-10-26 mostró un fallo en la ejecución programada de Security baseline sobre el HEAD anterior y un despliegue web correcto; esos resultados no equivalen a una prueba Android.
+- Los workflows `.github/workflows/ci.yml` y `.github/workflows/staging-android.yml` tenían filtros de rama `master`; ambos se han corregido en commits separados para apuntar a `main`. Hay que comprobar que las siguientes ejecuciones completan correctamente.
+- GitHub Actions consultado el 2026-10-26 mostró un fallo en la ejecución programada de Security baseline sobre el HEAD anterior. Los logs identifican fallos de análisis Dart por contenido de `espana_outdoor_backtrack_patch/` versionado fuera de `lib/` (importaciones inexistentes como `../domain/outdoor_models.dart`), fallo de política OG image en `site/index.html` y cinco hallazgos Gitleaks. El despliegue web anterior terminó correctamente; no equivale a prueba Android.
 
 ## Niveles de validación (no confundir)
 
