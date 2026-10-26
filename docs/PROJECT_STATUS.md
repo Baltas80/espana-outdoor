@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última auditoría documental: 2026-10-23
+Última revisión documental remota: 2026-10-26 (sin ejecución local de Flutter/Android en esta sesión)
 
 ## Objetivo MVP
 
@@ -23,6 +23,30 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 - El flujo de descargas offline utiliza `background_downloader` y los servicios de catálogo/verificación en `lib/core/offline/`.
 - La configuración de producción debe suministrar `MAP_PMTILES_URL` o una configuración de estilo aprobada que apunte a una fuente PMTiles válida.
 - Un APK que compile no demuestra por sí solo cobertura regional detallada ni funcionamiento físico en todos los dispositivos.
+
+## Evidencias verificadas el 2026-10-26
+
+- Rama consultada: `main`; HEAD previo a esta revisión: `ec0c1fdc2f19284a157273ed426f13b238df147b`.
+- Existe `pubspec.lock` y declara versiones resueltas para `maplibre_gl` y `flutter_appauth`. El registro de licencias se corrigió en un commit separado; el cambio documental no valida licencias transitivas ni produce un SBOM.
+- `assets/maps/` contiene `offline_style.json` y `.gitkeep`; no contiene un PMTiles regional de producción.
+- `assets/testing/` contiene `offline_smoke.pmtiles` (508 bytes, fixture de pruebas) y `.gitkeep`. No es cartografía de producción ni acredita cobertura de España.
+- El manifiesto consultado en la rama `main` contiene permiso de Internet, pero no declara permisos de ubicación gruesa/fina ni de ubicación en segundo plano. El guard `tool/verify_mobile_native.py` exige esos permisos, además de `minSdk 24`; por tanto, los archivos nativos actuales y el guard deben reconciliarse en CI antes de dar por válida la configuración Android.
+- `android/app/build.gradle.kts` conserva `com.example.espana_outdoors` como `applicationId` y firma `release` con la configuración `debug`. Esto no es una configuración apta para publicar; el identificador definitivo y la firma de release deben configurarse con los valores/secretos reales autorizados.
+- El workflow Android staging se dispara por pushes/PR sobre `master`, no `main`. La rama de trabajo real es `main`; por ello, este trigger no garantiza CI automático sobre cambios de la rama principal.
+- GitHub Actions consultado el 2026-10-26 mostró un fallo en la ejecución programada de Security baseline sobre el HEAD anterior y un despliegue web correcto; esos resultados no equivalen a una prueba Android.
+
+## Niveles de validación (no confundir)
+
+| Nivel | Estado acreditado |
+|---|---|
+| Código presente | MapLibre, configuración PMTiles, GPS, registro/persistencia GPX y adaptadores de routing/rescue están presentes en el repositorio; se necesita revisión funcional de cada flujo. |
+| Validación documental remota | Realizada parcialmente el 2026-10-26; se identificaron discrepancias Android/CI/registro de licencias. |
+| Análisis estático ejecutado en esta sesión | No ejecutado: el entorno de esta sesión no dispone de una copia de trabajo Flutter/Android demostrada. |
+| Pruebas automatizadas ejecutadas en esta sesión | No ejecutadas. Hay suites y workflows definidos en GitHub. |
+| APK compilado en esta sesión | No. |
+| APK instalado o probado en emulador/dispositivo físico | No acreditado en esta sesión. |
+| Prueba online/offline de mapa | No acreditada. El fixture offline de CI no prueba cobertura productiva. |
+| Petición real a Valhalla / Rescue Link | No acreditada. No se ha verificado endpoint operativo en esta sesión. |
 
 ## Riesgos y comprobaciones pendientes
 
