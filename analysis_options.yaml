@@ -6,6 +6,9 @@ analyzer:
   exclude:
     - build/**
     - android/**
+    # Archived patch payload: source files are copied into lib/ by APLICAR.ps1.
+    # Do not analyze this staging copy as part of the application package.
+    - espana_outdoor_backtrack_patch/**
 
 linter:
   rules:
