@@ -49,3 +49,8 @@ Tile and vector providers must sit behind an application interface so providers 
 ## Degraded mode
 
 When online data cannot be refreshed, show the last known state with its timestamp rather than pretending it is current.
+
+
+## Estado comprobado el 2026-10-26
+
+Los puntos de este documento describen criterios de producto, no verificaciones ya superadas. En la revisión remota de `main` no se ha acreditado una ejecución de dispositivo que cubra pérdida de conexión, reapertura desde paquete local, frescura de avisos de seguridad o recuperación de descargas. El catálogo/almacenamiento y el verificador existen en código; deben probarse con un paquete real aprobado. El fixture `assets/testing/offline_smoke.pmtiles` solo sirve para smoke tests controlados y no es cartografía regional.
