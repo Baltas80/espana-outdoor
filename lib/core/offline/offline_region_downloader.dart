@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:background_downloader/background_downloader.dart';
 
 import 'offline_package_verifier.dart';
+import 'pmtiles_archive_verifier.dart';
 import 'offline_region.dart';
 
 class OfflineRegionDownloader {
@@ -41,6 +42,7 @@ class OfflineRegionDownloader {
       expectedBytes: region.sizeBytes,
       requireChecksum: requireChecksum,
     );
+    await const PmtilesArchiveVerifier().verifyFile(file);
     return file;
   }
 
@@ -55,6 +57,7 @@ class OfflineRegionDownloader {
       expectedBytes: region.sizeBytes,
       requireChecksum: requireChecksum,
     );
+    await const PmtilesArchiveVerifier().verifyFile(file);
     return file;
   }
 
