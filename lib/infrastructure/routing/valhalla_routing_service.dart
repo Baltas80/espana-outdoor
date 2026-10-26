@@ -16,7 +16,11 @@ class ValhallaRoutingService implements RoutingService {
         _client = client ?? http.Client(),
         _requestTimeout = requestTimeout {
     if (requestTimeout <= Duration.zero) {
-      throw ArgumentError.value(requestTimeout, 'requestTimeout', 'Must be positive.');
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'Must be positive.',
+      );
     }
   }
 
@@ -30,7 +34,7 @@ class ValhallaRoutingService implements RoutingService {
     final response = await _post('route', {
       'locations': [
         for (final p in request.points)
-        {
+          {
           'lat': p.latitude,
           'lon': p.longitude,
           'type': 'break',
@@ -68,9 +72,9 @@ class ValhallaRoutingService implements RoutingService {
         .post(
           uri,
           headers: const {
-          'content-type': 'application/json',
-          'user-agent': 'EspanaOutdoor/0.1',
-        },
+            'content-type': 'application/json',
+            'user-agent': 'EspanaOutdoor/0.1',
+          },
           body: jsonEncode(body),
         )
         .timeout(_requestTimeout);
