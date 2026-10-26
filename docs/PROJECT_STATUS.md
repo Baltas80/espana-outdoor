@@ -131,3 +131,16 @@ La imagen OG se cambió a `https://espanaoutdoor.es/assets/backgrounds/bg_home.s
 La reconciliación del registro manual de licencias se confirmó con el `pubspec.lock` y el workflow de SBOM. El workflow programado de seguridad pasó `secret-scan`, `OG image policy`, filesystem scan, dependency audit, SBOM y CodeQL en Go/Actions en la ejecución `40305792087`, pero el conjunto quedó fallido por `Dart static analysis`. Las ejecuciones más nuevas sobre los cambios finales todavía no habían terminado en el último sondeo; deben tratarse como pendientes.
 
 Bloqueo principal restante para una demo Android: cerrar el análisis/CI Dart, validar un build APK, instalarlo y probar el mapa online, GPS y PMTiles offline con paquete regional de producción. Para el inventario del directorio local `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`, se necesita volver a aportar el listado original: el registro accesible solo contiene la auditoría de otra carpeta (`Espana-Outdoors`) y no permite decidir qué archivos MDT05 faltan.
+
+
+## Resolución del origen del análisis Dart fallido (26/10/2026)
+
+La ejecución CI `40306186008` (commit `5b100cc0`) confirmó que los tres errores `uri_does_not_exist` procedían exclusivamente de copias de staging bajo `espana_outdoor_backtrack_patch/lib/`:
+
+- `espana_outdoor_backtrack_patch/lib/core/location/route_recorder.dart:7`
+- `espana_outdoor_backtrack_patch/lib/core/navigation/backtrack.dart:3`
+- `espana_outdoor_backtrack_patch/lib/core/storage/route_recording_store.dart:3`
+
+Las importaciones `../domain/outdoor_models.dart` son válidas cuando esos archivos se copian a sus destinos reales bajo `lib/core/...`; fallan dentro del directorio de staging porque allí no existe `espana_outdoor_backtrack_patch/lib/core/domain/outdoor_models.dart`. `espana_outdoor_backtrack_patch/APLICAR.ps1` confirma el propósito de esa carpeta: contiene un parche manual que copia cuatro archivos fuente/prueba y modifica `lib/features/navigation/backtrack_page.dart`, creando backups locales. No es código de aplicación independiente.
+
+No se borró el parche ni se modificaron sus importaciones. En `analysis_options.yaml` se excluyó `espana_outdoor_backtrack_patch/**` del análisis de la app, preservando el material y su script de aplicación. Esta corrección es acotada y basada en el propósito documentado del directorio. **Todavía falta una ejecución nueva de `flutter analyze`/CI que confirme el resultado**; el run que mostró los errores se ejecutó antes de este cambio y reportó 127 issues totales, no solo los tres errores de imports.
