@@ -124,3 +124,10 @@ Actualización respecto a la revisión anterior:
 La ejecución de Security baseline `40305792087` confirmó éxito en `secret-scan`, `OG image policy`, `filesystem-scan`, `dependency-audit`, `Generate SBOM` y ambos análisis CodeQL. El workflow global siguió fallando en `Dart static analysis`; en la ejecución anterior el error venía de archivos de paquetes auxiliares de parche que contienen imports relativos inexistentes. La ejecución más reciente de security sigue su curso, por lo que la corrección de esos errores Dart aún no se da por validada.
 
 La imagen OG se cambió a `https://espanaoutdoor.es/assets/backgrounds/bg_home.svg`, recurso first-party existente y sin parámetros. La política OG superó en el run `40305792087`. `infra/.env.example` ahora deja `LOCATION_ENCRYPTION_KEY` vacía y el `secret-scan` del mismo run terminó con éxito. Esto no implica que la clave real del despliegue esté configurada: debe inyectarse mediante el entorno de secretos.
+
+
+## Nota de cierre de esta intervención (26/10/2026)
+
+La reconciliación del registro manual de licencias se confirmó con el `pubspec.lock` y el workflow de SBOM. El workflow programado de seguridad pasó `secret-scan`, `OG image policy`, filesystem scan, dependency audit, SBOM y CodeQL en Go/Actions en la ejecución `40305792087`, pero el conjunto quedó fallido por `Dart static analysis`. Las ejecuciones más nuevas sobre los cambios finales todavía no habían terminado en el último sondeo; deben tratarse como pendientes.
+
+Bloqueo principal restante para una demo Android: cerrar el análisis/CI Dart, validar un build APK, instalarlo y probar el mapa online, GPS y PMTiles offline con paquete regional de producción. Para el inventario del directorio local `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`, se necesita volver a aportar el listado original: el registro accesible solo contiene la auditoría de otra carpeta (`Espana-Outdoors`) y no permite decidir qué archivos MDT05 faltan.
