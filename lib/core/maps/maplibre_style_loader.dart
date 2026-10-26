@@ -42,9 +42,9 @@ Future<String> loadMapLibreStyle() async {
 
   late final String sourceUrl;
   var attribution = _defaultAttribution;
-  if (_directPmTilesUrl.isNotEmpty) {
-    sourceUrl = _directPmTilesUrl;
-  } else {
+  if (_catalogUrl.isNotEmpty) {
+    // When configured, the validated catalog is authoritative for the URL,
+    // checksum and attribution. Do not bypass it with MAP_PMTILES_URL.
     final region = await _loadCatalogRegion();
     final expectedFileName =
         '${region.id}-${region.sha256.substring(0, 12)}.pmtiles';
@@ -53,16 +53,22 @@ Future<String> loadMapLibreStyle() async {
       expectedSha256: region.sha256,
     );
     if (verifiedPath != null) {
-      final sourceUrl = 'pmtiles://${Uri.file(verifiedPath)}';
-      debugPrint('EO_MAPLIBRE_PM TILES catalog-local source: $sourceUrl');
+      final localSourceUrl = 'pmtiles://${Uri.file(verifiedPath)}';
+      debugPrint('EO_MAPLIBRE_PM TILES catalog-local source: $localSourceUrl');
       return _styleForSource(
-        sourceUrl: sourceUrl,
+        sourceUrl: localSourceUrl,
         attribution: region.attribution,
         styleJson: await rootBundle.loadString(_offlineStyleAsset),
       );
     }
     sourceUrl = region.downloadUrl.toString();
     attribution = region.attribution;
+  } else if (_directPmTilesUrl.isNotEmpty) {
+    sourceUrl = _directPmTilesUrl;
+  } else {
+    throw StateError(
+      'No hay PMTiles configurado: falta MAP_PMTILES_URL y OFFLINE_CATALOG_URL.',
+    );
   }
 
   final uri = Uri.tryParse(sourceUrl);
