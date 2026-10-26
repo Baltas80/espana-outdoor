@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../offline/offline_package_verifier.dart';
+import '../offline/offline_region_catalog.dart';
+import '../offline/pmtiles_archive_verifier.dart';
 import '../offline/offline_region.dart';
 import '../offline/offline_region_store.dart';
 import 'pmtiles_local_source.dart';
@@ -156,6 +158,11 @@ Future<String?> _findStoredVerifiedPmTiles() async {
 
   final stat = await file.stat();
   if (stat.size != record.bytesDownloaded) return null;
+  try {
+    await const PmtilesArchiveVerifier().verifyFile(file);
+  } on Object {
+    return null;
+  }
 
   final recordedModified = record.fileModifiedAt;
   if (recordedModified != null &&
@@ -192,35 +199,13 @@ Future<OfflineRegion> _loadCatalogRegion() async {
     );
   }
 
-  final response = await http
-      .get(Uri.parse(_catalogUrl))
-      .timeout(const Duration(seconds: 12));
-  if (response.statusCode != 200) {
-    throw StateError(
-      'No se pudo cargar el catálogo cartográfico (${response.statusCode}).',
-    );
+  final entries = await OfflineRegionCatalog(
+    endpoint: Uri.parse(_catalogUrl),
+  ).fetch();
+  for (final entry in entries) {
+    if (entry.id.toLowerCase() == 'spain') return entry;
   }
-
-  final decoded = jsonDecode(response.body);
-  Map<String, Object?>? raw;
-  if (decoded is Map) {
-    raw = Map<String, Object?>.from(decoded);
-  } else if (decoded is List) {
-    final entries = decoded
-        .whereType<Map>()
-        .map((item) => Map<String, Object?>.from(item))
-        .toList(growable: false);
-    for (final entry in entries) {
-      if (entry['id']?.toString().toLowerCase() == 'spain') {
-        raw = entry;
-        break;
-      }
-    }
-    raw ??= entries.isEmpty ? null : entries.first;
-  }
-
-  if (raw == null) {
-    throw StateError('El catálogo cartográfico no tiene un formato válido.');
-  }
-  return OfflineRegion.fromJson(raw);
+  throw StateError(
+    'El catálogo cartográfico no contiene la región requerida "spain".',
+  );
 }
