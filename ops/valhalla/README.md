@@ -41,7 +41,7 @@ The compose file binds Valhalla to loopback on port 8002. Put the HTTPS reverse 
 The production smoke gate requires an HTTPS endpoint, matching the mobile production policy and `.github/workflows/valhalla-smoke.yml`. Set `VALHALLA_BASE_URL` to the controlled HTTPS reverse-proxy endpoint and run:
 
 ```bash
-VALHALLA_BASE_URL="https://<configured-routing-host>" bash ./ops/valhalla/smoke-test.sh
+VALHALLA_BASE_URL="${VALHALLA_BASE_URL:?configure the real HTTPS endpoint first}" bash ./ops/valhalla/smoke-test.sh
 ```
 
 This is a placeholder for operator-supplied configuration, not a real service address. The gate validates service health, a real pedestrian route and elevation response; it does not fabricate a fallback route. Local HTTP-only testing is intentionally not accepted by this production gate.
