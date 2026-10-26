@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../offline/offline_package_verifier.dart';
+import '../offline/pmtiles_archive_verifier.dart';
 
 Future<String?> findLocalPmTiles({String? expectedFileName}) async {
   final root = await getApplicationSupportDirectory();
