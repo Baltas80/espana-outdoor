@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
 import '../../core/domain/outdoor_models.dart';
-import '../../core/emergency/emergency_contact_directory.dart';
 import '../../core/emergency/emergency_service.dart';
 import '../../core/emergency/emergency_share_service.dart';
 import '../../core/emergency/trusted_contact_store.dart';
@@ -23,24 +22,29 @@ class _SafetyPageState extends State<SafetyPage> {
 
   Future<void> _prepareEmergencyCall() async {
     setState(() => _capturing = true);
-    final snapshot =
-        await _emergency.captureSnapshot(type: EmergencyType.other);
+    EmergencySnapshot? snapshot;
+    try {
+      snapshot = await _emergency
+          .captureSnapshot(type: EmergencyType.other)
+          .timeout(const Duration(seconds: 16));
+    } catch (_) {
+      // A location failure must not block the user from calling 112.
+    }
     if (!mounted) return;
     setState(() => _capturing = false);
-    if (snapshot == null) {
-      _show('No se ha podido obtener una ubicación precisa.');
-      return;
-    }
-    final contact = await EmergencyContactDirectory.instance.spain();
-    if (!mounted) return;
+
+    const emergencyNumber = '112';
+    final locationMessage = snapshot == null
+        ? 'No se ha podido obtener la ubicación. Puedes llamar igualmente; '
+            'comunica tu ubicación verbalmente si puedes.'
+        : 'Ubicación preparada con una precisión aproximada de '
+            '${snapshot.accuracyMeters.toStringAsFixed(0)} m.';
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Llamar al ' + contact.general),
-        content: Text(
-          'Ubicación preparada con una precisión aproximada de '
-          '${snapshot.accuracyMeters.toStringAsFixed(0)} m.',
-        ),
+        title: const Text('Llamar al 112'),
+        content: Text(locationMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -53,8 +57,17 @@ class _SafetyPageState extends State<SafetyPage> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await _emergency.callEmergencyServices(number: contact.general);
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final launched =
+          await _emergency.callEmergencyServices(number: emergencyNumber);
+      if (!mounted) return;
+      if (!launched) {
+        _show('No se pudo abrir la llamada. Marca 112 manualmente.');
+      }
+    } catch (_) {
+      if (mounted) _show('No se pudo abrir la llamada. Marca 112 manualmente.');
     }
   }
 

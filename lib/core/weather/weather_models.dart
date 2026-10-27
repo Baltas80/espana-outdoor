@@ -4,6 +4,8 @@
 /// safety decisions never lose the source or timestamp that produced them.
 library;
 
+enum WeatherFreshnessStatus { current, aging, stale, unavailable, unknown }
+
 enum WeatherCondition {
   clear,
   partlyCloudy,
@@ -43,12 +45,14 @@ class WeatherForecast {
     required this.source,
     required this.fetchedAt,
     this.sourceUpdatedAt,
+    this.freshnessStatus = WeatherFreshnessStatus.unknown,
   });
 
   final List<WeatherDay> days;
   final String source;
   final DateTime fetchedAt;
   final DateTime? sourceUpdatedAt;
+  final WeatherFreshnessStatus freshnessStatus;
 
   bool get isEmpty => days.isEmpty;
 }

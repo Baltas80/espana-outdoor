@@ -35,6 +35,7 @@ class WeatherCache {
         'source': forecast.source,
         'fetchedAt': forecast.fetchedAt.toIso8601String(),
         'sourceUpdatedAt': forecast.sourceUpdatedAt?.toIso8601String(),
+        'freshnessStatus': forecast.freshnessStatus.name,
         'days': forecast.days
             .map((day) => {
                   'date': day.date.toIso8601String(),
@@ -76,6 +77,10 @@ class WeatherCache {
       sourceUpdatedAt: value['sourceUpdatedAt'] == null
           ? null
           : DateTime.parse(value['sourceUpdatedAt'] as String),
+      freshnessStatus: WeatherFreshnessStatus.values.firstWhere(
+        (status) => status.name == value['freshnessStatus'],
+        orElse: () => WeatherFreshnessStatus.unknown,
+      ),
     );
   }
 }

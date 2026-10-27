@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:espana_outdoors/core/contracts/source_gateway.dart';
+import 'package:espana_outdoors/core/weather/weather_models.dart';
 import 'package:espana_outdoors/infrastructure/sources/gateway_weather_service.dart';
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
     expect(forecast.source, 'AEMET OpenData');
     expect(forecast.fetchedAt, DateTime.utc(2026, 9, 23, 12));
     expect(forecast.sourceUpdatedAt, DateTime.utc(2026, 9, 23, 11));
+    expect(forecast.freshnessStatus, WeatherFreshnessStatus.stale);
   });
 }
 
