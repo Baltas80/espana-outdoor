@@ -431,7 +431,10 @@
           "left",
           "right"
         ],
-        "text-radial-offset": 0.4
+        "text-radial-offset": 0.4,
+        "text-font": [
+          "Roboto Regular"
+        ]
       },
       "paint": {
         "text-color": "#27352f",
@@ -474,7 +477,10 @@
           15
         ],
         "text-max-angle": 30,
-        "text-keep-upright": true
+        "text-keep-upright": true,
+        "text-font": [
+          "Roboto Regular"
+        ]
       },
       "paint": {
         "text-color": "#6d625b",
@@ -513,6 +519,9 @@
           11,
           16,
           13
+        ],
+        "text-font": [
+          "Roboto Regular"
         ]
       },
       "paint": {
@@ -521,5 +530,13 @@
         "text-halo-width": 1.2
       }
     }
-  ]
+  ],
+  "font-faces": {
+    "Roboto Regular": {
+      "url": "file:///system/fonts/Roboto-Regular.ttf",
+      "unicode-range": [
+        "U+0000-024F"
+      ]
+    }
+  }
 }
