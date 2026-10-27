@@ -48,8 +48,15 @@ final class GatewayWeatherService implements WeatherService {
       source: dataSnapshot.provenance.source,
       fetchedAt: dataSnapshot.freshness.fetchedAt,
       sourceUpdatedAt: dataSnapshot.provenance.observedAt,
+      freshnessStatus: _freshness(dataSnapshot.freshness.status),
     );
   }
+
+  static WeatherFreshnessStatus _freshness(String value) =>
+      WeatherFreshnessStatus.values.firstWhere(
+        (status) => status.name == value,
+        orElse: () => WeatherFreshnessStatus.unknown,
+      );
 
   static double? _double(Object? value) {
     if (value is num) return value.toDouble();
