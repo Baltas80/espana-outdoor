@@ -56,9 +56,9 @@ class _LightningPageState extends ConsumerState<LightningPage> {
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${result!.distanceKm.toStringAsFixed(2)} km', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                  Text('${result.distanceKm.toStringAsFixed(2)} km', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text('${result!.distanceMeters.round()} m aproximadamente'),
+                  Text('${result.distanceMeters.round()} m aproximadamente'),
                 ]),
               ),
             ),
