@@ -17,6 +17,7 @@ void main() {
     expect(forecast.source, 'AEMET OpenData');
     expect(forecast.fetchedAt, DateTime.utc(2026, 9, 23, 12));
     expect(forecast.sourceUpdatedAt, DateTime.utc(2026, 9, 23, 11));
+    expect(forecast.freshnessStatus, WeatherFreshnessStatus.stale);
   });
 }
 
