@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
 import '../../core/domain/outdoor_models.dart';
-import '../../core/emergency/emergency_contact_directory.dart';
 import '../../core/emergency/emergency_service.dart';
 import '../../core/emergency/emergency_share_service.dart';
 import '../../core/emergency/trusted_contact_store.dart';
