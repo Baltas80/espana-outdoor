@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:espana_outdoors/core/contracts/source_gateway.dart';
+import 'package:espana_outdoors/core/weather/weather_models.dart';
 import 'package:espana_outdoors/infrastructure/sources/gateway_weather_service.dart';
 
 void main() {
