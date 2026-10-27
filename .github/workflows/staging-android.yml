@@ -142,7 +142,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        if: always()
+        if: success()
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
