@@ -3,12 +3,12 @@
 ## 1. Cartografía móvil
 
 - Renderer: MapLibre Flutter mediante la dependencia `maplibre_gl`.
-- Distribución de datos vectoriales: PMTiles, con endpoints y catálogo controlados por entorno.
+- Estilo online de MapLibre configurado por entorno; la cartografía offline está pendiente de una implementación validada.
 - Los datos offline descargados deben verificarse antes de activarse y conservar atribución/licencia.
 - La pantalla cartográfica activa es `lib/features/map/maplibre_map_page.dart`; la carga de estilos y fuentes está en `lib/core/maps/`.
 - La lógica de rutas, seguridad y estado offline debe permanecer desacoplada de la implementación concreta del renderer.
 
-La configuración de producción debe proporcionar `MAP_PMTILES_URL` o un estilo aprobado que apunte a una fuente válida. No se permite fallback silencioso a un servicio público de teselas para producción.
+La configuración de producción debe proporcionar un estilo MapLibre HTTPS aprobado. No se permite fallback silencioso a un servicio público de teselas para producción.
 
 ## 2. Lifecycle del mapa
 
