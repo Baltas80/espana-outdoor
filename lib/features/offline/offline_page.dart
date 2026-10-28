@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/eo_components.dart';
-
 /// Offline cartography is intentionally unavailable until a MapLibre-native
 /// solution has been implemented and verified on Android without connectivity.
 class OfflinePage extends StatelessWidget {
