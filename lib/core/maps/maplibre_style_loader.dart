@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 const _styleUrl = String.fromEnvironment(
   'MAP_STYLE_URL',
@@ -18,13 +19,15 @@ Future<String> loadMapLibreStyle() async {
   }
 
   final uri = Uri.tryParse(_styleUrl);
-  if (uri == null ||
-      uri.scheme != 'https' ||
-      uri.host.isEmpty) {
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
     throw StateError('El estilo cartográfico remoto debe usar HTTPS.');
   }
 
-  // MapLibre Native accepts a style URL directly. Keeping it as a URL lets
-  // MapLibre resolve sprite, glyph and source resources relative to that style.
-  return uri.toString();
+  final response = await http.get(uri).timeout(const Duration(seconds: 12));
+  if (response.statusCode != 200) {
+    throw StateError(
+      'No se pudo cargar el estilo cartográfico (${response.statusCode}).',
+    );
+  }
+  return response.body;
 }
