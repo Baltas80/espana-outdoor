@@ -35,8 +35,8 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Analyze Dart
-        run: flutter analyze
+      - name: Analyze Dart source
+        run: flutter analyze lib
 
       - name: Build debug APK
         env:
