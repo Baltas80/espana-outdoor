@@ -4,7 +4,7 @@ Plataforma móvil premium para naturaleza, rutas, seguridad, mascotas, fauna, co
 
 ## Estado
 
-**MVP 0.1 en construcción activa.** La base actual incluye arquitectura por capas, navegación, mapa, GPS, grabación de rutas, importación GPX, persistencia local de rutas, modo offline básico, privacidad y CI. El sistema visual premium de España Outdoor ya está incorporado en la app y documentado en `docs/brand_system.md`.
+**MVP 0.1 en construcción activa.** La base actual incluye arquitectura por capas, navegación, mapa online, GPS, grabación de rutas, importación GPX, persistencia local de rutas, privacidad y CI. El sistema visual premium de España Outdoor ya está incorporado en la app y documentado en `docs/brand_system.md`.
 
 ## Prioridad de plataformas
 
@@ -25,8 +25,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Registro inicial de dependencias y alternativas maduras en `docs/THIRD_PARTY_LICENSES.md`.
 - Valhalla integrado mediante una interfaz `RoutingService`, con endpoint de producción externo al código.
 - Infraestructura reproducible para generar y servir tiles de Valhalla para España.
-- Descargas offline regionales preparadas con `background_downloader`, incluyendo pausa/reanudación y persistencia de transferencias.
-- El catálogo offline ya no contiene zonas ficticias: solo se muestran paquetes publicados por el backend configurado.
+- La cartografía offline no se considera implementada; se abordará mediante una estrategia independiente y pruebas en Android.
 - RevenueCat conectado a la frontera de producto mediante entitlements Free/Premium/Professional.
 - OpenID Connect integrado mediante un adaptador provider-neutral preparado para Keycloak.
 - Sentry integrado con PII desactivada y DSN inyectado en runtime.
