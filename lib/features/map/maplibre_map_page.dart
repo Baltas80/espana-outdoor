@@ -9,14 +9,14 @@ import '../../core/location/route_recorder.dart';
 import '../menu/menu_sheet.dart';
 import 'mapbox_map_viewport.dart';
 
-class MapLibreMapPage extends ConsumerStatefulWidget {
-  const MapLibreMapPage({super.key});
+class MapboxMapPage extends ConsumerStatefulWidget {
+  const MapboxMapPage({super.key});
 
   @override
-  ConsumerState<MapLibreMapPage> createState() => _MapLibreMapPageState();
+  ConsumerState<MapLibreMapPage> createState() => _MapboxMapPageState();
 }
 
-class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
+class _MapboxMapPageState extends ConsumerState<MapLibreMapPage> {
   MapboxMap? _controller;
   bool _locating = false;
 
@@ -44,7 +44,7 @@ class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
         ).showSnackBar(SnackBar(content: Text(location.message)));
         return;
       }
-      await _controller?.animateCamera(
+      await _controller?.easeTo(
         CameraOptions(
           center: Point(coordinates: Position(position.longitude, position.latitude)),
           zoom: 16,
