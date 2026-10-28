@@ -38,7 +38,7 @@ jobs:
       - name: Analyze Dart source
         run: flutter analyze lib
 
-      - name: Build debug APK
+      - name: Build debug APK (Android ARM64)
         env:
           MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         run: |
@@ -46,12 +46,12 @@ jobs:
             echo "::error::Falta el secreto MAPBOX_ACCESS_TOKEN. No se generará un APK que abra el mapa sin credenciales."
             exit 1
           fi
-          flutter build apk --debug --dart-define=ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
+          flutter build apk --debug --target-platform android-arm64 --dart-define=ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mapbox-offline-poc-debug-apk
+          name: mapbox-offline-poc-android-arm64
           path: experiments/mapbox_poc/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
