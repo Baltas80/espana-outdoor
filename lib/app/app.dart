@@ -60,7 +60,7 @@ class EspanaOutdoorApp extends StatelessWidget {
             routes: [
               GoRoute(
                 path: '/map',
-                builder: (_, __) => _withBackNavigation(const MapLibreMapPage()),
+                builder: (_, __) => _withBackNavigation(const MapboxMapPage()),
               ),
             ],
           ),
