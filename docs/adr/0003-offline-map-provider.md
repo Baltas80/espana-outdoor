@@ -1,23 +1,23 @@
-# ADR 0003 — Cartografía con MapLibre y estado offline pendiente
+# ADR 0003 — Migración del mapa Android a Mapbox Offline
 
 ## Estado
 
-Retirada. La decisión anterior sobre el formato de distribución cartográfica queda sustituida porque no ha producido una experiencia offline validada en Android.
+En revisión. La POC de Mapbox demostró descarga offline en una región acotada de Córdoba en un OPPO. La integración en la app principal debe pasar build y QA offline antes de aceptarse como solución de producción.
 
 ## Contexto
 
-España Outdoor utiliza MapLibre Flutter como único motor cartográfico. El mapa online debe poder cargarse desde un estilo HTTPS aprobado y mantener la atribución y licencias correspondientes.
+La implementación previa con MapLibre no logró una experiencia offline validada. La POC con Mapbox Maps SDK usa `OfflineManager` y `TileStore`; la adopción requiere token válido, atribución visible, cumplimiento de condiciones de uso y evaluación de costes.
 
 ## Decisión actual
 
-- Mantener MapLibre Flutter como motor cartográfico.
-- Cargar el estilo online mediante `MAP_STYLE_URL`, `MAP_STYLE_JSON` o un asset controlado.
+- Usar Mapbox Maps SDK (`mapbox_maps_flutter`) para el mapa principal Android y el almacenamiento offline.
+- Inyectar `MAPBOX_ACCESS_TOKEN` desde la configuración de compilación; no almacenar tokens en el repositorio.
 - No tratar el modo offline cartográfico como una función operativa.
-- Elegir y validar por separado una futura estrategia offline que sea compatible con la versión instalada de MapLibre Flutter.
+- Descargar style pack y región mediante `OfflineManager` y `TileStore`; la primera región de Córdoba (zoom 8–15) es solo una prueba controlada.
 - No utilizar los servidores públicos de teselas de OpenStreetMap para descargas masivas.
 
 ## Consecuencias
 
-La carga del estilo online deja de depender de un formato de archivo cartográfico ni de un catálogo de paquetes regionales. El modo offline cartográfico queda pendiente hasta comprobar el estilo, las fuentes, los glifos y los sprites sin conexión en un dispositivo Android real.
+La pantalla principal se migra a Mapbox en esta rama. Las vistas secundarias que aún usan MapLibre deben migrarse tras validar el mapa principal. La prueba offline de la aplicación integrada en modo avión es obligatoria; la compilación o la existencia de recursos guardados no bastan.
 
 Compilar el APK no constituye evidencia suficiente de que el mapa offline funcione.
