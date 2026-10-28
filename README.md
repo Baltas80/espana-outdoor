@@ -57,7 +57,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Hive CE para persistencia local de rutas.
 - GPX para importación/exportación.
 - Valhalla 3.9.0 para routing/map matching.
-- background_downloader para transferencias offline móviles.
+- `background_downloader` como infraestructura de transferencias en segundo plano; no habilita por sí solo mapas sin conexión.
 - RevenueCat para billing/entitlements.
 - OpenID Connect para identidad; Keycloak es el proveedor de infraestructura objetivo.
 - Sentry para errores/crashes.
