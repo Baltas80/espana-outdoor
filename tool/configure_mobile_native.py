@@ -121,6 +121,18 @@ def patch_android() -> None:
 
     gradle_path.write_text(gradle, encoding="utf-8")
 
+    # Flutter 3.44+ may generate AGP 9 projects with built-in Kotlin enabled.
+    # Mapbox's current Android plugin uses the Kotlin Gradle DSL and fails
+    # with "Could not find method kotlin()" unless the legacy KGP path is used.
+    gradle_properties = ROOT / "android" / "gradle.properties"
+    if not gradle_properties.exists():
+        raise SystemExit("Missing generated Android gradle.properties.")
+    properties = gradle_properties.read_text(encoding="utf-8")
+    property_line = "android.builtInKotlin=false"
+    lines = [line for line in properties.splitlines() if not line.startswith("android.builtInKotlin=")]
+    lines.append(property_line)
+    gradle_properties.write_text("\\n".join(lines).rstrip() + "\\n", encoding="utf-8")
+
 
 def patch_ios() -> None:
     plist_path = ROOT / "ios" / "Runner" / "Info.plist"
