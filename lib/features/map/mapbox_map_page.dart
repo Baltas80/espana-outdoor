@@ -67,7 +67,7 @@ class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
       await _useLocation();
       return;
     }
-    await _controller?.animateCamera(
+    await _controller?.easeTo(
       CameraOptions(
         center: Point(coordinates: Position(position.longitude, position.latitude)),
         zoom: 15,
@@ -163,7 +163,7 @@ class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
               ),
               blur: false,
               child: Text(
-                '© OpenStreetMap contributors',
+                '© Mapbox · © OpenStreetMap contributors',
                 style: EOTextStyles.label,
               ),
             ),
