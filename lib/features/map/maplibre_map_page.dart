@@ -9,8 +9,6 @@ import '../../core/location/route_recorder.dart';
 import '../menu/menu_sheet.dart';
 import 'maplibre_map_viewport.dart';
 
-const _offlineSmoke = bool.fromEnvironment('ANDROID_OFFLINE_SMOKE');
-
 class MapLibreMapPage extends ConsumerStatefulWidget {
   const MapLibreMapPage({super.key});
 
@@ -128,7 +126,7 @@ class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
               initialCenter: position == null
                   ? const ml.LatLng(40.2, -3.7)
                   : ml.LatLng(position.latitude, position.longitude),
-              initialZoom: _offlineSmoke ? 0 : (position == null ? 5.5 : 15),
+              initialZoom: position == null ? 5.5 : 15,
               currentPosition: position == null
                   ? null
                   : ml.LatLng(position.latitude, position.longitude),
