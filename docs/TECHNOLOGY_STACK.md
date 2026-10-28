@@ -27,7 +27,7 @@ Current architecture:
 
 1. MapLibre Flutter renders the map.
 2. MapLibre loads the configured online style; offline map storage requires a separate implementation.
-3. `MapService` and the offline-region services keep map lifecycle and application state separate from rendering details.
+3. `MapService` remains a provider-neutral contract; offline map downloads are currently disabled pending a validated implementation.
 
 Do not build a custom tile renderer or custom SQLite tile reader.
 Do not use `tile.openstreetmap.org` for bulk offline downloading. Production offline packages must use a provider or infrastructure whose terms explicitly permit prefetch/offline use.
