@@ -42,7 +42,7 @@ class OfflineRegionCatalog {
   }
 
   static Uri? fromEnvironment() {
-    const raw = String.fromEnvironment('OFFLINE_CATALOG_URL');
+    const raw = String.fromEnvironment('MAP_REGION_CATALOG_URL');
     if (raw.isEmpty) return null;
     final uri = Uri.tryParse(raw);
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return null;
