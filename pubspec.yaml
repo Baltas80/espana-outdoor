@@ -39,6 +39,12 @@ dependencies:
   maplibre_gl: 0.27.1
   mapbox_maps_flutter: 3.33.0
 
+# Evita que Pub seleccione 3.33.1, cuya configuración Gradle falla en Android.
+dependency_overrides:
+  mapbox_maps_flutter_mobile: 3.33.0
+  mapbox_maps_flutter_platform_interface: 3.33.0
+  mapbox_maps_flutter_web: 3.33.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
