@@ -10,7 +10,6 @@ Before writing custom infrastructure, the project must first check whether Flutt
 - Riverpod for feature state.
 - go_router for navigation.
 - MapLibre Flutter (`maplibre_gl`) for map rendering.
-- PMTiles for controlled vector-data distribution and offline map packages.
 - geolocator for location and distance calculations.
 - file_picker for file import/export.
 - path_provider for platform paths.
@@ -27,7 +26,7 @@ Before writing custom infrastructure, the project must first check whether Flutt
 Current architecture:
 
 1. MapLibre Flutter renders the map.
-2. PMTiles provides the controlled vector-data distribution format.
+2. MapLibre loads the configured online style; offline map storage requires a separate implementation.
 3. `MapService` and the offline-region services keep map lifecycle and application state separate from rendering details.
 
 Do not build a custom tile renderer or custom SQLite tile reader.
