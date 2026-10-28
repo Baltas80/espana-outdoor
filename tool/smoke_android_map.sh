@@ -194,29 +194,29 @@ test -s "${screenshot_file}"
 pid="$(adb shell pidof "${package_name}" 2>/dev/null | tr -d '\r\n' || true)"
 test -n "${pid}" || {
   echo "FAIL: application process is not alive after tapping Mapa."
-  grep -Ein "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|Abort message:|backtrace:|AndroidRuntime|flutter_map|PMTiles|VectorTile" "${logcat_file}" | tail -n 400 || true
+  grep -Ein "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|Abort message:|backtrace:|AndroidRuntime|flutter_map|MapLibre|VectorTile" "${logcat_file}" | tail -n 400 || true
   exit 1
 }
 
 if grep -Eiq "FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:|backtrace:" "${logcat_file}"; then
   echo "FAIL: native/application crash detected after tapping Mapa."
-  grep -Ein "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|Abort message:|backtrace:|AndroidRuntime|flutter_map|PMTiles|VectorTile" "${logcat_file}" | tail -n 500 || true
+  grep -Ein "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|Abort message:|backtrace:|AndroidRuntime|flutter_map|MapLibre|VectorTile" "${logcat_file}" | tail -n 500 || true
   exit 1
 fi
 
 post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
 ui_dump "${post_window}"
 if grep -Fq 'No se pudo cargar el mapa' "${post_window}" || grep -Fq 'Reintentar' "${post_window}"; then
-  echo "FAIL: PMTiles map is showing the loader error state."
+  echo "FAIL: MapLibre is showing the loader error state."
   cat "${post_window}"
-  grep -Ein "StyleReaderException|PmTilesException|HTTP [0-9]{3}|Range|flutter_map|PMTiles|VectorTile" "${logcat_file}" | tail -n 500 || true
+  grep -Ein "StyleReaderException|MapLibreException|HTTP [0-9]{3}|Range|flutter_map|MapLibre|VectorTile" "${logcat_file}" | tail -n 500 || true
   exit 1
 fi
-if grep -Eiq "StyleReaderException|PmTilesException" "${logcat_file}"; then
-  echo "FAIL: PMTiles/style exception detected."
-  grep -Ein "StyleReaderException|PmTilesException|HTTP [0-9]{3}|Range|flutter_map|PMTiles|VectorTile" "${logcat_file}" | tail -n 500 || true
+if grep -Eiq "StyleReaderException|MapLibreException" "${logcat_file}"; then
+  echo "FAIL: MapLibre style exception detected."
+  grep -Ein "StyleReaderException|MapLibreException|HTTP [0-9]{3}|Range|flutter_map|MapLibre|VectorTile" "${logcat_file}" | tail -n 500 || true
   exit 1
 fi
 
-echo "PASS: PMTiles map remained alive and the visible UI is not in the loader error state."
-grep -Ei "flutter_map|PMTiles|VectorTile|tile|Range" "${logcat_file}" | tail -n 200 || true
+echo "PASS: MapLibre map remained alive and the visible UI is not in the loader error state."
+grep -Ei "flutter_map|MapLibre|VectorTile|tile|Range" "${logcat_file}" | tail -n 200 || true
