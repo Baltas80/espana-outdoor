@@ -182,16 +182,28 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
       ),
       body: Stack(
         children: [
-          MapWidget(
-            key: const ValueKey('mapbox-poc-map'),
-            styleUri: _styleUri,
-            viewport: CameraViewportState(
-              center: _cordobaCenter,
-              zoom: 12,
-              bearing: 0,
-              pitch: 0,
+          if (_accessToken.isNotEmpty)
+            MapWidget(
+              key: const ValueKey('mapbox-poc-map'),
+              styleUri: _styleUri,
+              viewport: CameraViewportState(
+                center: _cordobaCenter,
+                zoom: 12,
+                bearing: 0,
+                pitch: 0,
+              ),
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Mapa no iniciado: falta el token público de Mapbox. '
+                  'Configura ACCESS_TOKEN para cargar el estilo.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
-          ),
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
