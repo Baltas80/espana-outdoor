@@ -13,10 +13,10 @@ class MapboxMapPage extends ConsumerStatefulWidget {
   const MapboxMapPage({super.key});
 
   @override
-  ConsumerState<MapLibreMapPage> createState() => _MapboxMapPageState();
+  ConsumerState<MapboxMapPage> createState() => _MapboxMapPageState();
 }
 
-class _MapboxMapPageState extends ConsumerState<MapLibreMapPage> {
+class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
   MapboxMap? _controller;
   bool _locating = false;
 
