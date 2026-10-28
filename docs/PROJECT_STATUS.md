@@ -1,146 +1,48 @@
 # España Outdoor — estado técnico
 
-Última revisión documental remota: 2026-10-26 (sin ejecución local de Flutter/Android en esta sesión)
+Última revisión del repositorio remoto: 28/10/2026. No se ha ejecutado Flutter/Android localmente durante esta intervención.
 
 ## Objetivo MVP
 
-Android primero. El criterio de aceptación principal es un APK instalable que abra el mapa sin cerrar la aplicación, renderice cartografía vectorial real y permita usar GPS, rutas y mapas offline.
+Android primero. El criterio de aceptación es un APK instalable que abra el mapa, renderice cartografía real, permita usar GPS y rutas, y gestione correctamente los errores y la pérdida de conectividad.
 
 ## Arquitectura cartográfica actual
 
-- Renderer móvil: MapLibre Flutter mediante `maplibre_gl`.
-- Estilo online: URL HTTPS configurable mediante `MAP_STYLE_URL`; también se admite `MAP_STYLE_JSON` para builds controladas.
-- Offline cartográfico: pendiente de una implementación distinta y de validación en Android.
-- Flutter/Riverpod/go_router.
-- Routing mediante Valhalla, configurado externamente con `VALHALLA_BASE_URL`.
-- Android es la plataforma prioritaria del MVP; el soporte de otras plataformas no debe darse por validado por inferencia.
+- Motor cartográfico autorizado: MapLibre Flutter mediante `maplibre_gl: 0.27.1`.
+- El estilo online se configura mediante `MAP_STYLE_URL` (HTTPS), `MAP_STYLE_JSON` o un asset controlado.
+- El estilo predeterminado es Liberty de OpenFreeMap.
+- El modo cartográfico offline está pendiente; no debe considerarse funcional ni anunciado como disponible.
+- El routing se configura externamente mediante `VALHALLA_BASE_URL`.
+- Android es la plataforma prioritaria del MVP.
 
-## Estado conocido del repositorio
+## Estado del código revisado
 
-- `pubspec.yaml` declara `maplibre_gl: 0.27.1`.
-- La pantalla cartográfica activa está en `lib/features/map/maplibre_map_page.dart`.
-- La carga de estilos y fuentes locales se encuentra en `lib/core/maps/`.
-- El almacenamiento offline de rutas y datos críticos se debe evaluar por separado de la cartografía.
-- El estilo online usa `MAP_STYLE_URL` o `MAP_STYLE_JSON`; no se afirma que el modo offline cartográfico esté operativo.
-- Un APK que compile no demuestra por sí solo cobertura regional detallada ni funcionamiento físico en todos los dispositivos.
+- La carga del estilo ya no depende de un catálogo de paquetes cartográficos ni de un formato de archivo regional.
+- Se han retirado el cargador específico anterior, los recursos de estilo ligados a ese flujo, el fixture de prueba y el pipeline de publicación asociado.
+- La existencia de la pantalla MapLibre o la compilación de un APK no demuestra que el mapa funcione en un dispositivo ni que exista modo offline.
+- La descarga genérica de datos, el almacenamiento de rutas y la cartografía son responsabilidades distintas. No se debe presentar una descarga como mapa utilizable sin verificar su integración con MapLibre.
 
-## Evidencias verificadas el 2026-10-26
+## Validación disponible
 
-- Rama consultada: `main`; HEAD auditado antes de cambios documentales: `ec0c1fdc2f19284a157273ed426f13b238df147b`. Los cambios de auditoría están en commits posteriores de `main`.
-- Existe `pubspec.lock` y declara versiones resueltas para `maplibre_gl` y `flutter_appauth`. El registro de licencias se corrigió en un commit separado; el cambio documental no valida licencias transitivas ni produce un SBOM.
-- `assets/maps/` contiene `offline_style.json` y `.gitkeep`; no contiene un  regional de producción.
-- `assets/testing/` contiene `offline_smoke.` (508 bytes, fixture de pruebas) y `.gitkeep`. No es cartografía de producción ni acredita cobertura de España.
-- El manifiesto consultado en la rama `main` contiene permiso de Internet, pero no declara permisos de ubicación gruesa/fina ni de ubicación en segundo plano. El guard `tool/verify_mobile_native.py` exige esos permisos, además de `minSdk 24`; por tanto, los archivos nativos actuales y el guard deben reconciliarse en CI antes de dar por válida la configuración Android.
-- `android/app/build.gradle.kts` conserva `com.example.espana_outdoors` como `applicationId` y firma `release` con la configuración `debug`. Esto no es una configuración apta para publicar; el identificador definitivo y la firma de release deben configurarse con los valores/secretos reales autorizados.
-- Los workflows `.github/workflows/ci.yml` y `.github/workflows/staging-android.yml` tenían filtros de rama `master`; ambos se han corregido en commits separados para apuntar a `main`. Hay que comprobar que las siguientes ejecuciones completan correctamente.
-- GitHub Actions consultado el 2026-10-26 mostró un fallo en la ejecución programada de Security baseline sobre el HEAD anterior. Los logs identifican fallos de análisis Dart por contenido de `espana_outdoor_backtrack_patch/` versionado fuera de `lib/` (importaciones inexistentes como `../domain/outdoor_models.dart`), fallo de política OG image en `site/index.html` y cinco hallazgos Gitleaks. El despliegue web anterior terminó correctamente; no equivale a prueba Android.
-
-## Niveles de validación (no confundir)
-
-| Nivel | Estado acreditado |
+| Comprobación | Estado de esta intervención |
 |---|---|
-| Código presente | MapLibre, configuración , GPS, registro/persistencia GPX y adaptadores de routing/rescue están presentes en el repositorio; se necesita revisión funcional de cada flujo. |
-| Validación documental remota | Realizada parcialmente el 2026-10-26; se identificaron discrepancias Android/CI/registro de licencias. |
-| Análisis estático ejecutado en esta sesión | No ejecutado: el entorno de esta sesión no dispone de una copia de trabajo Flutter/Android demostrada. |
-| Pruebas automatizadas ejecutadas en esta sesión | No ejecutadas. Hay suites y workflows definidos en GitHub. |
-| APK compilado en esta sesión | No. |
-| APK instalado o probado en emulador/dispositivo físico | No acreditado en esta sesión. |
-| Prueba online/offline de mapa | No acreditada. El fixture offline de CI no prueba cobertura productiva. |
-| Petición real a Valhalla / Rescue Link | No acreditada. No se ha verificado endpoint operativo en esta sesión. |
+| Inspección remota de código y configuración | Realizada parcialmente |
+| Análisis estático Dart | No ejecutado |
+| Pruebas automatizadas | No ejecutadas |
+| Compilación APK | No ejecutada |
+| Instalación en dispositivo Android | No ejecutada |
+| Mapa online en OPPO | No verificado en esta intervención |
+| Mapa con Wi-Fi y datos móviles desactivados | No verificado; modo offline pendiente |
+| Routing real con Valhalla | No verificado |
 
-## Riesgos y comprobaciones pendientes
+## Pendientes prioritarios
 
-### P0 — Validación física del mapa
+1. Ejecutar análisis Dart y pruebas después de los cambios.
+2. Compilar e instalar un único APK de staging.
+3. Confirmar carga del estilo online y GPS en el OPPO.
+4. Definir una nueva estrategia offline compatible con MapLibre y probar fuentes, glifos, sprites y teselas sin red antes de declararla operativa.
+5. Mantener permisos, configuración Android, licencias y endpoints externos verificados.
 
-Confirmar en el dispositivo objetivo que la pantalla del mapa se abre, el proceso permanece vivo, el estilo y la fuente cartográfica cargan correctamente y el GPS no interrumpe la experiencia.
+## Criterio de seguridad
 
-### P0 — Cobertura cartográfica
-
-Verificar que los paquetes publicados contienen el nivel de detalle esperado para España: carreteras, caminos, poblaciones, hidrografía y etiquetas. No confundir que el renderer funcione con que exista cobertura regional completa.
-
-### P1 — Integridad de paquetes offline
-
-Mantener verificación de tamaño, metadatos y SHA-256 antes de activar paquetes descargados. La procedencia y las condiciones de licencia deben acompañar a los datos publicados.
-
-### P1 — Resiliencia de descargas y GPS
-
-Probar reanudación de descargas, recuperación tras interrupciones, permisos de ubicación y notificación persistente en los dispositivos objetivo.
-
-### P1 — Routing
-
-Validar la configuración externa de Valhalla, la calidad de las rutas y el comportamiento sin conectividad o sin endpoint disponible.
-
-### P2 — Elevación y sombreado
-
-La integración de DEM/hillshading requiere una fuente de elevación y un pipeline verificados; no se debe simular un sombreado que no proceda de datos reales.
-
-## Conservación
-
-- Conservar los recursos visuales compartidos mientras existan referencias desde la app o la web.
-- No borrar licencias, activos, datos ni artefactos ajenos a la integración cartográfica sin una auditoría específica.
-- Mantener los servicios de backend de seguridad y datos, que son independientes del renderer.
-- No realizar cambios sobre la pantalla cartográfica activa ni su configuración nativa como parte de una limpieza documental.
-
-## Siguiente orden de QA
-
-1. Ejecutar el guard de proveedor cartográfico y el análisis estático.
-2. Ejecutar pruebas de routing, offline y seguridad.
-3. Compilar el APK de staging con la configuración real aprobada.
-4. Ejecutar el smoke test de mapa Android y revisar los logs nativos.
-5. Comprobar físicamente el APK en el dispositivo objetivo.
-6. Verificar cobertura y atribución de los paquetes  publicados.
-7. Preparar el release candidate solo después de superar los criterios anteriores.
-
-## Criterio de cierre del incidente del mapa
-
-El incidente queda cerrado cuando el smoke test abre la pantalla del mapa, el proceso Android permanece vivo, la fuente cartográfica se carga sin error nativo y el APK resultante se instala y comprueba físicamente sin cierre de la aplicación.
-
-
-### Seguimiento de auditoría — 26/10/2026
-
-Actualización respecto a la revisión anterior:
-
-- Se han corregido los filtros de rama de `.github/workflows/ci.yml` y `.github/workflows/staging-android.yml` para que apunten a `main`.
-- Se han declarado permisos Android de ubicación y servicios de ubicación, y se ha fijado `minSdk = 24`, alineándolo con el guard nativo de CI.
-- Sigue siendo provisional `applicationId = com.example.espana_outdoors`; no se ha inventado un identificador definitivo. La configuración `release` continúa usando firma `debug`, por lo que no es publicable.
-- No se ha ejecutado Flutter/Gradle localmente desde esta sesión. Los cambios anteriores son commits remotos, pendientes de que CI los valide.
-- La auditoría del directorio local de elevación `Espana-outdoor-maps` no se ha podido reconstruir con el historial accesible. No hay evidencia disponible de archivos concretos que falten en ese directorio.
-
-
-## Hallazgos de código adicionales (no equivalen a pruebas de ejecución)
-
-- `lib/features/map/maplibre_map_page.dart` usa la integración `maplibre_gl`; el estilo es producido por `lib/core/maps/maplibre_style_loader.dart`.
-- El cargador da prioridad a un  local verificado. Si no lo hay, intenta un  remoto o el catálogo, y el estilo por defecto incluye `https://tiles.openfreemap.org/styles/liberty`. Por tanto, sin paquete local y sin endpoint/catálogo de producción, no hay garantía de mapa funcional sin conexión.
-- El verificador `OfflinePackageVerifier` valida existencia, tamaño opcional y SHA-256; el downloader ofrece pausa/reanudación y verificación. No se ha ejecutado en este entorno contra un archivo productivo real ni contra almacenamiento Android.
-- `LocationController` utiliza `geolocator` para revisar permisos/servicio y abrir el stream de posiciones. `RouteRecorder` y `RouteRecordingStore` implementan recuperación/persistencia con Hive CE; existen pruebas de recuperación de sesiones, pero no se han ejecutado aquí.
-- `ValhallaRoutingService` realiza POST HTTP con timeout de 20 s, parsea shape polyline6 y maniobras. Las pruebas disponibles usan un cliente HTTP simulado; no demuestran conexión al Valhalla real.
-- GPX: dependencia `gpx` presente en `pubspec.yaml`; el flujo de importación/exportación requiere una prueba integral en dispositivo.
-- Rescue Link: gateway HTTP y pruebas de política están en el árbol; no se ha verificado un backend real ni el envío/recuperación extremo a extremo.
-
-
-
-## Verificación de remediación de CI (2026-10-26)
-
-La ejecución de Security baseline `40305792087` confirmó éxito en `secret-scan`, `OG image policy`, `filesystem-scan`, `dependency-audit`, `Generate SBOM` y ambos análisis CodeQL. El workflow global siguió fallando en `Dart static analysis`; en la ejecución anterior el error venía de archivos de paquetes auxiliares de parche que contienen imports relativos inexistentes. La ejecución más reciente de security sigue su curso, por lo que la corrección de esos errores Dart aún no se da por validada.
-
-La imagen OG se cambió a `https://espanaoutdoor.es/assets/backgrounds/bg_home.svg`, recurso first-party existente y sin parámetros. La política OG superó en el run `40305792087`. `infra/.env.example` ahora deja `LOCATION_ENCRYPTION_KEY` vacía y el `secret-scan` del mismo run terminó con éxito. Esto no implica que la clave real del despliegue esté configurada: debe inyectarse mediante el entorno de secretos.
-
-
-## Nota de cierre de esta intervención (26/10/2026)
-
-La reconciliación del registro manual de licencias se confirmó con el `pubspec.lock` y el workflow de SBOM. El workflow programado de seguridad pasó `secret-scan`, `OG image policy`, filesystem scan, dependency audit, SBOM y CodeQL en Go/Actions en la ejecución `40305792087`, pero el conjunto quedó fallido por `Dart static analysis`. Las ejecuciones más nuevas sobre los cambios finales todavía no habían terminado en el último sondeo; deben tratarse como pendientes.
-
-Bloqueo principal restante para una demo Android: cerrar el análisis/CI Dart, validar un build APK, instalarlo y probar el mapa online, GPS y  offline con paquete regional de producción. Para el inventario del directorio local `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`, se necesita volver a aportar el listado original: el registro accesible solo contiene la auditoría de otra carpeta (`Espana-Outdoors`) y no permite decidir qué archivos MDT05 faltan.
-
-
-## Resolución del origen del análisis Dart fallido (26/10/2026)
-
-La ejecución CI `40306186008` (commit `5b100cc0`) confirmó que los tres errores `uri_does_not_exist` procedían exclusivamente de copias de staging bajo `espana_outdoor_backtrack_patch/lib/`:
-
-- `espana_outdoor_backtrack_patch/lib/core/location/route_recorder.dart:7`
-- `espana_outdoor_backtrack_patch/lib/core/navigation/backtrack.dart:3`
-- `espana_outdoor_backtrack_patch/lib/core/storage/route_recording_store.dart:3`
-
-Las importaciones `../domain/outdoor_models.dart` son válidas cuando esos archivos se copian a sus destinos reales bajo `lib/core/...`; fallan dentro del directorio de staging porque allí no existe `espana_outdoor_backtrack_patch/lib/core/domain/outdoor_models.dart`. `espana_outdoor_backtrack_patch/APLICAR.ps1` confirma el propósito de esa carpeta: contiene un parche manual que copia cuatro archivos fuente/prueba y modifica `lib/features/navigation/backtrack_page.dart`, creando backups locales. No es código de aplicación independiente.
-
-No se borró el parche ni se modificaron sus importaciones. En `analysis_options.yaml` se excluyó `espana_outdoor_backtrack_patch/**` del análisis de la app, preservando el material y su script de aplicación. Esta corrección es acotada y basada en el propósito documentado del directorio. **Todavía falta una ejecución nueva de `flutter analyze`/CI que confirme el resultado**; el run que mostró los errores se ejecutó antes de este cambio y reportó 127 issues totales, no solo los tres errores de imports.
+No usar servidores públicos de teselas de OpenStreetMap para descargas masivas. No inventar endpoints ni paquetes regionales. No marcar funciones como completadas sin evidencia reproducible.
