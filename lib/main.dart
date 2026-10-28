@@ -10,7 +10,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<Map<dynamic, dynamic>>('route_records');
-  await Hive.openBox<Map<dynamic, dynamic>>('offline_regions');
   await Hive.openBox<String>('weather_cache');
   await Hive.openBox<dynamic>('route_tracking');
   await Hive.openBox<dynamic>('offline_sync');
