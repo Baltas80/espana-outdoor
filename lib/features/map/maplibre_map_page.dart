@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre_gl/maplibre_gl.dart' as ml;
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../app/eo_components.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/location/route_recorder.dart';
 import '../menu/menu_sheet.dart';
-import 'maplibre_map_viewport.dart';
+import 'mapbox_map_viewport.dart';
 
 class MapLibreMapPage extends ConsumerStatefulWidget {
   const MapLibreMapPage({super.key});
@@ -17,7 +17,7 @@ class MapLibreMapPage extends ConsumerStatefulWidget {
 }
 
 class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
-  ml.MapLibreMapController? _controller;
+  MapboxMap? _controller;
   bool _locating = false;
 
   void _openMenu() {
@@ -45,12 +45,10 @@ class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
         return;
       }
       await _controller?.animateCamera(
-        ml.CameraUpdate.newCameraPosition(
-          ml.CameraPosition(
-            target: ml.LatLng(position.latitude, position.longitude),
-            zoom: 16,
-          ),
-        ),
+        CameraOptions(
+          center: Point(coordinates: Position(position.longitude, position.latitude)),
+          zoom: 16,
+        ), MapAnimationOptions(duration: 500),
       );
     } catch (error) {
       if (mounted) {
@@ -70,12 +68,10 @@ class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
       return;
     }
     await _controller?.animateCamera(
-      ml.CameraUpdate.newCameraPosition(
-        ml.CameraPosition(
-          target: ml.LatLng(position.latitude, position.longitude),
-          zoom: 15,
-        ),
-      ),
+      CameraOptions(
+        center: Point(coordinates: Position(position.longitude, position.latitude)),
+        zoom: 15,
+      ), MapAnimationOptions(duration: 500),
     );
   }
 
@@ -122,14 +118,11 @@ class _MapLibreMapPageState extends ConsumerState<MapLibreMapPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: MapLibreMapViewport(
+            child: MapboxMapViewport(
               initialCenter: position == null
-                  ? const ml.LatLng(40.2, -3.7)
-                  : ml.LatLng(position.latitude, position.longitude),
+                  ? Position(-3.7, 40.2)
+                  : Position(position.longitude, position.latitude),
               initialZoom: position == null ? 5.5 : 15,
-              currentPosition: position == null
-                  ? null
-                  : ml.LatLng(position.latitude, position.longitude),
               onMapCreated: (controller) => _controller = controller,
             ),
           ),
