@@ -115,7 +115,7 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
           final value = required == 0
               ? 0.0
               : progress.completedResourceCount / required;
-          if (mounted) setState(() => _styleProgress = value.clamp(0.0, 1.0));
+          if (mounted) setState(() => _styleProgress = value.clamp(0.0, 1.0).toDouble());
         },
       );
 
@@ -138,7 +138,7 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
           final value = required == 0
               ? 0.0
               : progress.completedResourceCount / required;
-          if (mounted) setState(() => _tileProgress = value.clamp(0.0, 1.0));
+          if (mounted) setState(() => _tileProgress = value.clamp(0.0, 1.0).toDouble());
         },
       );
 
@@ -181,7 +181,12 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
           MapWidget(
             key: const ValueKey('mapbox-poc-map'),
             styleUri: _styleUri,
-            cameraOptions: CameraOptions(center: _cordobaCenter, zoom: 12),
+            viewport: CameraViewportState(
+              center: _cordobaCenter,
+              zoom: 12,
+              bearing: 0,
+              pitch: 0,
+            ),
           ),
           SafeArea(
             child: Align(
