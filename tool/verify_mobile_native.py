@@ -56,7 +56,7 @@ def verify_android() -> None:
     if not gradle_properties.exists():
         raise SystemExit("Missing generated Android gradle.properties.")
     properties = gradle_properties.read_text(encoding="utf-8")
-    if not re.search(r"(?m)^android\\.builtInKotlin=false\\s*$", properties):
+    if not re.search(r"(?m)^android\.builtInKotlin=false\s*$", properties):
         raise SystemExit("Android built-in Kotlin must be disabled for Mapbox Gradle compatibility.")
     if not re.search(r"minSdk(?:Version\s+|\s*=\s*)24\b", content):
         raise SystemExit("Android minSdk 24 was not enforced by native configuration.")
