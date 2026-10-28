@@ -32,15 +32,12 @@ permissions:
 
 env:
   APP_ENV: staging
-  OFFLINE_CATALOG_URL: https://maps.espanaoutdoor.es/catalog/spain.json
-  MAP_PMTILES_URL: ''
   VALHALLA_BASE_URL: https://routing.espanaoutdoor.es
   SOURCE_GATEWAY_BASE_URL: https://api.espanaoutdoor.es
   RESCUE_LINK_BASE_URL: https://rescue.espanaoutdoor.es
   OIDC_ISSUER: https://auth.espanaoutdoor.es/realms/espana-outdoor
   OIDC_CLIENT_ID: espana-outdoors-mobile
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
-  MAP_ATTRIBUTION: "© OpenStreetMap contributors"
 
 jobs:
   android-staging:
@@ -89,8 +86,6 @@ jobs:
         run: python3 tool/verify_mobile_native.py --platform android
       - name: Dependencies
         run: flutter pub get
-      - name: Generate offline smoke PMTiles fixture
-        run: python3 tool/create_offline_smoke_fixture.py assets/testing/offline_smoke.pmtiles
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
@@ -111,7 +106,6 @@ jobs:
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI" \
             --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION" \
-            --dart-define=ANDROID_OFFLINE_SMOKE=false
       - name: Verify APK
         if: always()
         run: |
