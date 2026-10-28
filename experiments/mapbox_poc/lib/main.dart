@@ -71,11 +71,13 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
     try {
       _offlineManager = await OfflineManager.create();
       _tileStore = await TileStore.createDefault();
-      final region = _tileStore!.tileRegion(_regionId);
-      final stylePack = _offlineManager!.stylePack(_styleUri);
+      final regions = await _tileStore!.allTileRegions();
+      final stylePacks = await _offlineManager!.allStylePacks();
       if (!mounted) return;
       setState(() {
-        _hasOfflineRegion = region != null && stylePack != null;
+        _hasOfflineRegion =
+            regions.any((region) => region.id == _regionId) &&
+            stylePacks.any((pack) => pack.styleURI == _styleUri);
         _message = _hasOfflineRegion
             ? 'Región offline detectada en este dispositivo.'
             : 'Sin descarga offline confirmada en este dispositivo.';
@@ -143,11 +145,13 @@ class _MapboxPocPageState extends State<MapboxPocPage> {
       );
 
       await Future.wait([styleFuture, regionFuture]);
-      final region = _tileStore!.tileRegion(_regionId);
-      final stylePack = _offlineManager!.stylePack(_styleUri);
+      final regions = await _tileStore!.allTileRegions();
+      final stylePacks = await _offlineManager!.allStylePacks();
       if (!mounted) return;
       setState(() {
-        _hasOfflineRegion = region != null && stylePack != null;
+        _hasOfflineRegion =
+            regions.any((region) => region.id == _regionId) &&
+            stylePacks.any((pack) => pack.styleURI == _styleUri);
         _message = _hasOfflineRegion
             ? 'Descarga terminada. Activa modo avión y reinicia la app para validar.'
             : 'La descarga terminó, pero el SDK no confirma región y estilo guardados.';
