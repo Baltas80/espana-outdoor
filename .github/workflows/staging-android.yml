@@ -10,7 +10,6 @@ on:
       - 'test/**'
       - 'assets/**'
       - 'pubspec.yaml'
-      - 'ops/offline/**'
       - '.github/workflows/staging-android.yml'
   push:
     branches: [main]
@@ -20,7 +19,6 @@ on:
       - 'test/**'
       - 'assets/**'
       - 'pubspec.yaml'
-      - 'ops/offline/**'
       - '.github/workflows/staging-android.yml'
 
 concurrency:
