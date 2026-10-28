@@ -9,8 +9,8 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 ## Arquitectura cartográfica actual
 
 - Renderer móvil: MapLibre Flutter mediante `maplibre_gl`.
-- Distribución cartográfica: PMTiles, con catálogo y endpoint controlados por entorno.
-- Offline: los archivos regionales verificados en `offline_regions` tienen prioridad cuando están disponibles.
+- Estilo online: URL HTTPS configurable mediante `MAP_STYLE_URL`; también se admite `MAP_STYLE_JSON` para builds controladas.
+- Offline cartográfico: pendiente de una implementación distinta y de validación en Android.
 - Flutter/Riverpod/go_router.
 - Routing mediante Valhalla, configurado externamente con `VALHALLA_BASE_URL`.
 - Android es la plataforma prioritaria del MVP; el soporte de otras plataformas no debe darse por validado por inferencia.
@@ -20,16 +20,16 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 - `pubspec.yaml` declara `maplibre_gl: 0.27.1`.
 - La pantalla cartográfica activa está en `lib/features/map/maplibre_map_page.dart`.
 - La carga de estilos y fuentes locales se encuentra en `lib/core/maps/`.
-- El flujo de descargas offline utiliza `background_downloader` y los servicios de catálogo/verificación en `lib/core/offline/`.
-- La configuración de producción debe suministrar `MAP_PMTILES_URL` o una configuración de estilo aprobada que apunte a una fuente PMTiles válida.
+- El almacenamiento offline de rutas y datos críticos se debe evaluar por separado de la cartografía.
+- El estilo online usa `MAP_STYLE_URL` o `MAP_STYLE_JSON`; no se afirma que el modo offline cartográfico esté operativo.
 - Un APK que compile no demuestra por sí solo cobertura regional detallada ni funcionamiento físico en todos los dispositivos.
 
 ## Evidencias verificadas el 2026-10-26
 
 - Rama consultada: `main`; HEAD auditado antes de cambios documentales: `ec0c1fdc2f19284a157273ed426f13b238df147b`. Los cambios de auditoría están en commits posteriores de `main`.
 - Existe `pubspec.lock` y declara versiones resueltas para `maplibre_gl` y `flutter_appauth`. El registro de licencias se corrigió en un commit separado; el cambio documental no valida licencias transitivas ni produce un SBOM.
-- `assets/maps/` contiene `offline_style.json` y `.gitkeep`; no contiene un PMTiles regional de producción.
-- `assets/testing/` contiene `offline_smoke.pmtiles` (508 bytes, fixture de pruebas) y `.gitkeep`. No es cartografía de producción ni acredita cobertura de España.
+- `assets/maps/` contiene `offline_style.json` y `.gitkeep`; no contiene un  regional de producción.
+- `assets/testing/` contiene `offline_smoke.` (508 bytes, fixture de pruebas) y `.gitkeep`. No es cartografía de producción ni acredita cobertura de España.
 - El manifiesto consultado en la rama `main` contiene permiso de Internet, pero no declara permisos de ubicación gruesa/fina ni de ubicación en segundo plano. El guard `tool/verify_mobile_native.py` exige esos permisos, además de `minSdk 24`; por tanto, los archivos nativos actuales y el guard deben reconciliarse en CI antes de dar por válida la configuración Android.
 - `android/app/build.gradle.kts` conserva `com.example.espana_outdoors` como `applicationId` y firma `release` con la configuración `debug`. Esto no es una configuración apta para publicar; el identificador definitivo y la firma de release deben configurarse con los valores/secretos reales autorizados.
 - Los workflows `.github/workflows/ci.yml` y `.github/workflows/staging-android.yml` tenían filtros de rama `master`; ambos se han corregido en commits separados para apuntar a `main`. Hay que comprobar que las siguientes ejecuciones completan correctamente.
@@ -39,7 +39,7 @@ Android primero. El criterio de aceptación principal es un APK instalable que a
 
 | Nivel | Estado acreditado |
 |---|---|
-| Código presente | MapLibre, configuración PMTiles, GPS, registro/persistencia GPX y adaptadores de routing/rescue están presentes en el repositorio; se necesita revisión funcional de cada flujo. |
+| Código presente | MapLibre, configuración , GPS, registro/persistencia GPX y adaptadores de routing/rescue están presentes en el repositorio; se necesita revisión funcional de cada flujo. |
 | Validación documental remota | Realizada parcialmente el 2026-10-26; se identificaron discrepancias Android/CI/registro de licencias. |
 | Análisis estático ejecutado en esta sesión | No ejecutado: el entorno de esta sesión no dispone de una copia de trabajo Flutter/Android demostrada. |
 | Pruebas automatizadas ejecutadas en esta sesión | No ejecutadas. Hay suites y workflows definidos en GitHub. |
@@ -88,7 +88,7 @@ La integración de DEM/hillshading requiere una fuente de elevación y un pipeli
 3. Compilar el APK de staging con la configuración real aprobada.
 4. Ejecutar el smoke test de mapa Android y revisar los logs nativos.
 5. Comprobar físicamente el APK en el dispositivo objetivo.
-6. Verificar cobertura y atribución de los paquetes PMTiles publicados.
+6. Verificar cobertura y atribución de los paquetes  publicados.
 7. Preparar el release candidate solo después de superar los criterios anteriores.
 
 ## Criterio de cierre del incidente del mapa
@@ -110,7 +110,7 @@ Actualización respecto a la revisión anterior:
 ## Hallazgos de código adicionales (no equivalen a pruebas de ejecución)
 
 - `lib/features/map/maplibre_map_page.dart` usa la integración `maplibre_gl`; el estilo es producido por `lib/core/maps/maplibre_style_loader.dart`.
-- El cargador da prioridad a un PMTiles local verificado. Si no lo hay, intenta un PMTiles remoto o el catálogo, y el estilo por defecto incluye `https://tiles.openfreemap.org/styles/liberty`. Por tanto, sin paquete local y sin endpoint/catálogo de producción, no hay garantía de mapa funcional sin conexión.
+- El cargador da prioridad a un  local verificado. Si no lo hay, intenta un  remoto o el catálogo, y el estilo por defecto incluye `https://tiles.openfreemap.org/styles/liberty`. Por tanto, sin paquete local y sin endpoint/catálogo de producción, no hay garantía de mapa funcional sin conexión.
 - El verificador `OfflinePackageVerifier` valida existencia, tamaño opcional y SHA-256; el downloader ofrece pausa/reanudación y verificación. No se ha ejecutado en este entorno contra un archivo productivo real ni contra almacenamiento Android.
 - `LocationController` utiliza `geolocator` para revisar permisos/servicio y abrir el stream de posiciones. `RouteRecorder` y `RouteRecordingStore` implementan recuperación/persistencia con Hive CE; existen pruebas de recuperación de sesiones, pero no se han ejecutado aquí.
 - `ValhallaRoutingService` realiza POST HTTP con timeout de 20 s, parsea shape polyline6 y maniobras. Las pruebas disponibles usan un cliente HTTP simulado; no demuestran conexión al Valhalla real.
@@ -130,7 +130,7 @@ La imagen OG se cambió a `https://espanaoutdoor.es/assets/backgrounds/bg_home.s
 
 La reconciliación del registro manual de licencias se confirmó con el `pubspec.lock` y el workflow de SBOM. El workflow programado de seguridad pasó `secret-scan`, `OG image policy`, filesystem scan, dependency audit, SBOM y CodeQL en Go/Actions en la ejecución `40305792087`, pero el conjunto quedó fallido por `Dart static analysis`. Las ejecuciones más nuevas sobre los cambios finales todavía no habían terminado en el último sondeo; deben tratarse como pendientes.
 
-Bloqueo principal restante para una demo Android: cerrar el análisis/CI Dart, validar un build APK, instalarlo y probar el mapa online, GPS y PMTiles offline con paquete regional de producción. Para el inventario del directorio local `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`, se necesita volver a aportar el listado original: el registro accesible solo contiene la auditoría de otra carpeta (`Espana-Outdoors`) y no permite decidir qué archivos MDT05 faltan.
+Bloqueo principal restante para una demo Android: cerrar el análisis/CI Dart, validar un build APK, instalarlo y probar el mapa online, GPS y  offline con paquete regional de producción. Para el inventario del directorio local `C:\\Users\\PAGREY\\Desktop\\Espana-outdoor-maps`, se necesita volver a aportar el listado original: el registro accesible solo contiene la auditoría de otra carpeta (`Espana-Outdoors`) y no permite decidir qué archivos MDT05 faltan.
 
 
 ## Resolución del origen del análisis Dart fallido (26/10/2026)
