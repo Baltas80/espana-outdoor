@@ -1,0 +1,21 @@
+name: mapbox_offline_poc
+description: Prueba aislada de Mapbox Maps SDK y descarga de mapas offline en Android.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.1"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  mapbox_maps_flutter: ^3.33.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
