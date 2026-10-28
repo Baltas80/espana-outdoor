@@ -14,7 +14,7 @@ class OfflineRegionDownloader {
     final task = DownloadTask(
       taskId: taskId,
       url: region.downloadUrl.toString(),
-      filename: '${region.id}-${version}.pmtiles',
+      filename: '${region.id}-${version}.mapdata',
       directory: 'offline_regions',
       baseDirectory: BaseDirectory.applicationSupport,
       group: 'offline-regions',
