@@ -21,8 +21,6 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Integración del símbolo de marca en la experiencia principal.
 - Atribución visible de OpenStreetMap en el mapa.
 - ADR de cartografía/offline con decisión de no usar los servidores públicos de teselas OSM para descargas offline.
-- MapLibre Flutter como renderer cartográfico Android, con PMTiles para distribución y uso offline de datos vectoriales.
-- PMTiles desacoplado del renderer: se mantiene como distribución/validación cartográfica independiente y no como renderer Android.
 - Licencia propietaria incorporada para el código y activos propios; las dependencias de terceros conservan sus licencias.
 - Registro inicial de dependencias y alternativas maduras en `docs/THIRD_PARTY_LICENSES.md`.
 - Valhalla integrado mediante una interfaz `RoutingService`, con endpoint de producción externo al código.
@@ -52,8 +50,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Flutter / Dart.
 - Riverpod para estado.
 - go_router para navegación.
-- PMTiles como fuente cartográfica offline/online controlada por catálogo y R2.
-- PMTiles para distribución/validación cartográfica regional independiente del renderer.
+- MapLibre Flutter como motor cartográfico; el proveedor de estilos y teselas se configura mediante el entorno.
 - geolocator para ubicación.
 - connectivity_plus para estado de conectividad.
 - shared_preferences para preferencias no críticas.
@@ -80,26 +77,9 @@ Si no se configura, el routing permanece deshabilitado de forma explícita en lu
 
 ## Configuración cartográfica
 
-Producción requiere un proveedor contratado/operado y sus obligaciones de atribución. Los valores reales deben proceder exclusivamente de la configuración del entorno de producción:
+El estilo de MapLibre se configura mediante `MAP_STYLE_URL` (HTTPS) o `MAP_STYLE_JSON` para builds controladas. Por defecto se utiliza el estilo Liberty de OpenFreeMap. La disponibilidad online depende de la conectividad y de las condiciones del proveedor.
 
-```bash
-flutter run \
-  --dart-define=APP_ENV=production \
-  --dart-define=MAP_PMTILES_URL="$MAP_PMTILES_URL" \
-  --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION"
-```
-
-No se debe introducir una URL de ejemplo en un release. El renderer Android usa MapLibre Flutter y la fuente cartográfica configurada mediante PMTiles.
-
-## Configuración del catálogo offline
-
-El catálogo se inyecta mediante configuración de entorno:
-
-```bash
-flutter run --dart-define=OFFLINE_CATALOG_URL="$OFFLINE_CATALOG_URL"
-```
-
-El cliente acepta los formatos publicados por el backend y valida procedencia, licencia HTTPS, atribución y SHA-256 antes de permitir el uso de un paquete offline. No se deben publicar URLs ni paquetes ficticios.
+No se declara operativo el uso cartográfico offline: requiere una implementación y una prueba específicas de almacenamiento local.
 
 ## Identidad OIDC / Keycloak
 
@@ -166,7 +146,7 @@ La carpeta `site/` contiene la web pública de España Outdoor, independiente de
 
 ## Estado verificable de Android y cartografía (26/10/2026)
 
-La rama `main` contiene integración MapLibre y lógica de catálogo/descarga PMTiles, pero todavía no hay evidencia suficiente para afirmar que exista un APK de demostración validado en dispositivo o que la cartografía funcione sin conexión con datos regionales de producción. El inventario del repositorio contiene `assets/maps/offline_style.json` y un fixture de pruebas `assets/testing/offline_smoke.pmtiles` de 508 bytes; este fixture no es un mapa de España.
+La rama `main` contiene integración MapLibre, pero todavía no hay evidencia suficiente para afirmar que exista un APK de demostración validado en dispositivo o que la cartografía funcione sin conexión. La carga del estilo online se configura mediante `MAP_STYLE_URL`; el modo offline cartográfico queda pendiente de una implementación distinta y de pruebas reales.
 
 La revisión técnica está registrada en `docs/PROJECT_STATUS.md`, `docs/MAP_OFFLINE.md` y `docs/OFFLINE_STRATEGY.md`. El identificador Android provisional y la firma de release debug deben resolverse antes de un release; los permisos de ubicación y los triggers de CI también necesitan corrección y comprobación.
 
