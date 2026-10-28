@@ -9,7 +9,7 @@ import '../features/astronomy/astronomy_page.dart';
 import '../features/explore/explore_page.dart';
 import '../features/home/home_page.dart';
 import '../features/instruments/instruments_page.dart';
-import '../features/map/maplibre_map_page.dart';
+import '../features/map/mapbox_map_page.dart';
 import '../features/navigation/backtrack_page.dart';
 import '../features/navigation/navigation_page.dart';
 import '../features/navigation/waypoints_page.dart';
