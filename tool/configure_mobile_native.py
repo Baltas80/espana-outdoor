@@ -49,7 +49,7 @@ def patch_android() -> None:
     network_security.write_text(
         '''<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-  <!-- The offline PMTiles renderer may use an on-device loopback server.
+  <!-- MapLibre uses its configured style and sources.
        No remote cleartext traffic is permitted. -->
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="false">localhost</domain>
