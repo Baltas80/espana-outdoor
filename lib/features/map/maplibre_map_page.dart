@@ -120,9 +120,9 @@ class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
           Positioned.fill(
             child: MapboxMapViewport(
               initialCenter: position == null
-                  ? Position(-3.7, 40.2)
+                  ? Position(-4.7794, 37.8882)
                   : Position(position.longitude, position.latitude),
-              initialZoom: position == null ? 5.5 : 15,
+              initialZoom: position == null ? 12 : 15,
               onMapCreated: (controller) => _controller = controller,
             ),
           ),
