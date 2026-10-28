@@ -13,25 +13,31 @@ void main() {
 
   for (final entity in lib.listSync(recursive: true, followLinks: false)) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
-    final path = entity.path.replaceAll('\\', '/');
-    final content = entity.readAsStringSync();
+    final path = entity.path.replaceAll('\\\\', '/');
+    final source = entity.readAsStringSync();
 
-    if (content.contains(forbiddenTileHost)) {
+    if (source.contains(forbiddenTileHost)) {
       violations.add('$path: direct OSM tile host');
     }
   }
 
-  final mapPage = File('lib/features/map/maplibre_map_page.dart');
+  final mapPage = File('lib/features/map/mapbox_map_page.dart');
   if (!mapPage.existsSync()) {
-    violations.add('MapLibre map page is missing.');
+    violations.add('Mapbox primary map page is missing.');
   } else {
     final mapContent = mapPage.readAsStringSync();
-    if (!mapContent.contains("package:maplibre_gl/") ||
-        !mapContent.contains('MapLibreMapViewport(')) {
+    if (!mapContent.contains("package:mapbox_maps_flutter/") ||
+        !mapContent.contains('MapboxMapViewport(')) {
       violations.add(
-        'Map page must use the existing MapLibre Flutter integration.',
+        'Primary map page must use the configured Mapbox Flutter integration.',
       );
     }
+  }
+
+  final viewport = File('lib/features/map/mapbox_map_viewport.dart');
+  if (!viewport.existsSync() ||
+      !viewport.readAsStringSync().contains('mapbox://styles/mapbox/outdoors-v12')) {
+    violations.add('Mapbox Outdoors style configuration is missing.');
   }
 
   if (violations.isNotEmpty) {
@@ -44,6 +50,6 @@ void main() {
   }
 
   stdout.writeln(
-    'Map provider validation passed: MapLibre Flutter integration found.',
+    'Map provider validation passed: Mapbox primary map and approved style found.',
   );
 }
