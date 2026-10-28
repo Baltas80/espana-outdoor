@@ -25,7 +25,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Registro inicial de dependencias y alternativas maduras en `docs/THIRD_PARTY_LICENSES.md`.
 - Valhalla integrado mediante una interfaz `RoutingService`, con endpoint de producción externo al código.
 - Infraestructura reproducible para generar y servir tiles de Valhalla para España.
-- La cartografía offline no se considera implementada; se abordará mediante una estrategia independiente y pruebas en Android.
+- La integración inicial de Mapbox descarga una región de prueba delimitada en Córdoba (zoom 8–15). No equivale a cobertura offline de España y requiere validación en modo avión en el dispositivo.
 - RevenueCat conectado a la frontera de producto mediante entitlements Free/Premium/Professional.
 - OpenID Connect integrado mediante un adaptador provider-neutral preparado para Keycloak.
 - Sentry integrado con PII desactivada y DSN inyectado en runtime.
@@ -49,7 +49,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Flutter / Dart.
 - Riverpod para estado.
 - go_router para navegación.
-- MapLibre Flutter como motor cartográfico; el proveedor de estilos y teselas se configura mediante el entorno.
+- Mapbox Maps SDK para el mapa principal Android y descarga offline mediante `OfflineManager`/`TileStore`. Las vistas secundarias de planificación/detalle aún usan MapLibre durante la migración.
 - geolocator para ubicación.
 - connectivity_plus para estado de conectividad.
 - shared_preferences para preferencias no críticas.
@@ -76,7 +76,7 @@ Si no se configura, el routing permanece deshabilitado de forma explícita en lu
 
 ## Configuración cartográfica
 
-El estilo de MapLibre se configura mediante `MAP_STYLE_URL` (HTTPS) o `MAP_STYLE_JSON` para builds controladas. Por defecto se utiliza el estilo Liberty de OpenFreeMap. La disponibilidad online depende de la conectividad y de las condiciones del proveedor.
+El mapa principal utiliza el estilo Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado en compilación. La descarga offline inicial usa `OfflineManager` y `TileStore`; la disponibilidad, cuota y coste dependen de la cuenta y de las condiciones de Mapbox. Las vistas secundarias que aún usan MapLibre conservan su configuración `MAP_STYLE_URL`.
 
 No se declara operativo el uso cartográfico offline: requiere una implementación y una prueba específicas de almacenamiento local.
 
@@ -145,7 +145,7 @@ La carpeta `site/` contiene la web pública de España Outdoor, independiente de
 
 ## Estado verificable de Android y cartografía (26/10/2026)
 
-La rama `main` contiene integración MapLibre, pero todavía no hay evidencia suficiente para afirmar que exista un APK de demostración validado en dispositivo o que la cartografía funcione sin conexión. La carga del estilo online se configura mediante `MAP_STYLE_URL`; el modo offline cartográfico queda pendiente de una implementación distinta y de pruebas reales.
+La integración Mapbox se está incorporando desde una rama de trabajo: la POC independiente ya se probó en el OPPO, pero esta integración dentro de la app principal aún necesita compilación, instalación y prueba offline. La carga del estilo online se configura mediante `MAP_STYLE_URL`; el modo offline cartográfico queda pendiente de una implementación distinta y de pruebas reales.
 
 La revisión técnica está registrada en `docs/PROJECT_STATUS.md`, `docs/MAP_OFFLINE.md` y `docs/OFFLINE_STRATEGY.md`. El identificador Android provisional y la firma de release debug deben resolverse antes de un release; los permisos de ubicación y los triggers de CI también necesitan corrección y comprobación.
 
