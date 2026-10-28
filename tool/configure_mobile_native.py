@@ -131,7 +131,7 @@ def patch_android() -> None:
     property_line = "android.builtInKotlin=false"
     lines = [line for line in properties.splitlines() if not line.startswith("android.builtInKotlin=")]
     lines.append(property_line)
-    gradle_properties.write_text("\\n".join(lines).rstrip() + "\\n", encoding="utf-8")
+    gradle_properties.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def patch_ios() -> None:
