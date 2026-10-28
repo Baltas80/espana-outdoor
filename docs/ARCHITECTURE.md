@@ -52,7 +52,7 @@ Secrets and credentials belong in secure platform storage or trusted backend inf
 
 ## GIS
 
-MapLibre Flutter is the active map renderer. The vector-data source is configured through the controlled PMTiles pipeline. Attribution, license and provider usage policies are mandatory release criteria.
+MapLibre Flutter is the active map renderer. The online style is configured by `MAP_STYLE_URL` or a controlled `MAP_STYLE_JSON`. Attribution, license and provider usage policies are mandatory release criteria. Offline cartography remains pending a separately validated implementation.
 
 ## Emergencies
 
