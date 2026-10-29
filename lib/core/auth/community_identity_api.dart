@@ -48,7 +48,7 @@ final class CommunityIdentityApi {
     const rawBaseUri = String.fromEnvironment('COMMUNITY_API_BASE_URL');
     final parsed = Uri.tryParse(rawBaseUri.trim());
     final valid = parsed != null &&
-        (parsed.scheme == 'https' || parsed.scheme == 'http') &&
+        parsed.scheme == 'https' &&
         parsed.host.isNotEmpty &&
         parsed.userInfo.isEmpty &&
         parsed.query.isEmpty &&
