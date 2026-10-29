@@ -6,7 +6,6 @@ This document is the production gate for external services. A service is **not p
 
 | Service | Selected approach | Required contract/account | Current state | Production evidence |
 |---|---|---|---|---|
-| PMTiles storage | Cloudflare R2 + controlled custom HTTPS domain | R2 account/bucket, API token, domain | BLOCKED: external account/domain not configured | HTTPS URL + 206 Range + checksum |
 | OSM data | Geofabrik OSM PBF + ODbL attribution | Compliant use/attribution | READY TO BUILD | PBF checksum + attribution |
 | Routing | Self-hosted Valhalla | Compute/storage/operations account | BLOCKED: hosting account not provisioned | `/status` + route/elevation smoke tests |
 | Weather/live data | AEMET OpenData | API key and current API terms | BLOCKED: production API key not configured | Authenticated health/data check |
@@ -27,11 +26,6 @@ Official sources:
 Valhalla is open source and can be run on infrastructure controlled by the project. The official documentation recommends Docker for running a server and documents building routing tiles from OSM extracts. A public demo server exists, but it is subject to fair-use/rate limits and is **not** selected as the production dependency for España Outdoor.
 
 Official source: https://valhalla.github.io/valhalla/
-
-### Cloudflare R2
-R2 pricing currently includes a free tier and no Internet egress charge for the standard storage class, but storage and request operations are billable above the included allowance. The final production cost must be recorded after estimating the actual PMTiles traffic profile.
-
-Official source: https://developers.cloudflare.com/r2/pricing/
 
 ### Google Play
 Google requires a developer account, acceptance of the Developer Distribution Agreement, a registration fee, and identity/account verification. Personal and organization accounts have different requirements; the final account type must be selected before store release.

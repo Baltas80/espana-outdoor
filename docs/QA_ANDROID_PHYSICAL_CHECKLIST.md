@@ -12,11 +12,11 @@ Usar exclusivamente en un dispositivo de prueba. No declarar el gate verde sin e
 - [ ] Back desde Planes vuelve a Perfil.
 
 ## Mapa
-- [ ] `MAP_PMTILES_URL` productivo configurado.
+- [ ] `MAPBOX_ACCESS_TOKEN` configurado para la compilación.
 - [ ] Mapa base carga sin error de configuración.
 - [ ] Posición GPS visible.
 - [ ] Zoom/pan estable.
-- [ ] Offline map descargado y reutilizable sin red.
+- [ ] Región offline descargada, reabierta en frío y reutilizable en modo avión.
 
 ## Routing / navegación
 - [ ] Ruta peatonal calculada por Valhalla productivo.
