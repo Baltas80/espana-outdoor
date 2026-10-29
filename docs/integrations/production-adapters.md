@@ -31,9 +31,9 @@ AEMET_SOURCE_BASE=https://opendata.aemet.es/opendata/api/
 
 AEMET attribution must be retained in user-facing source information where applicable.
 
-## Maps / PMTiles
+## Maps and offline regions
 
-The repository already contains MapLibre, PMTiles and MBTiles Flutter dependencies. Rendering remains a client concern; the backend must provide an immutable/versioned catalog of approved map regions and their metadata rather than embedding a proprietary map provider into feature code.
+Mapbox Maps SDK (`mapbox_maps_flutter`) is the sole cartographic renderer. The client uses the native offline-region capabilities of the SDK; no parallel map-package catalog is required. Validate token configuration, download lifecycle, persistence and offline rendering on Android before declaring production readiness.
 
 A production map-region record should include:
 
