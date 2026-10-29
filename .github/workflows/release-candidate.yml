@@ -151,10 +151,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - name: Check production endpoints
+      - name: Check production endpoints and Mapbox token
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
           for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
