@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart' hide RoutingConfig;
 import 'package:latlong2/latlong.dart';
-import 'package:maplibre_gl/maplibre_gl.dart' as ml;
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' show Position;
 
 import '../../core/contracts/routing_service.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/routing/routing_config.dart';
 import '../../infrastructure/routing/valhalla_routing_service.dart';
-import '../map/maplibre_map_viewport.dart';
+import '../map/mapbox_map_viewport.dart';
 
 class RoutePlannerPage extends ConsumerStatefulWidget {
   const RoutePlannerPage({super.key});
@@ -151,25 +151,25 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: MapLibreMapViewport(
+            child: MapboxMapViewport(
               key: ValueKey(
                 '${center.latitude}:${center.longitude}:${_route?.points.length ?? 0}',
               ),
-              initialCenter: ml.LatLng(center.latitude, center.longitude),
+              initialCenter: Position(center.longitude, center.latitude),
               initialZoom: destination == null ? 12 : 14,
               routePoints: (_route?.points ?? const <LatLng>[])
-                  .map((point) => ml.LatLng(point.latitude, point.longitude))
+                  .map((point) => Position(point.longitude, point.latitude))
                   .toList(growable: false),
               currentPosition: location == null
                   ? null
-                  : ml.LatLng(location.latitude, location.longitude),
+                  : Position(location.longitude, location.latitude),
               destination: destination == null
                   ? null
-                  : ml.LatLng(destination.latitude, destination.longitude),
+                  : Position(destination.longitude, destination.latitude),
               onTap: _busy
                   ? null
                   : (point) => setState(() {
-                      _destination = LatLng(point.latitude, point.longitude);
+                      _destination = LatLng(point.lat, point.lng);
                       _route = null;
                     }),
             ),
