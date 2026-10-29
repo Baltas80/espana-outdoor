@@ -145,7 +145,7 @@ La carpeta `site/` contiene la web pública de España Outdoor, independiente de
 
 ## Estado verificable de Android y cartografía (26/10/2026)
 
-La integración Mapbox se está incorporando desde una rama de trabajo: la POC independiente ya se probó en el OPPO, pero esta integración dentro de la app principal aún necesita compilación, instalación y prueba offline. La carga del estilo online se configura mediante `MAP_STYLE_URL`; el modo offline cartográfico queda pendiente de una implementación distinta y de pruebas reales.
+La integración cartográfica usa Mapbox en todas las vistas y descarga recursos offline mediante `OfflineManager`/`TileStore`. El usuario ha confirmado que la región de prueba de Córdoba funciona sin conexión en el OPPO; la cobertura nacional y la reapertura en frío siguen pendientes de validación documentada.
 
 La revisión técnica está registrada en `docs/PROJECT_STATUS.md`, `docs/MAP_OFFLINE.md` y `docs/OFFLINE_STRATEGY.md`. El identificador Android provisional y la firma de release debug deben resolverse antes de un release; los permisos de ubicación y los triggers de CI también necesitan corrección y comprobación.
 

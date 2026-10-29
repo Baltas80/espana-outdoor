@@ -19,4 +19,4 @@ La región de Córdoba (zoom 8–15) es una cobertura de prueba, no un mapa offl
 
 ## Migración pendiente
 
-Las vistas secundarias que todavía importen MapLibre deben migrarse a Mapbox sin perder selección de destino, geometría de rutas ni visualización GPX. Hasta completar y probar esa migración, no se debe retirar su dependencia de forma que rompa la compilación.
+Las vistas de planificación y detalle se han migrado a un viewport Mapbox compartido que admite selección de destino y anotaciones de ruta/GPX. Esta modificación requiere análisis estático, pruebas y validación en dispositivo antes de considerarse cerrada.
