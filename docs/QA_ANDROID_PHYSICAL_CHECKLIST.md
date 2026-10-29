@@ -12,11 +12,11 @@ Usar exclusivamente en un dispositivo de prueba. No declarar el gate verde sin e
 - [ ] Back desde Planes vuelve a Perfil.
 
 ## Mapa
-- [ ] `MAP_PMTILES_URL` productivo configurado.
+- [ ] `MAP_STYLE_URL` de MapLibre configurada con una URL HTTPS válida.
 - [ ] Mapa base carga sin error de configuración.
 - [ ] Posición GPS visible.
 - [ ] Zoom/pan estable.
-- [ ] Offline map descargado y reutilizable sin red.
+- [ ] Descarga de región offline nativa de MapLibre verificada sin red, tras cierre en frío y con evidencia registrada.
 
 ## Routing / navegación
 - [ ] Ruta peatonal calculada por Valhalla productivo.

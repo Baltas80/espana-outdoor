@@ -82,10 +82,9 @@ jobs:
         run: >-
           flutter test
           test/routing_config_test.dart
-          test/offline_region_test.dart
           test/valhalla_routing_service_test.dart
           test/core/route_recording_store_test.dart
-          test/core/offline_package_verifier_test.dart
+          test/offline_page_test.dart
           test/core/offline_sync_store_test.dart
           test/core/offline_sync_runner_test.dart
           test/core/emergency_share_service_test.dart
