@@ -75,7 +75,7 @@ jobs:
       - name: Shared identity API focused tests
         run: flutter test test/community_identity_api_test.dart
       - name: Analyze changed identity code
-        run: dart analyze lib/core/auth/community_identity_api.dart lib/features/profile/profile_page.dart test/community_identity_api_test.dart
+        run: flutter analyze --no-fatal-infos lib/core/auth/community_identity_api.dart lib/features/profile/profile_page.dart test/community_identity_api_test.dart
       - name: Analyze
         run: flutter analyze --no-fatal-infos
       - name: Focused routing/offline/safety tests
