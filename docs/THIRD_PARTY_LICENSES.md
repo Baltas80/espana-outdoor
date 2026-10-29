@@ -111,8 +111,8 @@ Antes de distribuir una release:
 Este archivo es un registro técnico; no constituye asesoramiento jurídico.
 
 
-## Hallazgos de reconciliación del 2026-10-26
+## Reconciliación del stack cartográfico — 2026-10-29
 
-La rama `main` contiene `pubspec.lock` (SHA del blob: `bda9f965deb41fe383c689dc0a361b7438451224`). El archivo fija, entre otros, el paquete `maplibre_gl` y `flutter_appauth`; no contiene entradas para `flutter_map`, `flutter_map_vector_tiles` ni `openidconnect`. Esto concuerda con las dependencias directas actuales declaradas en `pubspec.yaml`, pero todavía debe comprobarse con `flutter pub get --enforce-lockfile` en el entorno de CI.
+La migración de la aplicación adopta Mapbox Maps SDK mediante `mapbox_maps_flutter` como único motor cartográfico. La versión de dependencias debe verificarse contra `pubspec.yaml` y `pubspec.lock` en cada build reproducible de CI. El análisis de licencias debe incluir dependencias directas, transitivas y SDK nativo distribuido en APK/AAB.
 
-El inventario de arriba continúa siendo parcial: la licencia concreta de `flutter_appauth` y todas las licencias transitivas deben confirmarse desde los metadatos de las versiones resueltas. La etiqueta `master` en registros antiguos se ha eliminado de la declaración de estado; la rama oficial de trabajo es `main`.
+La ejecución de `flutter pub get` en CI ha resuelto las dependencias de la rama de migración; la revisión jurídica completa de todas las licencias transitivas y del SDK sigue siendo una tarea independiente antes de la publicación comercial.
