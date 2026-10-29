@@ -30,7 +30,6 @@ permissions:
 
 env:
   APP_ENV: staging
-  MAP_STYLE_URL: https://tiles.openfreemap.org/styles/liberty
   VALHALLA_BASE_URL: https://routing.espanaoutdoor.es
   SOURCE_GATEWAY_BASE_URL: https://api.espanaoutdoor.es
   RESCUE_LINK_BASE_URL: https://rescue.espanaoutdoor.es
@@ -103,7 +102,6 @@ jobs:
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-            --dart-define=MAP_STYLE_URL="$MAP_STYLE_URL" \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
