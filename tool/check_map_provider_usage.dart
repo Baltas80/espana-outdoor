@@ -21,6 +21,25 @@ void main() {
     }
   }
 
+  for (final entity in lib.listSync(recursive: true, followLinks: false)) {
+    if (entity is! File || !entity.path.endsWith('.dart')) continue;
+    final path = entity.path.replaceAll('\\\\', '/');
+    final source = entity.readAsStringSync();
+    if (source.contains('package:maplibre_gl/') ||
+        source.contains('MapLibreMap') ||
+        source.contains('loadMapLibreStyle') ||
+        source.contains('MAP_PMTILES_URL') ||
+        source.toLowerCase().contains('pmtiles')) {
+      violations.add('$path: legacy MapLibre/PMTiles implementation reference');
+    }
+  }
+
+  final pubspec = File('pubspec.yaml');
+  if (!pubspec.existsSync() ||
+      pubspec.readAsStringSync().contains('maplibre_gl:')) {
+    violations.add('pubspec.yaml must not depend on maplibre_gl.');
+  }
+
   final mapPage = File('lib/features/map/mapbox_map_page.dart');
   if (!mapPage.existsSync()) {
     violations.add('Mapbox primary map page is missing.');
