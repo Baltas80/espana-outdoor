@@ -1,12 +1,12 @@
 # ADR-0001 — Motor cartográfico y estrategia offline
 
-**Estado: sustituido por ADR 0003.** La decisión inicial de MapLibre/PMTiles ya no representa la implementación actual y no debe usarse como guía de desarrollo.
+**Estado: sustituido por ADR 0003.** Este documento histórico queda supersedido; la arquitectura vigente está descrita en ADR 0003.
 
 ## Decisión vigente
 
 - Mapbox Maps SDK (mapbox_maps_flutter) es el único motor cartográfico de la aplicación.
 - Mapbox OfflineManager y TileStore gestionan los estilos y regiones descargadas.
-- No mantener PMTiles, catálogo PMTiles, publicación R2 ni otro sistema de paquetes cartográficos paralelo.
+- Mantener Mapbox como único motor y su sistema offline nativo como única solución cartográfica descargable.
 - GPS, grabación y persistencia de rutas, GPX, Valhalla, seguridad y sincronización offline genérica permanecen independientes del motor.
 - No utilizar los servidores públicos de teselas OSM para descargas masivas.
 

@@ -10,7 +10,7 @@ Aceptado para la integración Android en curso. La aplicación usa Mapbox Maps S
 - Usar `OfflineManager` y `TileStore` para estilos y regiones offline.
 - Inyectar `MAPBOX_ACCESS_TOKEN` desde el entorno de compilación; no almacenar tokens en Git.
 - Mantener GPS, grabación, GPX, Valhalla, seguridad y datos críticos offline como módulos independientes del motor cartográfico.
-- Retirar la infraestructura anterior de PMTiles, catálogo PMTiles y publicación R2; no crear un segundo mecanismo de descarga cartográfica.
+- Mantener un único mecanismo de descarga cartográfica: el sistema offline nativo de Mapbox.
 - No descargar en masa desde servidores públicos de teselas OSM.
 
 ## Alcance y límites

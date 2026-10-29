@@ -2,7 +2,7 @@
 
 ## Principio
 
-La aplicación debe conservar utilidad cuando se pierde la conexión. Mapbox es el único motor cartográfico y `OfflineManager`/`TileStore` son el mecanismo de almacenamiento cartográfico offline. No se utilizará PMTiles ni un catálogo paralelo.
+La aplicación debe conservar utilidad cuando se pierde la conexión. Mapbox es el único motor cartográfico y `OfflineManager`/`TileStore` son el mecanismo de almacenamiento cartográfico offline. No se utilizará un catálogo cartográfico paralelo.
 
 ## Datos críticos
 
