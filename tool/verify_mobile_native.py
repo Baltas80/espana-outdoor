@@ -58,6 +58,11 @@ def verify_android() -> None:
     properties = gradle_properties.read_text(encoding="utf-8")
     if not re.search(r"(?m)^android\.builtInKotlin=true\s*$", properties):
         raise SystemExit("Android built-in Kotlin must be enabled for Mapbox Gradle compatibility on AGP 9.")
+    if gradle.suffix == ".kts" and re.search(
+        r"""(?m)^\s*id\(["'](?:org\.jetbrains\.kotlin\.android|kotlin-android)["']\)""",
+        content,
+    ):
+        raise SystemExit("Legacy Kotlin Android plugin must be removed when AGP 9 built-in Kotlin is enabled.")
     if not re.search(r"minSdk(?:Version\s+|\s*=\s*)24\b", content):
         raise SystemExit("Android minSdk 24 was not enforced by native configuration.")
 
