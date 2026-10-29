@@ -155,7 +155,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in MAP_PMTILES_URL VALHALLA_BASE_URL OFFLINE_CATALOG_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
