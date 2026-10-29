@@ -72,6 +72,10 @@ jobs:
         run: dart run tool/check_map_provider_usage.dart
       - name: Live data provider guard
         run: dart run tool/check_live_data_provider_usage.dart
+      - name: Shared identity API focused tests
+        run: flutter test test/community_identity_api_test.dart
+      - name: Analyze changed identity code
+        run: dart analyze lib/core/auth/community_identity_api.dart lib/features/profile/profile_page.dart test/community_identity_api_test.dart
       - name: Analyze
         run: flutter analyze --no-fatal-infos
       - name: Focused routing/offline/safety tests
