@@ -8,7 +8,7 @@ El mapa principal usa el estilo Mapbox Outdoors y necesita `MAPBOX_ACCESS_TOKEN`
 
 ## Modo offline
 
-La integración inicial implementa la descarga de un style pack y una región de prueba de Córdoba mediante `OfflineManager` y `TileStore`, con zoom 8–15. Es una cobertura de prueba, no un mapa offline de España. La app principal todavía necesita compilación, instalación y validación en modo avión antes de declarar operativa esta integración.
+La integración implementa la descarga de un style pack y una región de prueba de Córdoba mediante `OfflineManager` y `TileStore`, con zoom 8–15. Es una cobertura de prueba, no un mapa offline de España. El usuario confirma que la aplicación integrada funciona sin conexión en el OPPO y que lo ha comprobado dos veces. La extensión exacta de la cobertura y la reapertura en frío deben quedar registradas antes de ampliar la descarga.
 
 Las funciones críticas independientes de la cartografía, como la geometría de una ruta activa y los datos de seguridad que estén guardados localmente, deben mantener su propio estado y fecha de actualización.
 
@@ -24,4 +24,4 @@ Las funciones críticas independientes de la cartografía, como la geometría de
 
 ## Evidencia
 
-La POC aislada de Mapbox ya se probó en el OPPO, pero la integración en la app principal todavía no está validada. Estado actual: **código de integración en rama; build/instalación/prueba offline de la app principal pendientes**.
+Evidencia disponible: el usuario informa que la app integrada muestra el mapa offline en el OPPO y que la comprobación se ha repetido dos veces. Esta es evidencia manual comunicada por el usuario; no se ha reproducido desde esta sesión. Estado: **mapa offline de la región de prueba comprobado por el usuario; cobertura nacional, reapertura en frío documentada y demás pantallas pendientes**.
