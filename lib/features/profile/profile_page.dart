@@ -29,6 +29,12 @@ class _ProfilePageState extends State<ProfilePage> {
     _refreshAuth();
   }
 
+  @override
+  void dispose() {
+    _identityApi.close();
+    super.dispose();
+  }
+
   Future<void> _refreshAuth() async {
     if (!_auth.isConfigured) {
       if (mounted) {
