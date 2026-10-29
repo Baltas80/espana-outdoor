@@ -94,6 +94,13 @@ def patch_android() -> None:
 
     gradle = gradle_path.read_text(encoding="utf-8")
     if gradle_path.suffix == ".kts":
+        # AGP 9 has built-in Kotlin; Flutter's generated app template can still
+        # apply the legacy Kotlin Android plugin, which AGP 9 rejects.
+        gradle = re.sub(
+            r"""(?m)^\s*id\(["'](?:org\.jetbrains\.kotlin\.android|kotlin-android)["']\)\s*\n""",
+            "",
+            gradle,
+        )
         gradle = gradle.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
         placeholder = (
             '        manifestPlaceholders["appAuthRedirectScheme"] = '
