@@ -32,5 +32,16 @@ Usar exclusivamente en un dispositivo de prueba. No declarar el gate verde sin e
 - [ ] Rescue Link funciona con endpoint productivo.
 - [ ] Estado sin conectividad tratado correctamente.
 
+## Identidad compartida web / Android
+- [ ] Build de prueba configurado con OIDC_ISSUER HTTPS del realm compartido.
+- [ ] OIDC_CLIENT_ID registrado como espana-outdoors-mobile.
+- [ ] OIDC_REDIRECT_URI registrado como com.espanaoutdoors://oauth2redirect.
+- [ ] COMMUNITY_API_BASE_URL apunta a la API HTTPS real; no usar una URL de ejemplo.
+- [ ] Registro de una cuenta nueva desde el flujo OIDC del móvil.
+- [ ] GET /v1/me devuelve el perfil canónico y un UUID estable.
+- [ ] Iniciar sesión con esa misma cuenta en web devuelve exactamente el mismo UUID.
+- [ ] Token ausente/caducado rechazado sin mostrar un perfil falso.
+- [ ] La prueba se realiza contra un entorno de test, no con cuentas reales de producción.
+
 ## Cierre
 Registrar modelo Android, versión del SO, versión/build de la app, fecha, y evidencia de cada fallo antes de marcar el gate como PASS.
