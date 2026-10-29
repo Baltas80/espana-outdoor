@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión del repositorio remoto: 28/10/2026. No se ha ejecutado Flutter/Android localmente durante esta intervención.
+Última revisión del repositorio remoto: 29/10/2026. No se ha ejecutado Flutter/Android localmente durante esta intervención.
 
 ## Objetivo MVP
 
@@ -11,7 +11,8 @@ Android primero. El criterio de aceptación es un APK instalable que abra el map
 - Motor cartográfico autorizado: MapLibre Flutter mediante `maplibre_gl: 0.27.1`.
 - El estilo online se configura mediante `MAP_STYLE_URL` (HTTPS), `MAP_STYLE_JSON` o un asset controlado.
 - El estilo predeterminado es Liberty de OpenFreeMap.
-- El modo cartográfico offline está pendiente; no debe considerarse funcional ni anunciado como disponible.
+- El modo offline del mapa principal Android usa Mapbox Maps SDK en la rama `feature/mapbox-offline-integration`; no es la arquitectura MapLibre descrita históricamente en documentos anteriores.
+- El usuario informa que la app integrada muestra cartografía sin conexión en el OPPO y que lo ha comprobado dos veces. Es evidencia de prueba manual comunicada por el usuario; no equivale a una prueba reproducida por CI ni confirma cobertura nacional.
 - El routing se configura externamente mediante `VALHALLA_BASE_URL`.
 - Android es la plataforma prioritaria del MVP.
 
@@ -40,8 +41,8 @@ Android primero. El criterio de aceptación es un APK instalable que abra el map
 1. Ejecutar análisis Dart y pruebas después de los cambios.
 2. Compilar e instalar un único APK de staging.
 3. Confirmar carga del estilo online y GPS en el OPPO.
-4. Definir una nueva estrategia offline compatible con MapLibre y probar fuentes, glifos, sprites y teselas sin red antes de declararla operativa.
-5. Mantener permisos, configuración Android, licencias y endpoints externos verificados.
+4. Registrar la cobertura offline que ya funciona en el OPPO, preservar la APK/commit de referencia y validar reapertura en frío y navegación por toda la región descargada.
+5. Corregir y volver a ejecutar CI: el job Android staging pasa, pero el build release falla porque el proyecto generado aún aplica `org.jetbrains.kotlin.android` con AGP 9.
 
 ## Criterio de seguridad
 
