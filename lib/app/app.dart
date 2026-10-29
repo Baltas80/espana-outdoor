@@ -7,6 +7,7 @@ import '../core/models/route_summary.dart';
 import '../features/alerts/alerts_page.dart';
 import '../features/astronomy/astronomy_page.dart';
 import '../features/explore/explore_page.dart';
+import '../features/community/community_page.dart';
 import '../features/home/home_page.dart';
 import '../features/instruments/instruments_page.dart';
 import '../features/map/maplibre_map_page.dart';
@@ -54,6 +55,14 @@ class EspanaOutdoorApp extends StatelessWidget {
           StatefulShellBranch(
             routes: [
               GoRoute(path: '/', builder: (_, __) => const HomePage()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/community',
+                builder: (_, __) => _withBackNavigation(const CommunityPage()),
+              ),
             ],
           ),
           StatefulShellBranch(
