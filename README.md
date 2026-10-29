@@ -78,7 +78,7 @@ Si no se configura, el routing permanece deshabilitado de forma explícita en lu
 
 Todas las vistas cartográficas utilizan el estilo Mapbox Outdoors y requieren MAPBOX_ACCESS_TOKEN inyectado en compilación. La descarga offline utiliza OfflineManager y TileStore; la disponibilidad, cuota y coste dependen de la cuenta y de las condiciones de Mapbox.
 
-No se declara operativo el uso cartográfico offline: requiere una implementación y una prueba específicas de almacenamiento local.
+El usuario ha confirmado que la región de prueba de Córdoba funciona sin conexión en el OPPO. Esto no equivale a cobertura offline de España ni sustituye las pruebas documentadas de reapertura en frío.
 
 ## Identidad OIDC / Keycloak
 

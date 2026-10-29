@@ -19,4 +19,4 @@ La integración usa `OfflineManager` y `TileStore` para guardar el estilo y una 
 
 ## Migración y validación pendientes
 
-Las pantallas secundarias de planificación y detalle deben migrarse a Mapbox conservando selección de destino y geometrías de ruta/GPX. Después, validar análisis, pruebas y APK Android; instalar en dispositivo y comprobar mapa online, descarga, modo avión y reapertura en frío. La CI verde por sí sola no demuestra toda esa validación.
+Las pantallas secundarias de planificación y detalle se han migrado al viewport Mapbox compartido, con selección de destino y anotaciones de ruta/GPX. Esta migración aún necesita análisis, pruebas y APK Android; instalar en dispositivo y comprobar mapa online, descarga, modo avión y reapertura en frío. La CI verde por sí sola no demuestra toda esa validación.
