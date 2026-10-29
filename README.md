@@ -92,6 +92,14 @@ La aplicación no implementa autenticación casera. La configuración se inyecta
 
 El flujo objetivo es Authorization Code + PKCE con almacenamiento seguro gestionado por el componente OIDC maduro. Los secretos de clientes confidenciales permanecen exclusivamente en backend/infraestructura.
 
+La app Flutter también puede consultar el perfil canónico de la API de comunidad con el access token OIDC:
+
+```bash
+--dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL"
+```
+
+La API debe usar el mismo issuer/realm que la app y aceptar la audiencia `espana-outdoor-api`. El cliente móvil registrado en el realm de desarrollo se llama `espana-outdoors-mobile` y utiliza el redirect URI `com.espanaoutdoors://oauth2redirect`. No configures una URL de API de producción hasta que exista y se haya validado el despliegue real. Sin `COMMUNITY_API_BASE_URL`, el inicio de sesión OIDC puede funcionar, pero el perfil compartido se mostrará como no disponible.
+
 ## Billing / Free / Premium / Professional
 
 RevenueCat proporciona la capa de billing y España Outdoor consume solamente estos entitlements:
