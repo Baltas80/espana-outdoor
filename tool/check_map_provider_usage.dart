@@ -21,12 +21,6 @@ void main() {
     }
   }
 
-  for (final entity in lib.listSync(recursive: true, followLinks: false)) {
-    if (entity is! File || !entity.path.endsWith('.dart')) continue;
-    final path = entity.path.replaceAll('\\\\', '/');
-    final source = entity.readAsStringSync();
-  }
-
   final pubspec = File('pubspec.yaml');
   if (!pubspec.existsSync() ||
       !pubspec.readAsStringSync().contains('mapbox_maps_flutter:')) {

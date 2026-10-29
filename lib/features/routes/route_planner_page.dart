@@ -169,7 +169,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
               onTap: _busy
                   ? null
                   : (point) => setState(() {
-                      _destination = LatLng(point.lat, point.lng);
+                      _destination = LatLng(point.lat.toDouble(), point.lng.toDouble());
                       _route = null;
                     }),
             ),

@@ -30,7 +30,6 @@ class MapboxMapViewport extends StatefulWidget {
 }
 
 class _MapboxMapViewportState extends State<MapboxMapViewport> {
-  MapboxMap? _map;
   PolylineAnnotationManager? _lineManager;
   CircleAnnotationManager? _circleManager;
   bool _annotationsReady = false;
@@ -47,7 +46,6 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   }
 
   Future<void> _onMapCreated(MapboxMap map) async {
-    _map = map;
     widget.onMapCreated?.call(map);
     map.addInteraction(
       TapInteraction.onMap((context) {
