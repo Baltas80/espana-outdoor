@@ -1,56 +1,34 @@
-# España Outdoor — Offline Strategy v0.1
+# España Outdoor — Estrategia offline
 
-## Principle
-Outdoor operation must remain useful when connectivity disappears.
+## Principio
 
-## Download package tiers
+La aplicación debe conservar utilidad cuando se pierde la conexión. Mapbox es el único motor cartográfico y `OfflineManager`/`TileStore` son el mecanismo de almacenamiento cartográfico offline. No se utilizará PMTiles ni un catálogo paralelo.
 
-### Critical
-- Map data for the selected area
-- Active route geometry
-- Basic route metadata
-- Emergency contacts/instructions
-- Downloaded safety notices
-- Trusted-contact configuration needed for emergency workflows
+## Datos críticos
 
-### Recommended
-- Nearby points of interest
-- Weather snapshot
-- Wildlife guidance
-- Pet suitability data
-- Conservation restrictions
+- Región cartográfica de Mapbox descargada y validada para la zona seleccionada.
+- Geometría y metadatos básicos de la ruta activa.
+- Instrucciones de emergencia y contactos de confianza disponibles localmente.
+- Datos de seguridad descargados, indicando su fecha de actualización.
 
-### Optional
-- Extended discovery content
-- Large photo/media assets
-- Historical/community content
+## Datos recomendados
 
-## Package lifecycle
+- Puntos de interés cercanos.
+- Última instantánea meteorológica disponible.
+- Orientación sobre fauna, mascotas y restricciones de conservación, con procedencia y antigüedad.
 
-Each package records:
-- area identifier
-- provider/version
-- creation time
-- last validation time
-- expiry/freshness state
-- approximate storage size
-- license/attribution requirements
+## Ciclo de vida de la descarga
 
-Downloads must support pause, resume, retry and integrity validation.
+La interfaz debe mostrar región, progreso, tamaño si el SDK lo permite, resultado, errores y reintentos. La aplicación debe identificar los recursos de estilo y región que están guardados, distinguir una descarga incompleta de una válida y permitir gestionar el almacenamiento con las capacidades disponibles en Mapbox.
 
-## Storage management
+## Modo degradado
 
-The application should show package size before download, allow deletion, and protect critical active-route data from accidental eviction where practical.
+Si no se pueden actualizar datos online, mostrar el último estado guardado con su marca temporal. La navegación calculada mediante Valhalla requiere conexión con el endpoint configurado; no debe presentarse como disponible offline salvo que exista un mecanismo offline comprobado. La geometría de una ruta ya guardada debe seguir disponible localmente.
 
-## Map provider abstraction
+## Estado conocido
 
-Tile and vector providers must sit behind an application interface so providers can be changed without changing route or safety features.
+El usuario ha confirmado que la región de prueba de Córdoba funciona sin conexión en el OPPO. Esto no acredita cobertura nacional, reapertura en frío documentada ni funcionamiento offline de servicios externos. La validación final requiere pruebas en Android con todas las redes desactivadas.
 
-## Degraded mode
+## Funciones independientes del mapa
 
-When online data cannot be refreshed, show the last known state with its timestamp rather than pretending it is current.
-
-
-## Estado comprobado el 2026-10-26
-
-Los puntos de este documento describen criterios de producto, no verificaciones ya superadas. En la revisión remota de `main` no se ha acreditado una ejecución de dispositivo que cubra pérdida de conexión, reapertura desde paquete local, frescura de avisos de seguridad o recuperación de descargas. El flujo de cartografía offline no se considera implementado ni validado. La próxima implementación debe probarse en un dispositivo Android real con todas las redes desactivadas.
+La limpieza de cartografía no debe eliminar GPS, grabación y persistencia de recorridos, importación/exportación GPX, Valhalla, SOS, contactos de confianza ni sincronización offline genérica.

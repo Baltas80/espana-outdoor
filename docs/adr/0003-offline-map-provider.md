@@ -1,23 +1,22 @@
-# ADR 0003 — Migración del mapa Android a Mapbox Offline
+# ADR 0003 — Mapbox como motor cartográfico y offline
 
 ## Estado
 
-En revisión. La POC de Mapbox demostró descarga offline en una región acotada de Córdoba en un OPPO. La integración en la app principal debe pasar build y QA offline antes de aceptarse como solución de producción.
+Aceptado para la integración Android en curso. La aplicación usa Mapbox Maps SDK y `OfflineManager`/`TileStore` para la descarga offline. El usuario ha confirmado que la región de prueba de Córdoba funciona sin conexión en su OPPO; no equivale a cobertura offline de España.
 
-## Contexto
+## Decisión
 
-La implementación previa con MapLibre no logró una experiencia offline validada. La POC con Mapbox Maps SDK usa `OfflineManager` y `TileStore`; la adopción requiere token válido, atribución visible, cumplimiento de condiciones de uso y evaluación de costes.
+- Usar exclusivamente Mapbox Maps SDK (`mapbox_maps_flutter`) para representar cartografía en la aplicación.
+- Usar `OfflineManager` y `TileStore` para estilos y regiones offline.
+- Inyectar `MAPBOX_ACCESS_TOKEN` desde el entorno de compilación; no almacenar tokens en Git.
+- Mantener GPS, grabación, GPX, Valhalla, seguridad y datos críticos offline como módulos independientes del motor cartográfico.
+- Retirar la infraestructura anterior de PMTiles, catálogo PMTiles y publicación R2; no crear un segundo mecanismo de descarga cartográfica.
+- No descargar en masa desde servidores públicos de teselas OSM.
 
-## Decisión actual
+## Alcance y límites
 
-- Usar Mapbox Maps SDK (`mapbox_maps_flutter`) para el mapa principal Android y el almacenamiento offline.
-- Inyectar `MAPBOX_ACCESS_TOKEN` desde la configuración de compilación; no almacenar tokens en el repositorio.
-- No tratar el modo offline cartográfico como una función operativa.
-- Descargar style pack y región mediante `OfflineManager` y `TileStore`; la primera región de Córdoba (zoom 8–15) es solo una prueba controlada.
-- No utilizar los servidores públicos de teselas de OpenStreetMap para descargas masivas.
+La región de Córdoba (zoom 8–15) es una cobertura de prueba, no un mapa offline nacional. Deben documentarse los límites descargados y comprobar la reapertura en frío y el modo avión en dispositivo Android. Una compilación correcta no prueba por sí sola el funcionamiento offline.
 
-## Consecuencias
+## Migración pendiente
 
-La pantalla principal se migra a Mapbox en esta rama. Las vistas secundarias que aún usan MapLibre deben migrarse tras validar el mapa principal. La prueba offline de la aplicación integrada en modo avión es obligatoria; la compilación o la existencia de recursos guardados no bastan.
-
-Compilar el APK no constituye evidencia suficiente de que el mapa offline funcione.
+Las vistas secundarias que todavía importen MapLibre deben migrarse a Mapbox sin perder selección de destino, geometría de rutas ni visualización GPX. Hasta completar y probar esa migración, no se debe retirar su dependencia de forma que rompa la compilación.

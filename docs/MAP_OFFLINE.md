@@ -1,27 +1,22 @@
 # Cartografía y modo offline
 
-## Estado actual
+## Motor cartográfico
 
-El mapa principal Android se está migrando a Mapbox Maps SDK (`mapbox_maps_flutter`). Las pantallas de planificación y detalle que todavía usan `maplibre_gl` quedan pendientes de migración para unificar el motor.
-
-El mapa principal usa el estilo Mapbox Outdoors y necesita `MAPBOX_ACCESS_TOKEN` inyectado en compilación. Las vistas MapLibre restantes siguen usando su configuración independiente.
+Mapbox Maps SDK (`mapbox_maps_flutter`) es el motor elegido para la aplicación. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado durante la compilación. No se debe añadir PMTiles ni mantener un catálogo alternativo de paquetes cartográficos.
 
 ## Modo offline
 
-La integración implementa la descarga de un style pack y una región de prueba de Córdoba mediante `OfflineManager` y `TileStore`, con zoom 8–15. Es una cobertura de prueba, no un mapa offline de España. El usuario confirma que la aplicación integrada funciona sin conexión en el OPPO y que lo ha comprobado dos veces. La extensión exacta de la cobertura y la reapertura en frío deben quedar registradas antes de ampliar la descarga.
+La integración usa `OfflineManager` y `TileStore` para guardar el estilo y una región de prueba de Córdoba, zoom 8–15. El usuario ha confirmado que el mapa integrado aparece sin conexión en el OPPO. Esta evidencia manual cubre esa región de prueba, no España completa; la extensión exacta, reapertura en frío y recuperación tras perder conexión deben quedar documentadas.
 
-Las funciones críticas independientes de la cartografía, como la geometría de una ruta activa y los datos de seguridad que estén guardados localmente, deben mantener su propio estado y fecha de actualización.
+## Reglas
 
-## Requisitos para una implementación futura
+- Mantener Mapbox como único motor de representación cartográfica.
+- Conservar GPS, grabación de recorridos, GPX, routing Valhalla y funciones de seguridad independientemente del proveedor del mapa.
+- Mantener los datos críticos de ruta disponibles offline y mostrar su antigüedad cuando corresponda.
+- No usar servidores públicos de teselas OSM para descargas masivas.
+- Mostrar progreso, errores, reintentos y estado de la descarga de Mapbox.
+- No declarar cobertura nacional ni producción completa por haber descargado la región de Córdoba.
 
-- Completar la migración del resto de vistas cartográficas a Mapbox después de validar la pantalla principal.
-- Mantener `OfflineManager`/`TileStore` como mecanismo offline para Mapbox; verificar estilo, recursos y teselas con el dispositivo desconectado.
-- No usar servidores públicos de teselas de OpenStreetMap para descargas masivas.
-- Mostrar progreso, errores, espacio necesario, reintentos y estado de integridad.
-- Verificar que estilo, fuentes, sprites y teselas funcionan sin red.
-- Probar apertura, navegación por el mapa y recuperación tras perder conexión en un dispositivo Android real.
-- No marcar la funcionalidad como terminada solo porque el APK compile.
+## Migración y validación pendientes
 
-## Evidencia
-
-Evidencia disponible: el usuario informa que la app integrada muestra el mapa offline en el OPPO y que la comprobación se ha repetido dos veces. Esta es evidencia manual comunicada por el usuario; no se ha reproducido desde esta sesión. Estado: **mapa offline de la región de prueba comprobado por el usuario; cobertura nacional, reapertura en frío documentada y demás pantallas pendientes**.
+Las pantallas secundarias de planificación y detalle deben migrarse a Mapbox conservando selección de destino y geometrías de ruta/GPX. Después, validar análisis, pruebas y APK Android; instalar en dispositivo y comprobar mapa online, descarga, modo avión y reapertura en frío. La CI verde por sí sola no demuestra toda esa validación.
