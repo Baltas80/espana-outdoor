@@ -12,11 +12,11 @@ Usar exclusivamente en un dispositivo de prueba. No declarar el gate verde sin e
 - [ ] Back desde Planes vuelve a Perfil.
 
 ## Mapa
-- [ ] `MAP_PMTILES_URL` productivo configurado.
+- [ ] `MAPBOX_ACCESS_TOKEN` configurado como secreto de compilación; no guardarlo en Git.
 - [ ] Mapa base carga sin error de configuración.
 - [ ] Posición GPS visible.
 - [ ] Zoom/pan estable.
-- [ ] Offline map descargado y reutilizable sin red.
+- [ ] Descargar Córdoba, cerrar la app en frío, activar modo avión y verificar que el mapa se representa y permite pan/zoom.
 
 ## Routing / navegación
 - [ ] Ruta peatonal calculada por Valhalla productivo.

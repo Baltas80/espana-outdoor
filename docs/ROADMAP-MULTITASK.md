@@ -100,7 +100,7 @@ The project is developed in parallel tracks so no major capability waits for ano
 2. Implement the normalized official-alert model and AEMET CAP adapter.
 3. Enforce the provider-neutral `MapService` boundary across map-dependent features.
 4. Connect persistent offline-region state to a real licensed vector-tile/offline provider; never fake downloads.
-5. Evaluate MapLibre Android/iOS/Web against `flutter_map` using measured rendering, offline and GPS-following tests.
+5. Validate the existing Mapbox integration on Android with measured rendering, native offline-region downloads, cold reopen, airplane-mode rendering and GPS-following tests.
 6. Add routing/elevation providers only after licence/cost/coverage validation.
 7. Harden SOS and Rescue Link with expiry, device-state capture and end-to-end tests.
 

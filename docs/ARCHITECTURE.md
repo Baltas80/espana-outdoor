@@ -50,9 +50,9 @@ Stale data must be distinguishable from current data.
 
 Secrets and credentials belong in secure platform storage or trusted backend infrastructure. Never commit secrets or embed privileged credentials in public builds. Emergency location must remain outside ordinary analytics unless explicitly required and legally justified.
 
-## GIS
+## Cartography
 
-MapLibre Flutter is the active map renderer. The online style is configured by `MAP_STYLE_URL` or a controlled `MAP_STYLE_JSON`. Attribution, license and provider usage policies are mandatory release criteria. Offline cartography remains pending a separately validated implementation.
+Mapbox Maps SDK (`mapbox_maps_flutter`) is the sole cartographic renderer. The application uses the Mapbox Outdoors style and requires `MAPBOX_ACCESS_TOKEN` at build time. Offline regions are managed by the SDK's native offline facilities. No parallel tile catalogue or external map-file renderer is part of the application.
 
 ## Emergencies
 

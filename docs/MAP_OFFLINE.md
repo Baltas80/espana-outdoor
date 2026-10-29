@@ -1,27 +1,22 @@
 # Cartografía y modo offline
 
-## Estado actual
+## Motor cartográfico
 
-MapLibre Flutter mediante `maplibre_gl` es el único motor cartográfico autorizado del proyecto. El estilo se carga desde `MAP_STYLE_URL` (HTTPS), desde `MAP_STYLE_JSON` en builds controladas o desde un asset de la aplicación mediante `asset://`.
-
-La configuración predeterminada usa el estilo Liberty de OpenFreeMap. El renderizado online depende de la conexión y de los recursos remotos del estilo.
+Mapbox Maps SDK (`mapbox_maps_flutter`) es el motor elegido para la aplicación. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado durante la compilación. No se debe mantener un catálogo cartográfico paralelo.
 
 ## Modo offline
 
-El modo offline cartográfico no se considera implementado ni validado actualmente. No debe presentarse como funcional hasta que exista una estrategia de almacenamiento local compatible con MapLibre, se compruebe la disponibilidad de fuentes, glifos y sprites, y se valide en Android con Wi-Fi y datos móviles desactivados.
+La integración usa `OfflineManager` y `TileStore` para guardar el estilo y una región de prueba de Córdoba, zoom 8–15. La prueba de concepto previa de la región de Córdoba fue reportada como funcional sin conexión en el OPPO. Esa evidencia se limita a esa región y no demuestra por sí sola que el APK integrado soporte reapertura en frío offline; hay que validar el APK exacto, el área, la navegación por el mapa y la recuperación al restablecer la conexión.
 
-Las funciones críticas independientes de la cartografía, como la geometría de una ruta activa y los datos de seguridad que estén guardados localmente, deben mantener su propio estado y fecha de actualización.
+## Reglas
 
-## Requisitos para una implementación futura
+- Mantener Mapbox como único motor de representación cartográfica.
+- Conservar GPS, grabación de recorridos, GPX, routing Valhalla y funciones de seguridad independientemente del proveedor del mapa.
+- Mantener los datos críticos de ruta disponibles offline y mostrar su antigüedad cuando corresponda.
+- No usar servidores públicos de teselas OSM para descargas masivas.
+- Mostrar progreso, errores, reintentos y estado de la descarga de Mapbox.
+- No declarar cobertura nacional ni producción completa por haber descargado la región de Córdoba.
 
-- Mantener MapLibre como único motor.
-- Elegir un mecanismo de descarga y almacenamiento que sea compatible con la versión de `maplibre_gl` instalada.
-- No usar servidores públicos de teselas de OpenStreetMap para descargas masivas.
-- Mostrar progreso, errores, espacio necesario, reintentos y estado de integridad.
-- Verificar que estilo, fuentes, sprites y teselas funcionan sin red.
-- Probar apertura, navegación por el mapa y recuperación tras perder conexión en un dispositivo Android real.
-- No marcar la funcionalidad como terminada solo porque el APK compile.
+## Migración y validación pendientes
 
-## Evidencia
-
-La revisión documental remota no acredita una prueba completa de cartografía offline en dispositivo. Hasta que se aporte esa evidencia, el estado correcto es: **mapa online configurado; modo cartográfico offline pendiente**.
+Las pantallas secundarias de planificación y detalle se han migrado al viewport Mapbox compartido, con selección de destino y anotaciones de ruta/GPX. El APK integrado aún requiere validación en dispositivo para visualizar el mapa online, descargar la región, usar modo avión y reabrir en frío. La CI verde por sí sola no demuestra toda esa validación.

@@ -8,12 +8,10 @@ permissions:
 
 env:
   APP_ENV: production
-  MAP_PMTILES_URL: ${{ secrets.MAP_PMTILES_URL }}
+  MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
   VALHALLA_BASE_URL: ${{ secrets.VALHALLA_BASE_URL }}
   SOURCE_GATEWAY_BASE_URL: ${{ secrets.SOURCE_GATEWAY_BASE_URL }}
-  OFFLINE_CATALOG_URL: ${{ secrets.OFFLINE_CATALOG_URL }}
   RESCUE_LINK_BASE_URL: ${{ secrets.RESCUE_LINK_BASE_URL }}
-  MAP_ATTRIBUTION: ${{ vars.MAP_ATTRIBUTION }}
 
 jobs:
   android-release-candidate:
@@ -50,11 +48,12 @@ jobs:
           if [[ -f "${RUNNER_TEMP}/widget_test.dart" ]]; then cp "${RUNNER_TEMP}/widget_test.dart" test/widget_test.dart; fi
           test -f android/app/build.gradle.kts || test -f android/app/build.gradle
 
-      - name: Check production endpoints
+      - name: Check production endpoints and Mapbox token
         shell: bash
         run: |
           set -euo pipefail
-          for name in MAP_PMTILES_URL VALHALLA_BASE_URL OFFLINE_CATALOG_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
@@ -94,12 +93,10 @@ jobs:
         run: |
           DART_DEFINES=(
             --dart-define=APP_ENV="$APP_ENV"
-            --dart-define=MAP_PMTILES_URL="$MAP_PMTILES_URL"
+            --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL"
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL"
-            --dart-define=OFFLINE_CATALOG_URL="$OFFLINE_CATALOG_URL"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
-            --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION"
           )
           flutter build apk --release "${DART_DEFINES[@]}"
           flutter build appbundle --release "${DART_DEFINES[@]}"
@@ -154,11 +151,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - name: Check production endpoints
+      - name: Check production endpoints and Mapbox token
         shell: bash
         run: |
           set -euo pipefail
-          for name in MAP_PMTILES_URL VALHALLA_BASE_URL OFFLINE_CATALOG_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
@@ -208,9 +206,8 @@ jobs:
         run: |
           flutter build ios --release --no-codesign \
             --dart-define=APP_ENV="$APP_ENV" \
-            --dart-define=MAP_PMTILES_URL="$MAP_PMTILES_URL" \
+            --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
-            --dart-define=OFFLINE_CATALOG_URL="$OFFLINE_CATALOG_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
-            --dart-define=MAP_ATTRIBUTION="$MAP_ATTRIBUTION"
+

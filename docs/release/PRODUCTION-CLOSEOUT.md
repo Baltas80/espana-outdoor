@@ -20,7 +20,7 @@ The CI Android artifact is necessary but not sufficient. Install the exact CI AP
 - background location / screen-off;
 - battery and thermal sanity.
 
-Known manual observation: the current production-style build reports `MAP_PMTILES_URL is not configured` when no approved PMTiles endpoint is injected. This is a real production blocker, not a test failure to hide.
+The Mapbox migration must be built with `MAPBOX_ACCESS_TOKEN`. A successful build does not replace physical validation of map rendering, offline downloads and airplane-mode reopening.
 
 ## B. iOS physical QA
 
@@ -32,7 +32,7 @@ The application boundary is already provider-neutral. Do not hard-code credentia
 
 Required production services:
 
-1. **PMTiles / map provider** — approved commercial or self-hosted source with explicit redistribution/prefetch rights.
+1. **Mapbox** — valid `MAPBOX_ACCESS_TOKEN`, account configuration, required style access and verified offline-region behaviour.
 2. **Valhalla** — dedicated production instance with Spain routing tiles and HTTPS.
 3. **Live Data Gateway** — HTTPS endpoint with real AEMET credentials, OIDC and monitoring.
 4. **Rescue Link** — HTTPS service, Keycloak/OIDC realm, PostgreSQL, managed secret material, backups and monitoring.
@@ -76,10 +76,10 @@ Production values are injected at build/deployment time. Example:
 
 ```text
 --dart-define=APP_ENV=production
---dart-define=MAP_PMTILES_URL=https://<approved-endpoint>/spain.pmtiles
+--dart-define=MAPBOX_ACCESS_TOKEN=<token-injected-by-CI>
 --dart-define=VALHALLA_BASE_URL=https://<routing-domain>/
 --dart-define=SOURCE_GATEWAY_BASE_URL=https://<gateway-domain>/
 --dart-define=RESCUE_LINK_BASE_URL=https://<rescue-domain>/
 ```
 
-Do not commit actual credentials, private API keys, or production URLs until the provider and ownership decision has been made. A placeholder is intentionally not treated as a working production configuration.
+Do not commit actual credentials or privileged keys. Inject `MAPBOX_ACCESS_TOKEN` through the protected build configuration. A placeholder is intentionally not treated as a working production configuration.

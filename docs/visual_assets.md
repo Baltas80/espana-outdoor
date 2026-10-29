@@ -24,4 +24,4 @@ These assets contain no UI controls or application text. Flutter overlays all in
 
 ## Review goal
 
-The visual system is intentionally separate from the PMTiles/map infrastructure. A missing production map endpoint must not prevent review of the rest of the visual layer.
+The visual system is independent of map-provider configuration. A missing Mapbox token must not prevent review of the rest of the visual layer.

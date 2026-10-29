@@ -49,7 +49,7 @@ def patch_android() -> None:
     network_security.write_text(
         '''<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-  <!-- MapLibre uses its configured style and sources.
+  <!-- Mapbox uses its configured style and sources.
        No remote cleartext traffic is permitted. -->
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="false">localhost</domain>
@@ -94,6 +94,13 @@ def patch_android() -> None:
 
     gradle = gradle_path.read_text(encoding="utf-8")
     if gradle_path.suffix == ".kts":
+        # AGP 9 has built-in Kotlin; Flutter's generated app template can still
+        # apply the legacy Kotlin Android plugin, which AGP 9 rejects.
+        gradle = re.sub(
+            r"""(?m)^\s*id\(["'](?:org\.jetbrains\.kotlin\.android|kotlin-android)["']\)\s*\n""",
+            "",
+            gradle,
+        )
         gradle = gradle.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
         placeholder = (
             '        manifestPlaceholders["appAuthRedirectScheme"] = '
@@ -120,6 +127,19 @@ def patch_android() -> None:
         )
 
     gradle_path.write_text(gradle, encoding="utf-8")
+
+    # AGP 9 exposes the Kotlin DSL to plugins through built-in Kotlin.
+    # Mapbox's Android module configures the kotlin {} extension; disabling
+    # built-in Kotlin makes that extension unavailable and breaks the build.
+    # Flutter 3.47 supports opting in, so keep it enabled for this AGP 9 project.
+    gradle_properties = ROOT / "android" / "gradle.properties"
+    if not gradle_properties.exists():
+        raise SystemExit("Missing generated Android gradle.properties.")
+    properties = gradle_properties.read_text(encoding="utf-8")
+    property_line = "android.builtInKotlin=true"
+    lines = [line for line in properties.splitlines() if not line.startswith("android.builtInKotlin=")]
+    lines.append(property_line)
+    gradle_properties.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def patch_ios() -> None:

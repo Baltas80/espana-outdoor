@@ -9,7 +9,7 @@ Before writing custom infrastructure, the project must first check whether Flutt
 - Flutter/Dart for the application.
 - Riverpod for feature state.
 - go_router for navigation.
-- MapLibre Flutter (`maplibre_gl`) for map rendering.
+- Mapbox Maps SDK (`mapbox_maps_flutter`) for all map rendering and native offline regions.
 - geolocator for location and distance calculations.
 - file_picker for file import/export.
 - path_provider for platform paths.
@@ -25,12 +25,12 @@ Before writing custom infrastructure, the project must first check whether Flutt
 
 Current architecture:
 
-1. MapLibre Flutter renders the map.
-2. MapLibre loads the configured online style; offline map storage requires a separate implementation.
-3. `MapService` remains a provider-neutral contract; offline map downloads are currently disabled pending a validated implementation.
+1. Mapbox Maps SDK renders the main map, route planner and GPX detail through a shared viewport.
+2. Mapbox Outdoors is configured with `MAPBOX_ACCESS_TOKEN` at build time.
+3. `OfflineManager` and `TileStore` manage downloaded style packs and tile regions; cold restart and airplane mode still require validation on the integrated Android build.
 
 Do not build a custom tile renderer or custom SQLite tile reader.
-Do not use `tile.openstreetmap.org` for bulk offline downloading. Production offline packages must use a provider or infrastructure whose terms explicitly permit prefetch/offline use.
+Do not use `tile.openstreetmap.org` for bulk offline downloading. Mapbox offline downloads must respect the account's terms, attribution, usage quota and cost limits.
 
 ### Routing
 

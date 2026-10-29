@@ -1,23 +1,22 @@
-# ADR 0003 — Cartografía con MapLibre y estado offline pendiente
+# ADR 0003 — Mapbox como motor cartográfico y offline
 
 ## Estado
 
-Retirada. La decisión anterior sobre el formato de distribución cartográfica queda sustituida porque no ha producido una experiencia offline validada en Android.
+Aceptado para la integración Android en curso. La aplicación usa Mapbox Maps SDK y `OfflineManager`/`TileStore` para la descarga offline. El usuario ha confirmado que la región de prueba de Córdoba funciona sin conexión en su OPPO; no equivale a cobertura offline de España.
 
-## Contexto
+## Decisión
 
-España Outdoor utiliza MapLibre Flutter como único motor cartográfico. El mapa online debe poder cargarse desde un estilo HTTPS aprobado y mantener la atribución y licencias correspondientes.
+- Usar exclusivamente Mapbox Maps SDK (`mapbox_maps_flutter`) para representar cartografía en la aplicación.
+- Usar `OfflineManager` y `TileStore` para estilos y regiones offline.
+- Inyectar `MAPBOX_ACCESS_TOKEN` desde el entorno de compilación; no almacenar tokens en Git.
+- Mantener GPS, grabación, GPX, Valhalla, seguridad y datos críticos offline como módulos independientes del motor cartográfico.
+- Mantener un único mecanismo de descarga cartográfica: el sistema offline nativo de Mapbox.
+- No descargar en masa desde servidores públicos de teselas OSM.
 
-## Decisión actual
+## Alcance y límites
 
-- Mantener MapLibre Flutter como motor cartográfico.
-- Cargar el estilo online mediante `MAP_STYLE_URL`, `MAP_STYLE_JSON` o un asset controlado.
-- No tratar el modo offline cartográfico como una función operativa.
-- Elegir y validar por separado una futura estrategia offline que sea compatible con la versión instalada de MapLibre Flutter.
-- No utilizar los servidores públicos de teselas de OpenStreetMap para descargas masivas.
+La región de Córdoba (zoom 8–15) es una cobertura de prueba, no un mapa offline nacional. Deben documentarse los límites descargados y comprobar la reapertura en frío y el modo avión en dispositivo Android. Una compilación correcta no prueba por sí sola el funcionamiento offline.
 
-## Consecuencias
+## Migración pendiente
 
-La carga del estilo online deja de depender de un formato de archivo cartográfico ni de un catálogo de paquetes regionales. El modo offline cartográfico queda pendiente hasta comprobar el estilo, las fuentes, los glifos y los sprites sin conexión en un dispositivo Android real.
-
-Compilar el APK no constituye evidencia suficiente de que el mapa offline funcione.
+Las vistas de planificación y detalle se han migrado a un viewport Mapbox compartido que admite selección de destino y anotaciones de ruta/GPX. Esta modificación requiere análisis estático, pruebas y validación en dispositivo antes de considerarse cerrada.

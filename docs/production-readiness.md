@@ -7,8 +7,7 @@ España Outdoor uses mature third-party infrastructure for commodity layers and 
 ### Mature components
 
 - Flutter/Dart: mobile application shell.
-- MapLibre ecosystem: map rendering.
-- PMTiles/MBTiles: offline map distribution.
+- Mapbox Maps SDK: cartographic rendering and native offline regions.
 - Valhalla: outdoor routing, map matching and turn-by-turn data.
 - Hive CE: local route/offline metadata and crash-recoverable active-route segments during MVP.
 - background_downloader: resumable native downloads.
@@ -17,7 +16,6 @@ España Outdoor uses mature third-party infrastructure for commodity layers and 
 - Sentry: crash/error telemetry.
 - GitHub Actions + Dependabot + Trivy + Gitleaks: CI and supply-chain baseline.
 - Rescue Link first-party Go service: server-authoritative expiry, revocation and role-scoped location access.
-- SHA-256 verification is mandatory for published offline packages; regions without a valid 64-hex checksum are rejected.
 
 ## Rescue Link backend
 
@@ -44,13 +42,13 @@ Secrets and provider endpoints are injected at build/deployment time. They must 
 | Variable | Purpose | Required in production |
 |---|---|---|
 | VALHALLA_BASE_URL | Routing endpoint | Yes |
-| OFFLINE_CATALOG_URL | Published offline-region catalogue | Yes |
+
 | SOURCE_GATEWAY_BASE_URL | First-party normalized official-data gateway | Yes |
 | RESCUE_LINK_BASE_URL | First-party Rescue Link API | Yes |
 | SENTRY_DSN | Error/crash telemetry | Yes |
 | APP_ENV | Environment label | Yes |
-| MAP_PMTILES_URL | Approved/operated PMTiles source for the production MapLibre style | Yes |
-| MAP_ATTRIBUTION | Required map attribution | Yes when provider requires it |
+| MAPBOX_ACCESS_TOKEN | Mapbox SDK access token injected at build time | Yes |
+
 | REVENUECAT_API_KEY | Public RevenueCat SDK key | Yes for store billing |
 | OIDC_ISSUER | Keycloak/OIDC issuer | Yes |
 | OIDC_CLIENT_ID | Public OIDC client identifier | Yes |
@@ -82,4 +80,4 @@ A production release is blocked unless:
 
 ## Known external prerequisites
 
-The repository can implement and validate client contracts without inventing infrastructure credentials. Production still requires deployment of the backend/source gateway, Valhalla regional tiles, offline catalogue, Keycloak realm/client configuration, RevenueCat store configuration, Sentry project and Rescue Link service. These are environment/service configuration tasks, not values that should be fabricated in Git.
+The repository can implement and validate client contracts without inventing infrastructure credentials. Production still requires deployment of the backend/source gateway, Valhalla regional tiles, Mapbox access-token configuration, Keycloak realm/client configuration, RevenueCat store configuration, Sentry project and Rescue Link service. These are environment/service configuration tasks, not values that should be fabricated in Git.
