@@ -49,7 +49,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - Flutter / Dart.
 - Riverpod para estado.
 - go_router para navegación.
-- Mapbox Maps SDK para el mapa principal Android y descarga offline mediante `OfflineManager`/`TileStore`. Las vistas secundarias de planificación/detalle aún usan MapLibre durante la migración.
+- Mapbox Maps SDK (mapbox_maps_flutter) para todas las vistas cartográficas y descarga offline mediante OfflineManager/TileStore.
 - geolocator para ubicación.
 - connectivity_plus para estado de conectividad.
 - shared_preferences para preferencias no críticas.
@@ -76,7 +76,7 @@ Si no se configura, el routing permanece deshabilitado de forma explícita en lu
 
 ## Configuración cartográfica
 
-El mapa principal utiliza el estilo Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado en compilación. La descarga offline inicial usa `OfflineManager` y `TileStore`; la disponibilidad, cuota y coste dependen de la cuenta y de las condiciones de Mapbox. Las vistas secundarias que aún usan MapLibre conservan su configuración `MAP_STYLE_URL`.
+Todas las vistas cartográficas utilizan el estilo Mapbox Outdoors y requieren MAPBOX_ACCESS_TOKEN inyectado en compilación. La descarga offline utiliza OfflineManager y TileStore; la disponibilidad, cuota y coste dependen de la cuenta y de las condiciones de Mapbox.
 
 No se declara operativo el uso cartográfico offline: requiere una implementación y una prueba específicas de almacenamiento local.
 
