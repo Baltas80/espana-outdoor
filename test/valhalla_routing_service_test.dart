@@ -26,6 +26,49 @@ class _FakeClient extends http.BaseClient {
 }
 
 void main() {
+  for (final profileCase in const [
+    {'profile': 'mtb', 'bicycle_type': 'mountain'},
+    {'profile': 'cycling', 'bicycle_type': 'hybrid'},
+  ]) {
+    test('maps ${profileCase['profile']} to bicycle costing', () async {
+      final client = _FakeClient({
+        'trip': {
+          'legs': [
+            {
+              'summary': {'length': 1.0, 'time': 300},
+              'maneuvers': [],
+              'shape': {
+                'type': 'LineString',
+                'coordinates': [
+                  [-3.70, 40.41],
+                  [-3.69, 40.42],
+                ],
+              },
+            },
+          ],
+        },
+      });
+      final service = ValhallaRoutingService(
+        baseUri: Uri.parse('https://routing.example.com/'),
+        client: client,
+      );
+
+      await service.route(
+        RouteRequest(
+          points: const [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+          profile: profileCase['profile']!,
+        ),
+      );
+
+      final request = jsonDecode(client.lastRequestBody!) as Map<String, dynamic>;
+      expect(request['costing'], 'bicycle');
+      expect(
+        (request['costing_options'] as Map<String, dynamic>)['bicycle'],
+        {'bicycle_type': profileCase['bicycle_type']},
+      );
+    });
+  }
+
   test('Valhalla route preserves seconds and exposes maneuvers', () async {
     final client = _FakeClient({
       'trip': {
