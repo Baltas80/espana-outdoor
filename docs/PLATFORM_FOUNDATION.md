@@ -1,41 +1,40 @@
 # España Outdoor — Platform Foundation
 
-## Status
+## Estado y decisiones vigentes
 
-Implemented on `feat/platform-foundation-2026` as the first production-foundation increment. This layer deliberately uses mature infrastructure and keeps provider details outside the domain.
+La aplicación móvil usa infraestructura madura y mantiene la lógica de producto y seguridad separada de los proveedores externos.
 
-## Provider policy
-
-| Capability | Selected foundation | Role of España Outdoor code |
+| Capacidad | Base seleccionada | Responsabilidad de España Outdoor |
 |---|---|---|
-| Mobile/Web UI | Flutter | Product UX and domain orchestration |
-| Android/iOS map engine | MapLibre | Adapter, style, offline catalog |
-| Desktop map fallback | flutter_map | Same MapService contract |
-| PMTiles | `pmtiles` Dart package | Offline catalog and lifecycle |
-| Routing | Valhalla | Outdoor profiles, policy and fallback |
-| GIS database | PostGIS | Domain schema and policies |
-| Tile server | Martin | Configuration and source catalog |
-| Identity | Keycloak/OIDC | AuthService adapter and roles |
-| Billing | RevenueCat | Entitlements and plan policy |
-| Weather | AEMET OpenData | Source adapter, freshness and provenance |
-| Environment | MITECO/OGC | Source adapter and provenance |
-| Official GIS | IGN/CNIG/OGC | Source adapter and provenance |
-| Telemetry | OpenTelemetry/Sentry | Integration and privacy policy |
-| Metrics | Prometheus/Grafana | Dashboards and SLOs |
-| Events | NATS initially | Critical event contracts |
+| Aplicación móvil | Flutter/Dart | UX, dominio y coordinación de funciones |
+| Estado | Riverpod | Estado de las pantallas y controladores |
+| Navegación | go_router | Navegación de la aplicación |
+| Cartografía | Mapbox Maps SDK (`mapbox_maps_flutter`) | Integración de UI y comportamiento outdoor |
+| Mapas sin conexión | Capacidades offline nativas de Mapbox | Descarga, progreso, persistencia y estado de regiones |
+| GPS | geolocator y adaptadores existentes | Permisos, posición y grabación |
+| Routing | Valhalla | Perfiles outdoor y reglas de producto |
+| GIS backend | PostGIS cuando se requiera | Esquema de dominio y políticas |
+| Identidad | Keycloak/OIDC | Adaptador de autenticación y roles |
+| Billing | RevenueCat | Entitlements y planes |
+| Meteorología | AEMET OpenData | Procedencia, frescura y adaptador |
+| Datos ambientales | MITECO/OGC | Procedencia y adaptación de fuentes |
+| Telemetría | OpenTelemetry/Sentry | Integración y política de privacidad |
+| Métricas | Prometheus/Grafana | Dashboards y SLOs |
 
-## Important platform constraint
+## Configuración cartográfica
 
-The current Flutter MapLibre plugin supports Android, iOS and Web, but not Windows/macOS/Linux. Therefore the client keeps a provider-neutral `MapService` and uses `flutter_map` as the desktop-capable rendering path until a mature desktop MapLibre option is selected. This is intentional and avoids a premature platform-specific rewrite.
+El estilo principal es Mapbox Outdoors. La compilación recibe `MAPBOX_ACCESS_TOKEN` desde la configuración protegida del entorno. No se debe mantener un segundo motor cartográfico ni un catálogo paralelo de descargas.
+
+La validación offline requiere evidencia Android de descarga completada, persistencia, reapertura en frío y representación en modo avión. La compilación y la carga online no son pruebas suficientes.
 
 ## Entitlements
 
-The client contains a single entitlement catalog for Free, Premium and Professional. Store products must map to RevenueCat entitlements; UI features must consume entitlements rather than checking product IDs or prices.
+El catálogo de entitlements debe seguir siendo único para Free, Premium y Professional. Los productos de tienda se mapean a entitlements y la UI consume entitlements, no IDs de producto o precios.
 
-## Safety boundary
+## Límite de seguridad
 
-The Risk Engine is deliberately deterministic and conservative. It cannot turn missing or stale evidence into an approval. Official emergency services always take precedence. Rescue Link remains a separately authorized, expiring workflow.
+El Risk Engine es determinista y conservador. La ausencia de datos o la presencia de datos caducados nunca deben convertirse en una aprobación. Los servicios oficiales de emergencia tienen prioridad. Rescue Link sigue siendo un flujo autorizado, temporal y revocable.
 
-## Production rule
+## Regla de producción
 
-Development Compose is a reproducible local integration environment. Production must use pinned image digests, managed secrets, TLS, backups, database HA where required, network policies, observability and disaster recovery. `start-dev` Keycloak mode is not permitted in production.
+El entorno local de desarrollo debe ser reproducible. Producción requiere imágenes fijadas por digest, secretos gestionados, TLS, copias de seguridad, políticas de red, observabilidad y recuperación ante desastres. La configuración de desarrollo de Keycloak no se permite en producción.

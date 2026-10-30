@@ -1,48 +1,50 @@
 # España Outdoor — estado técnico
 
-Última revisión del repositorio remoto: 28/10/2026. No se ha ejecutado Flutter/Android localmente durante esta intervención.
+Última revisión del repositorio remoto: 29/10/2026. Este documento distingue inspección del repositorio de validaciones ejecutadas en dispositivos.
 
 ## Objetivo MVP
 
-Android primero. El criterio de aceptación es un APK instalable que abra el mapa, renderice cartografía real, permita usar GPS y rutas, y gestione correctamente los errores y la pérdida de conectividad.
+Android primero. El criterio de aceptación es un APK instalable que abra el mapa, renderice cartografía real, permita usar GPS y rutas, y gestione correctamente errores y pérdida de conectividad.
 
 ## Arquitectura cartográfica actual
 
-- Motor cartográfico autorizado: MapLibre Flutter mediante `maplibre_gl: 0.27.1`.
-- El estilo online se configura mediante `MAP_STYLE_URL` (HTTPS), `MAP_STYLE_JSON` o un asset controlado.
-- El estilo predeterminado es Liberty de OpenFreeMap.
-- El modo cartográfico offline está pendiente; no debe considerarse funcional ni anunciado como disponible.
-- El routing se configura externamente mediante `VALHALLA_BASE_URL`.
+- Motor cartográfico en la rama principal tras esta migración: **Mapbox**, mediante `mapbox_maps_flutter`.
+- El estilo y la clave de acceso deben configurarse mediante los mecanismos de compilación previstos; no incluir credenciales privilegiadas en el repositorio.
+- La experiencia offline se apoya en las capacidades offline nativas de Mapbox. Deben comprobarse descarga, persistencia, reapertura en frío y funcionamiento en modo avión por separado.
+- Que se descargue una región o se compile el APK no demuestra por sí solo cobertura nacional ni funcionamiento offline correcto.
+- El routing se configura externamente mediante `VALHALLA_BASE_URL`; la integración y las respuestas reales deben validarse.
 - Android es la plataforma prioritaria del MVP.
 
 ## Estado del código revisado
 
-- La carga del estilo ya no depende de un catálogo de paquetes cartográficos ni de un formato de archivo regional.
-- Se han retirado el cargador específico anterior, los recursos de estilo ligados a ese flujo, el fixture de prueba y el pipeline de publicación asociado.
-- La existencia de la pantalla MapLibre o la compilación de un APK no demuestra que el mapa funcione en un dispositivo ni que exista modo offline.
-- La descarga genérica de datos, el almacenamiento de rutas y la cartografía son responsabilidades distintas. No se debe presentar una descarga como mapa utilizable sin verificar su integración con MapLibre.
+- La aplicación utiliza una superficie Mapbox compartida para mapa, planificación y detalle de rutas.
+- Se conservan los modelos y capacidades de GPS, grabación de recorridos, GPX, Valhalla y los módulos de seguridad.
+- La infraestructura de distribución cartográfica anterior y las abstracciones que no forman parte de la solución activa se retiran en esta rama.
+- La existencia de una pantalla cartográfica o la compilación de un APK no demuestra por sí sola que el mapa funcione en un dispositivo, que una descarga se pueda volver a abrir offline ni que exista cobertura nacional.
+- La comunidad social es una propuesta de producto; sus fases no deben considerarse implementadas hasta pasar sus criterios y pruebas.
 
 ## Validación disponible
 
-| Comprobación | Estado de esta intervención |
+| Comprobación | Estado |
 |---|---|
-| Inspección remota de código y configuración | Realizada parcialmente |
-| Análisis estático Dart | No ejecutado |
-| Pruebas automatizadas | No ejecutadas |
-| Compilación APK | No ejecutada |
-| Instalación en dispositivo Android | No ejecutada |
-| Mapa online en OPPO | No verificado en esta intervención |
-| Mapa con Wi-Fi y datos móviles desactivados | No verificado; modo offline pendiente |
-| Routing real con Valhalla | No verificado |
+| Inspección remota de código y configuración | Parcial; véase la rama de consolidación y sus cambios |
+| Análisis estático Dart | Consultar el estado de CI del commit vigente |
+| Pruebas automatizadas | Consultar el estado de CI del commit vigente |
+| Compilación APK | Consultar el estado del workflow Android staging del commit vigente |
+| Instalación en dispositivo Android | No declarada hasta disponer de evidencia |
+| Mapa online en OPPO | No declarado hasta comprobarlo en el dispositivo |
+| Mapa descargado, reapertura en frío y modo avión | Prueba física pendiente para el commit vigente |
+| Routing real con Valhalla | No declarado hasta comprobar endpoint y respuesta |
 
 ## Pendientes prioritarios
 
-1. Ejecutar análisis Dart y pruebas después de los cambios.
-2. Compilar e instalar un único APK de staging.
-3. Confirmar carga del estilo online y GPS en el OPPO.
-4. Definir una nueva estrategia offline compatible con MapLibre y probar fuentes, glifos, sprites y teselas sin red antes de declararla operativa.
-5. Mantener permisos, configuración Android, licencias y endpoints externos verificados.
+1. Confirmar que CI, análisis, pruebas y APK de staging corresponden al HEAD vigente de la rama.
+2. Instalar el APK resultante en Android y comprobar el mapa online, permisos y GPS.
+3. Descargar un área de prueba, cerrar por completo la aplicación, reabrir sin conexión y comprobar la cartografía en modo avión.
+4. Confirmar el alcance real de las regiones offline; no inferir cobertura nacional a partir de una zona de prueba.
+5. Verificar routing con un endpoint real de Valhalla configurado.
+6. Auditar autenticación móvil/web, perfil, backend Go, PostgreSQL y permisos antes de iniciar la comunidad descrita en la issue #11.
 
 ## Criterio de seguridad
 
-No usar servidores públicos de teselas de OpenStreetMap para descargas masivas. No inventar endpoints ni paquetes regionales. No marcar funciones como completadas sin evidencia reproducible.
+No incluir secretos en código o Git. Respetar licencias y condiciones de uso de la cartografía. No marcar funcionalidades como completadas sin evidencia reproducible. Las contribuciones comunitarias deben distinguirse de la información oficial y verificada.

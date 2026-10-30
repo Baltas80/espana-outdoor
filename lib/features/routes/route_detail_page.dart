@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:maplibre_gl/maplibre_gl.dart' as ml;
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' show Position;
 
 import '../../core/gpx/gpx_export_service.dart';
 import '../../core/gpx/gpx_import_service.dart';
 import '../../core/models/route_summary.dart';
-import '../map/maplibre_map_viewport.dart';
+import '../map/mapbox_map_viewport.dart';
 
 class RouteDetailPage extends StatefulWidget {
   const RouteDetailPage({super.key, this.route, this.track});
@@ -69,14 +69,14 @@ class _RouteDetailPageState extends State<RouteDetailPage> {
             height: 300,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: MapLibreMapViewport(
-                initialCenter: ml.LatLng(
-                  center?.latitude ?? 40.4168,
+              child: MapboxMapViewport(
+                initialCenter: Position(
                   center?.longitude ?? -3.7038,
+                  center?.latitude ?? 40.4168,
                 ),
                 initialZoom: center == null ? 7 : 14,
                 routePoints: points
-                    .map((point) => ml.LatLng(point.latitude, point.longitude))
+                    .map((point) => Position(point.longitude, point.latitude))
                     .toList(growable: false),
               ),
             ),

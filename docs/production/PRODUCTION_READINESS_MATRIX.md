@@ -15,8 +15,7 @@ Status vocabulary:
 | Android artifacts | **HECHO** — `android-release` artifact exists; manifest contains APK/AAB metadata and SHA-256 values | — | Verify artifact against intended release candidate |
 | iOS release | **HECHO** — iOS release build job completed successfully in CI | **BLOQUEADO** for physical/store validation until device + Apple account evidence exists | Physical iOS QA and signing/store validation |
 | LAND visual pack | **HECHO** — LAND-01..07 plus flora/fauna visual assets are present in repository history | Physical/device visual QA remains | Verify rendering in release artifact |
-| PMTiles | **PREPARADO** — application integration and production publication runbook exist | **BLOQUEADO** until real R2/HTTPS publication and real Spain PMTiles exist | Range requests, HTTP 206/Content-Range, checksum, online/offline verification |
-| Offline catalog | **PREPARADO** — production endpoint is release-gated in repository | **BLOQUEADO** until real catalog endpoint exists | Endpoint health + regional download + offline test |
+| Mapbox offline regions | **PENDIENTE** — SDK integration must be verified on the target Android build | **BLOQUEADO** until device-level download and airplane-mode reopening evidence exists | Download, persistence, cold reopen and airplane-mode rendering |
 | Valhalla | **PREPARADO** — routing/elevation integration and CI tests exist | **BLOQUEADO** until a production HTTPS routing host with real tiles exists | Status + routing smoke test + elevation smoke test + E2E |
 | Live Data | **PREPARADO** — source gateway integration and CI tests exist | **BLOQUEADO** until provider credentials/API and production gateway exist | Auth, rate limit, cache, observability and live-data smoke test |
 | Rescue Link | **PREPARADO** — service integration and CI tests exist | **BLOQUEADO** until production deployment/domain exists | E2E safety test without a real 112 call |

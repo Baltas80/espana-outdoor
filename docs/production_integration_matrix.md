@@ -5,7 +5,7 @@ This document separates implemented application foundations from production inte
 | Capability | Mature technology | App boundary | Production requirement |
 |---|---|---|---|
 | Cross-platform UI | Flutter | feature layer | platform projects + store signing |
-| Maps | MapLibre Flutter | `MapService` | approved HTTPS style/source |
+| Maps | Mapbox Maps SDK (`mapbox_maps_flutter`) | shared Mapbox viewport | `MAPBOX_ACCESS_TOKEN` and Mapbox Outdoors style |
 | Offline maps | Pending implementation | `MapService` | Android offline validation required |
 | Routing | Valhalla | `RoutingService` | Valhalla deployment + regional tiles |
 | GIS database | PostgreSQL/PostGIS | backend API | managed PostgreSQL/PostGIS |

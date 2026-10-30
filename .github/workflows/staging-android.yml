@@ -30,7 +30,6 @@ permissions:
 
 env:
   APP_ENV: staging
-  MAP_STYLE_URL: https://tiles.openfreemap.org/styles/liberty
   VALHALLA_BASE_URL: https://routing.espanaoutdoor.es
   SOURCE_GATEWAY_BASE_URL: https://api.espanaoutdoor.es
   RESCUE_LINK_BASE_URL: https://rescue.espanaoutdoor.es
@@ -91,12 +90,18 @@ jobs:
           flutter test --coverage
       - name: Build Android staging APK
         if: always()
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         run: |
           set -e
+          if [ -z "$MAPBOX_ACCESS_TOKEN" ]; then
+            echo "::error::Falta el secreto MAPBOX_ACCESS_TOKEN; no se puede inicializar el mapa."
+            exit 1
+          fi
           flutter pub get
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
-            --dart-define=MAP_STYLE_URL="$MAP_STYLE_URL" \
+            --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
