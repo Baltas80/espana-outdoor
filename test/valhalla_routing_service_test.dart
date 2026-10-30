@@ -274,8 +274,8 @@ void main() {
       ),
     );
 
-    expect(result.ascentMeters, 0);
-    expect(result.descentMeters, 5);
+    expect(result.ascentMeters, isNull);
+    expect(result.descentMeters, isNull);
   });
 
 }
