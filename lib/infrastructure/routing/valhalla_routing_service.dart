@@ -103,24 +103,46 @@ class ValhallaRoutingService implements RoutingService {
     final steps = <RouteStep>[];
     var distanceKm = 0.0;
     var durationSeconds = 0.0;
+    var hasDistanceSummary = false;
+    var hasDurationSummary = false;
     var ascentMeters = 0.0;
     var descentMeters = 0.0;
     var elevationComparisons = 0;
+    var elevationComplete = true;
     double? previousElevation;
 
     for (final item in legs) {
       if (item is! Map<String, dynamic>) continue;
       final summary = item['summary'];
       if (summary is Map<String, dynamic>) {
-        distanceKm += (summary['length'] as num?)?.toDouble() ?? 0;
-        durationSeconds += (summary['time'] as num?)?.toDouble() ?? 0;
+        final legLength = _number(summary['length']);
+        final legDuration = _number(summary['time']);
+        if (legLength != null && legLength.isFinite && legLength >= 0) {
+          distanceKm += legLength;
+          hasDistanceSummary = true;
+        } else {
+          hasDistanceSummary = false;
+        }
+        if (legDuration != null && legDuration.isFinite && legDuration >= 0) {
+          durationSeconds += legDuration;
+          hasDurationSummary = true;
+        } else {
+          hasDurationSummary = false;
+        }
+      } else {
+        hasDistanceSummary = false;
+        hasDurationSummary = false;
       }
 
+      // Each leg starts a new elevation sequence. Missing DEM samples make
+      // total ascent/descent unavailable instead of presenting a partial sum.
+      previousElevation = null;
       final elevation = item['elevation'];
       if (elevation is List) {
         for (final sample in elevation) {
           if (sample is! num || !sample.toDouble().isFinite) {
-            // Do not bridge a missing DEM sample and invent a slope across it.
+            // Do not bridge a missing DEM sample or report partial elevation.
+            elevationComplete = false;
             previousElevation = null;
             continue;
           }
@@ -138,6 +160,7 @@ class ValhallaRoutingService implements RoutingService {
           previousElevation = currentElevation;
         }
       } else {
+        elevationComplete = false;
         previousElevation = null;
       }
 
@@ -179,10 +202,14 @@ class ValhallaRoutingService implements RoutingService {
 
     return RouteResult(
       points: points,
-      distanceMeters: distanceKm * 1000,
-      durationSeconds: durationSeconds,
-      ascentMeters: elevationComparisons == 0 ? null : ascentMeters,
-      descentMeters: elevationComparisons == 0 ? null : descentMeters,
+      distanceMeters: hasDistanceSummary ? distanceKm * 1000 : null,
+      durationSeconds: hasDurationSummary ? durationSeconds : null,
+      ascentMeters: elevationComparisons == 0 || !elevationComplete
+          ? null
+          : ascentMeters,
+      descentMeters: elevationComparisons == 0 || !elevationComplete
+          ? null
+          : descentMeters,
       steps: List.unmodifiable(steps),
     );
   }
