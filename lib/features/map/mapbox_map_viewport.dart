@@ -39,8 +39,10 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   @override
   void didUpdateWidget(covariant MapboxMapViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final routeChanged = oldWidget.routePoints != widget.routePoints;
+    if (routeChanged) _routeCameraFitted = false;
     if (_annotationsReady &&
-        (oldWidget.routePoints != widget.routePoints ||
+        (routeChanged ||
          oldWidget.currentPosition != widget.currentPosition ||
          oldWidget.destination != widget.destination)) {
       _syncAnnotations();
