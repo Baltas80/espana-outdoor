@@ -18,9 +18,25 @@ class RoutePlannerPage extends ConsumerStatefulWidget {
 
 class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
   LatLng? _destination;
+  String _profile = 'hiking';
   RouteResult? _route;
   bool _busy = false;
   String? _error;
+
+  String get _profileLabel => switch (_profile) {
+        'mtb' => 'BTT',
+        'cycling' => 'Cicloturismo',
+        _ => 'Senderismo',
+      };
+
+  void _selectProfile(String profile) {
+    if (_profile == profile) return;
+    setState(() {
+      _profile = profile;
+      _route = null;
+      _error = null;
+    });
+  }
 
   Future<void> _showDestinationDialog() async {
     final existing = _destination;
@@ -133,7 +149,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
             LatLng(location.latitude, location.longitude),
             destination,
           ],
-          profile: 'hiking',
+          profile: _profile,
         ),
       );
 
@@ -253,9 +269,37 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Ruta de senderismo',
+                    Text(
+                      'Ruta de $_profileLabel',
                       style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Senderismo'),
+                          selected: _profile == 'hiking',
+                          onSelected: (selected) {
+                            if (selected) _selectProfile('hiking');
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('BTT'),
+                          selected: _profile == 'mtb',
+                          onSelected: (selected) {
+                            if (selected) _selectProfile('mtb');
+                          },
+                        ),
+                        ChoiceChip(
+                          label: const Text('Cicloturismo'),
+                          selected: _profile == 'cycling',
+                          onSelected: (selected) {
+                            if (selected) _selectProfile('cycling');
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(destinationLabel),
@@ -270,7 +314,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                       const SizedBox(height: 10),
                       const LinearProgressIndicator(),
                       const SizedBox(height: 4),
-                      const Text('Calculando ruta a pie con Valhalla…'),
+                      Text('Calculando ruta ${_profileLabel.toLowerCase()} con Valhalla…'),
                     ],
                     if (_error != null) ...[
                       const SizedBox(height: 8),
@@ -390,7 +434,9 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                     onPressed: _busy || destination == null ? null : _calculate,
                     icon: const Icon(Icons.alt_route),
                     label: Text(
-                      _busy ? 'CALCULANDO…' : 'CALCULAR RUTA A PIE',
+                      _busy
+                          ? 'CALCULANDO…'
+                          : 'CALCULAR RUTA ${_profileLabel.toUpperCase()}',
                     ),
                   ),
                 ),
