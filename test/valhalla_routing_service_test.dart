@@ -10,9 +10,11 @@ class _FakeClient extends http.BaseClient {
   _FakeClient(this.payload);
 
   final Map<String, dynamic> payload;
+  String? lastRequestBody;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request is http.Request) lastRequestBody = request.body;
     return http.StreamedResponse(
       Stream.value(utf8.encode(jsonEncode(payload))),
       200,
@@ -20,6 +22,7 @@ class _FakeClient extends http.BaseClient {
       request: request,
     );
   }
+
 }
 
 void main() {
@@ -165,4 +168,114 @@ void main() {
     expect(result.points.last.latitude, closeTo(40.42, 0.000001));
     expect(result.points.last.longitude, closeTo(-3.69, 0.000001));
   });
+
+  test('requests Valhalla elevation and calculates ascent and descent when present', () async {
+    final client = _FakeClient({
+      'trip': {
+        'legs': [
+          {
+            'summary': {'length': 2.4, 'time': 900},
+            'elevation': [100, 120, 115, 140],
+            'maneuvers': [],
+            'shape': {
+              'type': 'LineString',
+              'coordinates': [
+                [-3.70, 40.41],
+                [-3.69, 40.42],
+              ],
+            },
+          },
+        ],
+      },
+    });
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: client,
+    );
+
+    final result = await service.route(
+      const RouteRequest(
+        points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+        profile: 'hiking',
+      ),
+    );
+
+    final request = jsonDecode(client.lastRequestBody!) as Map<String, dynamic>;
+    expect(request['costing'], 'pedestrian');
+    expect(request['elevation_interval'], 30);
+    expect(result.distanceMeters, 2400);
+    expect(result.durationSeconds, 900);
+    expect(result.ascentMeters, 45);
+    expect(result.descentMeters, 5);
+  });
+
+  test('leaves elevation unavailable when Valhalla has no DEM samples', () async {
+    final client = _FakeClient({
+      'trip': {
+        'legs': [
+          {
+            'summary': {'length': 1.0, 'time': 300},
+            'maneuvers': [],
+            'shape': {
+              'type': 'LineString',
+              'coordinates': [
+                [-3.70, 40.41],
+                [-3.69, 40.42],
+              ],
+            },
+          },
+        ],
+      },
+    });
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: client,
+    );
+
+    final result = await service.route(
+      const RouteRequest(
+        points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+      ),
+    );
+
+    expect(result.distanceMeters, 1000);
+    expect(result.durationSeconds, 300);
+    expect(result.ascentMeters, isNull);
+    expect(result.descentMeters, isNull);
+  });
+
+  test('does not infer a climb across missing elevation samples', () async {
+    final client = _FakeClient({
+      'trip': {
+        'legs': [
+          {
+            'summary': {'length': 1.0, 'time': 300},
+            'elevation': [100, null, 150, 145],
+            'maneuvers': [],
+            'shape': {
+              'type': 'LineString',
+              'coordinates': [
+                [-3.70, 40.41],
+                [-3.69, 40.42],
+              ],
+            },
+          },
+        ],
+      },
+    });
+    final service = ValhallaRoutingService(
+      baseUri: Uri.parse('https://routing.example.com/'),
+      client: client,
+    );
+
+    final result = await service.route(
+      const RouteRequest(
+        points: [LatLng(40.41, -3.70), LatLng(40.42, -3.69)],
+      ),
+    );
+
+    expect(result.ascentMeters, isNull);
+    expect(result.descentMeters, isNull);
+  });
+
 }

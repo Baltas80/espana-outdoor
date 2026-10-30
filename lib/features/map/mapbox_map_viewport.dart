@@ -30,15 +30,33 @@ class MapboxMapViewport extends StatefulWidget {
 }
 
 class _MapboxMapViewportState extends State<MapboxMapViewport> {
+  MapboxMap? _map;
   PolylineAnnotationManager? _lineManager;
   CircleAnnotationManager? _circleManager;
+  bool _routeCameraFitted = false;
   bool _annotationsReady = false;
+
+  bool _sameRoutePoints(List<Position> first, List<Position> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index].lng != second[index].lng ||
+          first[index].lat != second[index].lat) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @override
   void didUpdateWidget(covariant MapboxMapViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final routeChanged = !_sameRoutePoints(
+      oldWidget.routePoints,
+      widget.routePoints,
+    );
+    if (routeChanged) _routeCameraFitted = false;
     if (_annotationsReady &&
-        (oldWidget.routePoints != widget.routePoints ||
+        (routeChanged ||
          oldWidget.currentPosition != widget.currentPosition ||
          oldWidget.destination != widget.destination)) {
       _syncAnnotations();
@@ -46,6 +64,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   }
 
   Future<void> _onMapCreated(MapboxMap map) async {
+    _map = map;
     widget.onMapCreated?.call(map);
     map.addInteraction(
       TapInteraction.onMap((context) {
@@ -100,8 +119,35 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         ));
       }
       if (markers.isNotEmpty) await circles.createMulti(markers);
+      await _fitRouteInView();
     } catch (error) {
       debugPrint('Mapbox route overlay update failed: $error');
+    }
+  }
+
+  Future<void> _fitRouteInView() async {
+    final map = _map;
+    if (_routeCameraFitted || map == null || widget.routePoints.length < 2) {
+      return;
+    }
+    _routeCameraFitted = true;
+    try {
+      final camera = await map.cameraForCoordinates(
+        [
+          for (final coordinate in widget.routePoints)
+            Point(coordinates: coordinate),
+        ],
+        MbxEdgeInsets(top: 125, left: 36, bottom: 250, right: 36),
+        0,
+        0,
+      );
+      await map.easeTo(
+        camera,
+        MapAnimationOptions(duration: 650),
+      );
+    } catch (error) {
+      _routeCameraFitted = false;
+      debugPrint('Mapbox could not fit the complete route: $error');
     }
   }
 

@@ -145,6 +145,14 @@ class _NavigationPageState extends ConsumerState<NavigationPage> {
                       Text('Ruta calculada', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       Text('${((widget.route!.distanceMeters ?? 0) / 1000).toStringAsFixed(1)} km · ${((widget.route!.durationSeconds ?? 0) / 60).round()} min'),
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.route!.ascentMeters == null &&
+                                widget.route!.descentMeters == null
+                            ? 'Desnivel: no disponible en los datos de elevación.'
+                            : 'Desnivel +${widget.route!.ascentMeters?.toStringAsFixed(0) ?? '—'} m'
+                                ' · −${widget.route!.descentMeters?.toStringAsFixed(0) ?? '—'} m',
+                      ),
                       if (widget.route!.steps.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         for (final step in widget.route!.steps.take(3))

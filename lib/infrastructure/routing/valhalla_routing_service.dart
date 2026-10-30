@@ -32,6 +32,10 @@ class ValhallaRoutingService implements RoutingService {
       'costing': _costing(request.profile),
       'units': 'kilometers',
       'shape_format': 'geojson',
+      // Valhalla only returns these samples when its graph was built with DEM data.
+      // Keeping this optional means distance/time still work on deployments
+      // without elevation coverage.
+      'elevation_interval': 30,
       'directions_options': {'units': 'kilometers', 'language': 'es-ES'},
     });
     return _parseTrip(response);
@@ -99,13 +103,67 @@ class ValhallaRoutingService implements RoutingService {
     final steps = <RouteStep>[];
     var distanceKm = 0.0;
     var durationSeconds = 0.0;
+    var distanceSummaryComplete = true;
+    var durationSummaryComplete = true;
+    var distanceSummaryCount = 0;
+    var durationSummaryCount = 0;
+    var ascentMeters = 0.0;
+    var descentMeters = 0.0;
+    var elevationComparisons = 0;
+    var elevationComplete = true;
+    double? previousElevation;
 
     for (final item in legs) {
       if (item is! Map<String, dynamic>) continue;
       final summary = item['summary'];
       if (summary is Map<String, dynamic>) {
-        distanceKm += (summary['length'] as num?)?.toDouble() ?? 0;
-        durationSeconds += (summary['time'] as num?)?.toDouble() ?? 0;
+        final legLength = _number(summary['length']);
+        final legDuration = _number(summary['time']);
+        if (legLength != null && legLength.isFinite && legLength >= 0) {
+          distanceKm += legLength;
+          distanceSummaryCount++;
+        } else {
+          distanceSummaryComplete = false;
+        }
+        if (legDuration != null && legDuration.isFinite && legDuration >= 0) {
+          durationSeconds += legDuration;
+          durationSummaryCount++;
+        } else {
+          durationSummaryComplete = false;
+        }
+      } else {
+        distanceSummaryComplete = false;
+        durationSummaryComplete = false;
+      }
+
+      // Each leg starts a new elevation sequence. Missing DEM samples make
+      // total ascent/descent unavailable instead of presenting a partial sum.
+      previousElevation = null;
+      final elevation = item['elevation'];
+      if (elevation is List) {
+        for (final sample in elevation) {
+          if (sample is! num || !sample.toDouble().isFinite) {
+            // Do not bridge a missing DEM sample or report partial elevation.
+            elevationComplete = false;
+            previousElevation = null;
+            continue;
+          }
+          final currentElevation = sample.toDouble();
+          final previous = previousElevation;
+          if (previous != null) {
+            final delta = currentElevation - previous;
+            if (delta > 0) {
+              ascentMeters += delta;
+            } else if (delta < 0) {
+              descentMeters += -delta;
+            }
+            elevationComparisons++;
+          }
+          previousElevation = currentElevation;
+        }
+      } else {
+        elevationComplete = false;
+        previousElevation = null;
       }
 
       final shapePoints = _decodeShape(item['shape']).toList();
@@ -146,8 +204,18 @@ class ValhallaRoutingService implements RoutingService {
 
     return RouteResult(
       points: points,
-      distanceMeters: distanceKm * 1000,
-      durationSeconds: durationSeconds,
+      distanceMeters: distanceSummaryCount > 0 && distanceSummaryComplete
+          ? distanceKm * 1000
+          : null,
+      durationSeconds: durationSummaryCount > 0 && durationSummaryComplete
+          ? durationSeconds
+          : null,
+      ascentMeters: elevationComparisons == 0 || !elevationComplete
+          ? null
+          : ascentMeters,
+      descentMeters: elevationComparisons == 0 || !elevationComplete
+          ? null
+          : descentMeters,
       steps: List.unmodifiable(steps),
     );
   }
@@ -234,6 +302,9 @@ class ValhallaRoutingService implements RoutingService {
         return 'pedestrian';
     }
   }
+
+  /// Releases the underlying HTTP connection pool when the provider is disposed.
+  void dispose() => _client.close();
 
   static Uri _normalizeBaseUri(Uri uri) {
     final path = uri.path.endsWith('/') ? uri.path : '${uri.path}/';
