@@ -30,8 +30,10 @@ class MapboxMapViewport extends StatefulWidget {
 }
 
 class _MapboxMapViewportState extends State<MapboxMapViewport> {
+  MapboxMap? _map;
   PolylineAnnotationManager? _lineManager;
   CircleAnnotationManager? _circleManager;
+  bool _routeCameraFitted = false;
   bool _annotationsReady = false;
 
   @override
@@ -46,6 +48,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   }
 
   Future<void> _onMapCreated(MapboxMap map) async {
+    _map = map;
     widget.onMapCreated?.call(map);
     map.addInteraction(
       TapInteraction.onMap((context) {
@@ -100,8 +103,35 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         ));
       }
       if (markers.isNotEmpty) await circles.createMulti(markers);
+      await _fitRouteInView();
     } catch (error) {
       debugPrint('Mapbox route overlay update failed: $error');
+    }
+  }
+
+  Future<void> _fitRouteInView() async {
+    final map = _map;
+    if (_routeCameraFitted || map == null || widget.routePoints.length < 2) {
+      return;
+    }
+    _routeCameraFitted = true;
+    try {
+      final camera = await map.cameraForCoordinates(
+        [
+          for (final coordinate in widget.routePoints)
+            Point(coordinates: coordinate),
+        ],
+        MbxEdgeInsets(top: 125, left: 36, bottom: 250, right: 36),
+        0,
+        0,
+      );
+      await map.easeTo(
+        camera,
+        MapAnimationOptions(duration: 650),
+      );
+    } catch (error) {
+      _routeCameraFitted = false;
+      debugPrint('Mapbox could not fit the complete route: $error');
     }
   }
 
