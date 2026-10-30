@@ -36,10 +36,24 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
 
+  bool _sameRoutePoints(List<Position> first, List<Position> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index].lng != second[index].lng ||
+          first[index].lat != second[index].lat) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @override
   void didUpdateWidget(covariant MapboxMapViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final routeChanged = oldWidget.routePoints != widget.routePoints;
+    final routeChanged = !_sameRoutePoints(
+      oldWidget.routePoints,
+      widget.routePoints,
+    );
     if (routeChanged) _routeCameraFitted = false;
     if (_annotationsReady &&
         (routeChanged ||
