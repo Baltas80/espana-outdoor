@@ -20,6 +20,7 @@ class ValhallaRoutingService implements RoutingService {
     if (request.points.length < 2) {
       throw ArgumentError('At least two route points are required.');
     }
+    final costing = _costing(request.profile);
     final response = await _post('route', {
       'locations': [
         for (final p in request.points)
@@ -29,7 +30,11 @@ class ValhallaRoutingService implements RoutingService {
           'type': 'break',
         }
       ],
-      'costing': _costing(request.profile),
+      'costing': costing,
+      if (costing == 'bicycle')
+        'costing_options': {
+          'bicycle': {'bicycle_type': _bicycleType(request.profile)},
+        },
       'units': 'kilometers',
       'shape_format': 'geojson',
       // Valhalla only returns these samples when its graph was built with DEM data.
@@ -288,10 +293,29 @@ class ValhallaRoutingService implements RoutingService {
     return number == null ? null : number.toDouble() * multiplier;
   }
 
+  String _bicycleType(String profile) {
+    switch (profile.toLowerCase()) {
+      case 'mtb':
+      case 'btt':
+      case 'mountain':
+      case 'mountain_bike':
+        return 'mountain';
+      case 'road':
+        return 'road';
+      case 'cycling':
+      case 'bike':
+      default:
+        return 'hybrid';
+    }
+  }
+
   String _costing(String profile) {
     switch (profile.toLowerCase()) {
       case 'cycling':
       case 'bike':
+      case 'mtb':
+      case 'btt':
+      case 'mountain_bike':
         return 'bicycle';
       case 'driving':
       case 'car':
