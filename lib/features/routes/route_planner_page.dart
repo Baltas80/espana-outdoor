@@ -269,7 +269,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Ruta de $_profileLabel',
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
