@@ -13,7 +13,7 @@ jobs:
     env:
       VALHALLA_BASE_URL: ${{ vars.VALHALLA_BASE_URL }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
 
       - name: Validate production endpoint
         shell: bash
