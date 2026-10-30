@@ -170,7 +170,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
 
   String _distanceLabel(double? distanceMeters) {
     if (distanceMeters == null) return '—';
-    return '\${(distanceMeters / 1000).toStringAsFixed(1)} km';
+    return '${(distanceMeters / 1000).toStringAsFixed(1)} km';
   }
 
   String _durationLabel(double? durationSeconds) {
@@ -187,7 +187,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
   String _elevationLabel(double? meters, {required bool ascent}) {
     if (meters == null) return '—';
     final prefix = ascent ? '+' : '−';
-    return '$prefix\${meters.toStringAsFixed(0)} m';
+    return '$prefix${meters.toStringAsFixed(0)} m';
   }
 
   @override
@@ -202,8 +202,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
 
     final destinationLabel = destination == null
         ? 'Sin destino seleccionado.'
-        : 'Destino: \${destination.latitude.toStringAsFixed(5)}, '
-            '\${destination.longitude.toStringAsFixed(5)}';
+        : 'Destino: ${destination.latitude.toStringAsFixed(5)}, '
+            '${destination.longitude.toStringAsFixed(5)}';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Planificar ruta')),
@@ -212,8 +212,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
           Positioned.fill(
             child: MapboxMapViewport(
               key: ValueKey(
-                '\${center.latitude}:\${center.longitude}:'
-                '\${_route?.points.length ?? 0}',
+                '${center.latitude}:${center.longitude}:'
+                '${_route?.points.length ?? 0}',
               ),
               initialCenter: Position(center.longitude, center.latitude),
               initialZoom: destination == null ? 12 : 14,
