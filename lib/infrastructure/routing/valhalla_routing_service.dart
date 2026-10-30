@@ -103,8 +103,10 @@ class ValhallaRoutingService implements RoutingService {
     final steps = <RouteStep>[];
     var distanceKm = 0.0;
     var durationSeconds = 0.0;
-    var hasDistanceSummary = false;
-    var hasDurationSummary = false;
+    var distanceSummaryComplete = true;
+    var durationSummaryComplete = true;
+    var distanceSummaryCount = 0;
+    var durationSummaryCount = 0;
     var ascentMeters = 0.0;
     var descentMeters = 0.0;
     var elevationComparisons = 0;
@@ -119,19 +121,19 @@ class ValhallaRoutingService implements RoutingService {
         final legDuration = _number(summary['time']);
         if (legLength != null && legLength.isFinite && legLength >= 0) {
           distanceKm += legLength;
-          hasDistanceSummary = true;
+          distanceSummaryCount++;
         } else {
-          hasDistanceSummary = false;
+          distanceSummaryComplete = false;
         }
         if (legDuration != null && legDuration.isFinite && legDuration >= 0) {
           durationSeconds += legDuration;
-          hasDurationSummary = true;
+          durationSummaryCount++;
         } else {
-          hasDurationSummary = false;
+          durationSummaryComplete = false;
         }
       } else {
-        hasDistanceSummary = false;
-        hasDurationSummary = false;
+        distanceSummaryComplete = false;
+        durationSummaryComplete = false;
       }
 
       // Each leg starts a new elevation sequence. Missing DEM samples make
@@ -202,8 +204,12 @@ class ValhallaRoutingService implements RoutingService {
 
     return RouteResult(
       points: points,
-      distanceMeters: hasDistanceSummary ? distanceKm * 1000 : null,
-      durationSeconds: hasDurationSummary ? durationSeconds : null,
+      distanceMeters: distanceSummaryCount > 0 && distanceSummaryComplete
+          ? distanceKm * 1000
+          : null,
+      durationSeconds: durationSummaryCount > 0 && durationSummaryComplete
+          ? durationSeconds
+          : null,
       ascentMeters: elevationComparisons == 0 || !elevationComplete
           ? null
           : ascentMeters,
