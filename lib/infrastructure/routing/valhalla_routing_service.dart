@@ -32,6 +32,10 @@ class ValhallaRoutingService implements RoutingService {
       'costing': _costing(request.profile),
       'units': 'kilometers',
       'shape_format': 'geojson',
+      // Valhalla only returns these samples when its graph was built with DEM data.
+      // Keeping this optional means distance/time still work on deployments
+      // without elevation coverage.
+      'elevation_interval': 30,
       'directions_options': {'units': 'kilometers', 'language': 'es-ES'},
     });
     return _parseTrip(response);
@@ -99,6 +103,10 @@ class ValhallaRoutingService implements RoutingService {
     final steps = <RouteStep>[];
     var distanceKm = 0.0;
     var durationSeconds = 0.0;
+    var ascentMeters = 0.0;
+    var descentMeters = 0.0;
+    var elevationComparisons = 0;
+    double? previousElevation;
 
     for (final item in legs) {
       if (item is! Map<String, dynamic>) continue;
@@ -106,6 +114,31 @@ class ValhallaRoutingService implements RoutingService {
       if (summary is Map<String, dynamic>) {
         distanceKm += (summary['length'] as num?)?.toDouble() ?? 0;
         durationSeconds += (summary['time'] as num?)?.toDouble() ?? 0;
+      }
+
+      final elevation = item['elevation'];
+      if (elevation is List) {
+        for (final sample in elevation) {
+          if (sample is! num || !sample.toDouble().isFinite) {
+            // Do not bridge a missing DEM sample and invent a slope across it.
+            previousElevation = null;
+            continue;
+          }
+          final currentElevation = sample.toDouble();
+          final previous = previousElevation;
+          if (previous != null) {
+            final delta = currentElevation - previous;
+            if (delta > 0) {
+              ascentMeters += delta;
+            } else if (delta < 0) {
+              descentMeters += -delta;
+            }
+            elevationComparisons++;
+          }
+          previousElevation = currentElevation;
+        }
+      } else {
+        previousElevation = null;
       }
 
       final shapePoints = _decodeShape(item['shape']).toList();
@@ -148,6 +181,8 @@ class ValhallaRoutingService implements RoutingService {
       points: points,
       distanceMeters: distanceKm * 1000,
       durationSeconds: durationSeconds,
+      ascentMeters: elevationComparisons == 0 ? null : ascentMeters,
+      descentMeters: elevationComparisons == 0 ? null : descentMeters,
       steps: List.unmodifiable(steps),
     );
   }
@@ -234,6 +269,9 @@ class ValhallaRoutingService implements RoutingService {
         return 'pedestrian';
     }
   }
+
+  /// Releases the underlying HTTP connection pool when the provider is disposed.
+  void dispose() => _client.close();
 
   static Uri _normalizeBaseUri(Uri uri) {
     final path = uri.path.endsWith('/') ? uri.path : '${uri.path}/';
