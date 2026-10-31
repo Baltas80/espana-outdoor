@@ -95,7 +95,7 @@ class MapboxNavigationBridge(context: Context) {
             .coordinatesList(points)
             .steps(true)
             .overview("full")
-            .geometry("polyline6")
+            .geometries("polyline6")
             .language("es")
             .build()
 
