@@ -136,42 +136,9 @@ def patch_android() -> None:
             gradle += "\ndependencies {\n" + dependency + "\n}\n"
     gradle_path.write_text(gradle, encoding="utf-8")
 
-    settings_candidates = [
-        ROOT / "android" / "settings.gradle.kts",
-        ROOT / "android" / "settings.gradle",
-    ]
-    settings_path = next((path for path in settings_candidates if path.exists()), None)
-    if settings_path is None:
-        raise SystemExit("Missing generated Android settings Gradle file.")
-    settings = settings_path.read_text(encoding="utf-8")
-    if "api.mapbox.com/downloads/v2/releases/maven" not in settings:
-        if settings_path.suffix != ".kts":
-            raise SystemExit("Mapbox Navigation requires settings.gradle.kts.")
-        repositories_block = (
-            "dependencyResolutionManagement {\n"
-            "    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)\n"
-            "    repositories {\n"
-            "        google()\n"
-            "        mavenCentral()\n"
-            "        maven {\n"
-            '            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")\n'
-            "            credentials {\n"
-            '                username = "mapbox"\n'
-            '                password = providers.environmentVariable("MAPBOX_DOWNLOADS_TOKEN").getOrElse("")\n'
-            "            }\n"
-            '            authentication { create<org.gradle.authentication.http.BasicAuthentication>("basic") }\n'
-            "        }\n"
-            "    }\n"
-            "}\n\n"
-        )
-        plugins_start = settings.find("plugins {")
-        plugins_end = settings.find("\n}\n", plugins_start)
-        if plugins_start < 0 or plugins_end < 0:
-            raise SystemExit("Android settings has no standard plugins block.")
-        insertion_point = plugins_end + 3
-        settings = settings[:insertion_point] + "\n" + repositories_block + settings[insertion_point:]
-    settings_path.write_text(settings, encoding="utf-8")
-
+    # Keep Maven repositories at project level. Flutter's Gradle plugin adds
+    # the Flutter engine Maven repository to Android subprojects; using
+    # PREFER_SETTINGS would silently ignore it and break Flutter embedding.
     root_gradle_candidates = [
         ROOT / "android" / "build.gradle.kts",
         ROOT / "android" / "build.gradle",
@@ -180,17 +147,56 @@ def patch_android() -> None:
     if root_gradle_path is None:
         raise SystemExit("Missing generated Android root Gradle file.")
     root_gradle = root_gradle_path.read_text(encoding="utf-8")
-    if root_gradle_path.suffix == ".kts":
-        root_gradle = re.sub(
-            r"(?ms)^allprojects\s*\{\s*repositories\s*\{\s*google\(\)\s*mavenCentral\(\)\s*\}\s*\}\s*",
-            "",
-            root_gradle,
-            count=1,
-        )
+    mapbox_repository = (
+        '        maven {\n'
+        '            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")\n'
+        '            credentials {\n'
+        '                username = "mapbox"\n'
+        '                password = System.getenv("MAPBOX_DOWNLOADS_TOKEN") ?: ""\n'
+        '            }\n'
+        '            authentication {\n'
+        '                create<org.gradle.authentication.http.BasicAuthentication>("basic")\n'
+        '            }\n'
+        '        }'
+    )
+    if "api.mapbox.com/downloads/v2/releases/maven" not in root_gradle:
+        if root_gradle_path.suffix == ".kts":
+            if re.search(r"(?m)^\s*mavenCentral\(\)\s*$", root_gradle):
+                root_gradle = re.sub(
+                    r"(?m)^(\s*)mavenCentral\(\)\s*$",
+                    lambda match: match.group(0) + "\n" + mapbox_repository,
+                    root_gradle,
+                    count=1,
+                )
+            else:
+                root_gradle = (
+                    "allprojects {\n"
+                    "    repositories {\n"
+                    "        google()\n"
+                    "        mavenCentral()\n"
+                    + mapbox_repository + "\n"
+                    "    }\n"
+                    "}\n\n"
+                    + root_gradle
+                )
+        else:
+            groovy_repository = (
+                '        maven {\n'
+                '            url "https://api.mapbox.com/downloads/v2/releases/maven"\n'
+                '            credentials { username = "mapbox"; password = System.getenv("MAPBOX_DOWNLOADS_TOKEN") ?: "" }\n'
+                '            authentication { basic(org.gradle.authentication.http.BasicAuthentication) }\n'
+                '        }'
+            )
+            if re.search(r"(?m)^\s*mavenCentral\(\)\s*$", root_gradle):
+                root_gradle = re.sub(
+                    r"(?m)^(\s*)mavenCentral\(\)\s*$",
+                    lambda match: match.group(0) + "\n" + groovy_repository,
+                    root_gradle,
+                    count=1,
+                )
+            else:
+                raise SystemExit("Could not add Mapbox Maven repository to generated root Gradle file.")
     root_gradle_path.write_text(root_gradle, encoding="utf-8")
-
-
-
 
     # Flutter regenerates MainActivity.kt in CI; restore the native Mapbox bridge.
     kotlin_root = ROOT / "android" / "app" / "src" / "main" / "kotlin"

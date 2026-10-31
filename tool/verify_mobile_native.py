@@ -54,10 +54,10 @@ def verify_android() -> None:
     content = gradle.read_text(encoding="utf-8")
     if "com.mapbox.navigationcore:android-ndk27:3.33.0" not in content:
         raise SystemExit("Mapbox Navigation SDK v3.33.0 dependency is missing.")
-    settings_candidates = (ROOT / "android" / "settings.gradle.kts", ROOT / "android" / "settings.gradle")
-    settings = next((path for path in settings_candidates if path.exists()), None)
-    if settings is None or "api.mapbox.com/downloads/v2/releases/maven" not in settings.read_text(encoding="utf-8"):
-        raise SystemExit("Mapbox Navigation Maven repository is missing from dependencyResolutionManagement.")
+    root_gradle_candidates = (ROOT / "android" / "build.gradle.kts", ROOT / "android" / "build.gradle")
+    root_gradle = next((path for path in root_gradle_candidates if path.exists()), None)
+    if root_gradle is None or "api.mapbox.com/downloads/v2/releases/maven" not in root_gradle.read_text(encoding="utf-8"):
+        raise SystemExit("Mapbox Navigation Maven repository is missing from root project repositories.")
     main_activities = list((ROOT / "android" / "app" / "src" / "main" / "kotlin").rglob("MainActivity.kt"))
     if not main_activities or "com.espanaoutdoors/navigation" not in main_activities[0].read_text(encoding="utf-8"):
         raise SystemExit("The generated MainActivity is missing the Mapbox Navigation MethodChannel.")

@@ -1,3 +1,20 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
+            credentials {
+                username = "mapbox"
+                password = System.getenv("MAPBOX_DOWNLOADS_TOKEN") ?: ""
+            }
+            authentication {
+                create<org.gradle.authentication.http.BasicAuthentication>("basic")
+            }
+        }
+    }
+}
+
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
