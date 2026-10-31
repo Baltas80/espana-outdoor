@@ -5,15 +5,15 @@ import android.os.Handler
 import android.os.Looper
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.common.MapboxOptions
+import com.mapbox.bindgen.Value
+import com.mapbox.common.TileRegionLoadOptions
 import com.mapbox.common.TileStore
-import com.mapbox.common.Value
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
 import com.mapbox.maps.GlyphsRasterizationMode
 import com.mapbox.maps.MapboxMapsOptions
 import com.mapbox.maps.OfflineManager
 import com.mapbox.maps.StylePackLoadOptions
-import com.mapbox.maps.TileRegionLoadOptions
 import com.mapbox.maps.TileStoreUsageMode
 import com.mapbox.maps.TilesetDescriptorOptions
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
@@ -209,8 +209,8 @@ class MapboxNavigationBridge(context: Context) {
             val mapsDescriptor = mapsOffline.createTilesetDescriptor(
                 TilesetDescriptorOptions.Builder()
                     .styleURI(styleUri)
-                    .minZoom(minZoom)
-                    .maxZoom(maxZoom)
+                    .minZoom(minZoom.toByte())
+                    .maxZoom(maxZoom.toByte())
                     .build()
             )
             val navigationDescriptor = engine.tilesetDescriptorFactory.getLatest()
