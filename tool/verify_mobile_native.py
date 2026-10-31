@@ -58,9 +58,23 @@ def verify_android() -> None:
     root_gradle = next((path for path in root_gradle_candidates if path.exists()), None)
     if root_gradle is None or "api.mapbox.com/downloads/v2/releases/maven" not in root_gradle.read_text(encoding="utf-8"):
         raise SystemExit("Mapbox Navigation Maven repository is missing from root project repositories.")
-    main_activities = list((ROOT / "android" / "app" / "src" / "main" / "kotlin").rglob("MainActivity.kt"))
-    if not main_activities or "com.espanaoutdoors/navigation" not in main_activities[0].read_text(encoding="utf-8"):
-        raise SystemExit("The generated MainActivity is missing the Mapbox Navigation MethodChannel.")
+    kotlin_root = ROOT / "android" / "app" / "src" / "main" / "kotlin"
+    main_activities = list(kotlin_root.rglob("MainActivity.kt"))
+    namespace_match = re.search(
+        r'(?m)^\\s*namespace\\s*(?:=\\s*)?["\\']([A-Za-z0-9_.]+)["\\']',
+        content,
+    )
+    if namespace_match is None:
+        raise SystemExit("Could not determine Android namespace for MainActivity verification.")
+    expected_activity = kotlin_root.joinpath(*namespace_match.group(1).split("."), "MainActivity.kt")
+    if len(main_activities) != 1 or main_activities[0] != expected_activity:
+        raise SystemExit(
+            "Expected exactly one MainActivity at the Android namespace path; "
+            f"found: {[str(path.relative_to(ROOT)) for path in main_activities]}"
+        )
+    activity_text = expected_activity.read_text(encoding="utf-8")
+    if "com.espanaoutdoors/navigation" not in activity_text or '"configure" ->' not in activity_text:
+        raise SystemExit("The packaged MainActivity is missing the Mapbox Navigation configure handler.")
     bridge = ROOT / "android" / "app" / "src" / "main" / "kotlin" / "com" / "espana" / "outdoors" / "navigation" / "MapboxNavigationBridge.kt"
     if not bridge.exists():
         raise SystemExit("MapboxNavigationBridge.kt is missing.")

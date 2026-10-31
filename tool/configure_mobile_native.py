@@ -198,16 +198,22 @@ def patch_android() -> None:
                 raise SystemExit("Could not add Mapbox Maven repository to generated root Gradle file.")
     root_gradle_path.write_text(root_gradle, encoding="utf-8")
 
-    # Flutter regenerates MainActivity.kt in CI; restore the native Mapbox bridge.
+    # flutter create --overwrite can leave stale Kotlin files under the old package.
+    # Resolve the effective namespace from Gradle, remove every stale MainActivity,
+    # and write exactly one activity at the path Android will actually load.
+    namespace_match = re.search(
+        r'(?m)^\\s*namespace\\s*(?:=\\s*)?["\\']([A-Za-z0-9_.]+)["\\']',
+        gradle,
+    )
+    if namespace_match is None:
+        raise SystemExit("Could not determine Android namespace from app Gradle file.")
+    namespace = namespace_match.group(1)
     kotlin_root = ROOT / "android" / "app" / "src" / "main" / "kotlin"
-    main_activities = list(kotlin_root.rglob("MainActivity.kt")) if kotlin_root.exists() else []
-    if not main_activities:
-        raise SystemExit("Missing generated Android MainActivity.kt.")
-    activity_path = main_activities[0]
-    activity_source = activity_path.read_text(encoding="utf-8")
-    package_match = re.search(r"(?m)^package\s+([A-Za-z0-9_.]+)", activity_source)
-    if package_match is None:
-        raise SystemExit("Could not determine the generated MainActivity package.")
+    kotlin_root.mkdir(parents=True, exist_ok=True)
+    for stale_activity in kotlin_root.rglob("MainActivity.kt"):
+        stale_activity.unlink()
+    activity_path = kotlin_root.joinpath(*namespace.split("."), "MainActivity.kt")
+    activity_path.parent.mkdir(parents=True, exist_ok=True)
     activity_template = """package __PACKAGE__
 
 import com.espana.outdoors.navigation.MapboxNavigationBridge
@@ -253,7 +259,7 @@ class MainActivity : FlutterActivity() {
 }
 """
     activity_path.write_text(
-        activity_template.replace("__PACKAGE__", package_match.group(1)),
+        activity_template.replace("__PACKAGE__", namespace),
         encoding="utf-8",
     )
 
