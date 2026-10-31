@@ -38,6 +38,12 @@ class _OfflinePageState extends State<OfflinePage> {
     _initializeOfflineStore();
   }
 
+  Future<void> _ensureNavigationConfigured() async {
+    await _navigationChannel.invokeMethod<void>('configure', {
+      'accessToken': _accessToken,
+    });
+  }
+
   Future<void> _initializeOfflineStore() async {
     try {
       if (defaultTargetPlatform != TargetPlatform.android) {
@@ -48,6 +54,7 @@ class _OfflinePageState extends State<OfflinePage> {
       if (_accessToken.isEmpty) {
         throw StateError('Falta MAPBOX_ACCESS_TOKEN en esta compilación.');
       }
+      await _ensureNavigationConfigured();
       final available = await _navigationChannel.invokeMethod<bool>(
         'hasOfflineRegion',
         {'regionId': _regionId},
@@ -83,6 +90,7 @@ class _OfflinePageState extends State<OfflinePage> {
     });
 
     try {
+      await _ensureNavigationConfigured();
       await _navigationChannel.invokeMethod<void>('downloadOfflineRegion', {
         'regionId': _regionId,
         'styleUri': _styleUri,
