@@ -61,7 +61,7 @@ def verify_android() -> None:
     kotlin_root = ROOT / "android" / "app" / "src" / "main" / "kotlin"
     main_activities = list(kotlin_root.rglob("MainActivity.kt"))
     namespace_match = re.search(
-        r'(?m)^\\s*namespace\\s*(?:=\\s*)?["\\']([A-Za-z0-9_.]+)["\\']',
+        r"(?m)^\s*namespace\s*(?:=\s*)?[\"']([A-Za-z0-9_.]+)[\"']",
         content,
     )
     if namespace_match is None:

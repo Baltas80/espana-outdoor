@@ -202,7 +202,7 @@ def patch_android() -> None:
     # Resolve the effective namespace from Gradle, remove every stale MainActivity,
     # and write exactly one activity at the path Android will actually load.
     namespace_match = re.search(
-        r'(?m)^\\s*namespace\\s*(?:=\\s*)?["\\']([A-Za-z0-9_.]+)["\\']',
+        r"(?m)^\s*namespace\s*(?:=\s*)?[\"']([A-Za-z0-9_.]+)[\"']",
         gradle,
     )
     if namespace_match is None:
