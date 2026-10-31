@@ -23,9 +23,9 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - ADR de cartografía/offline con decisión de no usar los servidores públicos de teselas OSM para descargas offline.
 - Licencia propietaria incorporada para el código y activos propios; las dependencias de terceros conservan sus licencias.
 - Registro inicial de dependencias y alternativas maduras en `docs/THIRD_PARTY_LICENSES.md`.
-- Valhalla integrado mediante una interfaz `RoutingService`, con endpoint de producción externo al código.
-- Infraestructura reproducible para generar y servir tiles de Valhalla para España.
-- La integración de Mapbox incluye una región offline de prueba delimitada en Córdoba (zoom 8–15); la validación de reapertura en frío y la cobertura nacional siguen pendientes.
+- Mapbox Navigation SDK v3.33.0 integrado en Android mediante Kotlin/MethodChannel detrás de la interfaz RoutingService; no requiere VPS.
+- Mapbox Maps SDK y Navigation SDK comparten TileStore para descargar cartografía y routing peatonal offline.
+- La primera región de prueba queda delimitada en Córdoba (zoom 8–15); la validación en modo avión y la cobertura nacional siguen pendientes.
 - RevenueCat conectado a la frontera de producto mediante entitlements Free/Premium/Professional.
 - OpenID Connect integrado mediante un adaptador provider-neutral preparado para Keycloak.
 - Sentry integrado con PII desactivada y DSN inyectado en runtime.
@@ -56,7 +56,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - flutter_secure_storage para secretos y credenciales locales.
 - Hive CE para persistencia local de rutas.
 - GPX para importación/exportación.
-- Valhalla 3.9.0 para routing/map matching.
+- Mapbox Navigation SDK v3.33.0 para routing peatonal online/offline en Android.
 - `background_downloader` como infraestructura de transferencias en segundo plano; no habilita por sí solo mapas sin conexión.
 - RevenueCat para billing/entitlements.
 - OpenID Connect para identidad; Keycloak es el proveedor de infraestructura objetivo.
@@ -66,13 +66,9 @@ Las versiones se mantienen deliberadamente en rangos compatibles y deben revisar
 
 ## Configuración de routing
 
-El cliente no contiene una URL de routing fija. En desarrollo o release se inyecta mediante la variable segura/configurada por entorno:
+Android utiliza Mapbox Navigation SDK v3.33.0 mediante un puente nativo Kotlin y el adaptador Flutter MapboxNavigationRoutingService. No necesita VPS ni VALHALLA_BASE_URL.
 
-```bash
-flutter run --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL"
-```
-
-Si no se configura, el routing permanece deshabilitado de forma explícita en lugar de utilizar un proveedor no verificado.
+El SDK se resuelve desde el Maven privado de Mapbox. Configura el secreto de compilación MAPBOX_DOWNLOADS_TOKEN (scope Downloads:Read) en GitHub Actions y como variable de entorno local. Nunca lo incluyas en Git ni en el APK. El token público MAPBOX_ACCESS_TOKEN se inyecta mediante --dart-define=MAPBOX_ACCESS_TOKEN=....
 
 ## Configuración cartográfica
 
@@ -121,18 +117,11 @@ Sentry se habilita únicamente cuando se inyecta `SENTRY_DSN`:
 
 `sendDefaultPii` permanece desactivado. No se deben registrar coordenadas de emergencia, ubicaciones sensibles de fauna, tokens ni secretos en eventos de observabilidad.
 
-## Infraestructura Valhalla
+## Routing offline Mapbox
 
-`ops/valhalla/` contiene la infraestructura reproducible. Los datos PBF, tiles, extracts y el JSON generado de configuración quedan fuera de Git.
+Android utiliza Mapbox Navigation SDK v3 y Mapbox Maps SDK compartiendo un mismo TileStore. La descarga offline guarda el estilo, las teselas cartográficas y el tileset de routing peatonal. La primera región de prueba es Córdoba (zoom 8–15); no representa cobertura nacional.
 
-```bash
-cd ops/valhalla
-./build-config.sh
-./build-spain.sh
-docker compose up -d
-```
-
-El extracto de España procede de Geofabrik/OSM y debe gestionarse con las obligaciones de licencia y atribución correspondientes. La versión de Valhalla está fijada a `3.9.0` para reproducibilidad.
+La carpeta ops/valhalla se conserva como infraestructura histórica/opcional, pero no forma parte del despliegue activo del MVP.
 
 ## Estructura
 

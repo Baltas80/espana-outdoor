@@ -39,6 +39,10 @@ kotlin {
     }
 }
 
+dependencies {
+    implementation("com.mapbox.navigationcore:android-ndk27:3.33.0")
+}
+
 flutter {
     source = "../.."
 }

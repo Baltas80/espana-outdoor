@@ -1,43 +1,20 @@
-# ADR-0003 — Valhalla como motor de routing outdoor
+# ADR-0003 — Valhalla (retirado del routing activo del MVP)
 
 ## Estado
-Aceptado.
 
-## Decisión
-España Outdoor no implementará un motor de routing propio. La aplicación utiliza una interfaz `RoutingService` y delega el cálculo a Valhalla mediante `ValhallaRoutingService`.
+Retirado del camino de producción del MVP Android a fecha 31/10/2026. Se conserva la infraestructura ops/valhalla como referencia técnica opcional, sin endpoint requerido por la aplicación.
 
-La instancia de producción se ejecutará bajo infraestructura controlada por España Outdoor y se configurará mediante `VALHALLA_BASE_URL`. No se incrusta ningún endpoint público en la aplicación.
+## Motivo del cambio
 
-## Motivos
+Una instancia Valhalla propia exige alojamiento permanente, actualizaciones de datos y monitorización. No es razonable asumir ese coste antes de tener usuarios. El objetivo offline requiere además que el dispositivo pueda calcular rutas nuevas sin cobertura.
 
-- Valhalla es un motor maduro para OSM y soporta routing peatonal, bicicleta y automóvil, map matching, matrices, isócronas, elevación y narrativas de maniobras.
-- La API REST usa JSON y existe una especificación OpenAPI mantenida por el proyecto.
-- Su estructura de datos por tiles permite regionalización y routing offline a nivel de infraestructura.
-- La licencia del motor es MIT.
-- Evita mantener algoritmos críticos de routing propios.
+## Decisión actual
 
-## Datos
+Mapbox Navigation SDK v3 es el motor de rutas Android. La decisión vigente queda registrada en ADR-0002-routing-engine.md. El contrato Dart RoutingService permanece para permitir cambios futuros del proveedor.
 
-Para el primer despliegue español se utiliza un extracto OSM de Geofabrik. Los datos OSM permanecen sujetos a ODbL y a sus obligaciones de atribución. La descarga de datos se realiza fuera del repositorio; nunca se almacenan extractos PBF ni tiles generados en Git.
+## Reglas
 
-## Versionado
-
-La infraestructura está fijada inicialmente a Valhalla `3.9.0`. Las actualizaciones de versión se harán de forma deliberada, con pruebas de routing y revisión de seguridad.
-
-## Seguridad
-
-- La URL del motor se configura fuera del código.
-- El cliente establece timeout para evitar bloqueos indefinidos.
-- Un fallo del motor no genera rutas inventadas ni instrucciones falsas.
-- El endpoint público de demostración de Valhalla no se utilizará como backend de producción.
-
-## Elevación
-
-Valhalla queda preparado para utilizar datos de elevación suministrados por infraestructura. El producto no presenta desnivel/elevación como dato oficial hasta que exista una fuente DEM real y trazable.
-
-## Fuentes técnicas
-
-- Valhalla API: https://valhalla.github.io/valhalla/api/
-- Valhalla OpenAPI: https://valhalla.github.io/valhalla/api/openapi/
-- Valhalla: https://github.com/valhalla/valhalla
-- Geofabrik Spain: https://download.geofabrik.de/europe/spain.html
+- No definir VALHALLA_BASE_URL como requisito en builds del MVP.
+- No mantener ordenadores domésticos como servidor de routing.
+- No desplegar ops/valhalla como requisito de producción.
+- Solo reactivar Valhalla si existe una razón técnica/comercial y presupuesto de infraestructura.

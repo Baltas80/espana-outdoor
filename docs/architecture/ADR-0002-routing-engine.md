@@ -1,40 +1,41 @@
-# ADR-0002: outdoor routing engine
+# ADR-0002: motor de routing para Android MVP
 
-- Status: Accepted for MVP integration
-- Decision: use Valhalla behind `RoutingService`
-- Scope: outdoor route calculation, map matching, matrices/isochrones where required, and elevation-aware routing when configured with suitable data
+- Estado: aceptado para el MVP Android.
+- Decisión: Mapbox Navigation SDK v3 detrás de RoutingService.
+- Versión alineada: 3.33.0 (mapbox_maps_flutter 3.33.0 / Maps Android 11.33.0).
+- Perfil inicial: peatonal, mapbox/walking.
 
-## Context
+## Contexto
 
-A proprietary routing engine would duplicate a mature graph/routing stack, increase operational risk and make the product harder to maintain. Spain Outdoor needs hiking/outdoor routing but does not need to own the routing algorithms themselves.
+España Outdoor requiere cálculo de rutas peatonales, incluido el uso en zonas sin cobertura. Un servicio alojado por el proyecto introduciría un coste y dependencia operativa antes de que exista tráfico.
 
-## Decision
+## Decisión
 
-Use Valhalla as the primary routing engine and keep all application code behind the provider-neutral `RoutingService` contract.
+Android utiliza Mapbox Navigation SDK v3. El motor puede resolver rutas online mediante Mapbox Directions y utilizar el router offline del dispositivo cuando se han descargado previamente los tilesets de routing de la región.
 
-The client must not assume that Valhalla is always available. Online routing can fail over to a previously downloaded route or a locally available route representation. Navigation must never invent a recalculated path when the routing provider is unavailable.
+El código Dart mantiene el contrato RoutingService. El SDK nativo se conecta mediante un puente Kotlin/MethodChannel; el algoritmo de routing no se implementa en Dart.
 
-## Data
+## Datos offline
 
-- OpenStreetMap is the base network source where legally and operationally appropriate.
-- Elevation uses an approved DEM pipeline and is stored with source metadata.
-- Routing results are tagged with provider/version/time metadata when persisted.
+Maps SDK y Navigation SDK deben recibir el mismo objeto TileStore. Cada región descargada contiene el estilo y las teselas visuales de Mapbox junto con el tileset de routing peatonal. Descargar solo el mapa no permite solicitar rutas nuevas sin conexión.
 
-## Consequences
+## Alcance y límites
 
-### Positive
+- Android es la plataforma prioritaria del MVP.
+- La primera región es una prueba delimitada en Córdoba; no se declara cobertura nacional.
+- Map matching de trazas GPX no forma parte de esta primera integración.
+- El desnivel no se estima a partir de la geometría; solo se muestra con una fuente de elevación fiable.
+- La integración nativa iOS se decidirá en una fase posterior.
 
-- Minimal proprietary routing code.
-- Mature routing algorithms and map matching.
-- Easier regional deployment and replacement of the engine later.
-- Clear separation between routing infrastructure and Spain Outdoor product logic.
+## Consecuencias
 
-### Negative
+Ventajas:
+- Sin VPS ni servidor doméstico para routing.
+- Descargas regionales y cálculo offline en el dispositivo.
+- Menos infraestructura operativa para el MVP.
 
-- Valhalla requires operational infrastructure and regional data management.
-- Routing quality depends on source data and profile configuration.
-- Production costs include tile generation/storage and compute.
-
-## Safety constraint
-
-Routing is not a safety certification. Route status and the risk engine must separately evaluate closures, alerts, weather, terrain and other hazards.
+Costes y riesgos:
+- Consumo de cuota Mapbox y aplicación de sus términos/tarifas.
+- El SDK Android se descarga desde Maven privado mediante un token de compilación Downloads:Read.
+- La cobertura offline depende de que el usuario descargue previamente la región adecuada.
+- Se requiere prueba física de ruta nueva en modo avión.

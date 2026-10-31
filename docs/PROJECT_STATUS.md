@@ -1,50 +1,53 @@
 # España Outdoor — estado técnico
 
-Última revisión del repositorio remoto: 29/10/2026. Este documento distingue inspección del repositorio de validaciones ejecutadas en dispositivos.
+Revisión de la arquitectura de routing: 31/10/2026. Este documento separa integración de código de validación física en Android.
 
 ## Objetivo MVP
 
-Android primero. El criterio de aceptación es un APK instalable que abra el mapa, renderice cartografía real, permita usar GPS y rutas, y gestione correctamente errores y pérdida de conectividad.
+Android primero. El criterio de aceptación es un APK instalable con mapa Mapbox, GPS, planificación de rutas online/offline, descargas cartográficas y de routing, y funcionamiento demostrable sin cobertura.
 
-## Arquitectura cartográfica actual
+## Arquitectura cartográfica y routing
 
-- Motor cartográfico en la rama principal tras esta migración: **Mapbox**, mediante `mapbox_maps_flutter`.
-- El estilo y la clave de acceso deben configurarse mediante los mecanismos de compilación previstos; no incluir credenciales privilegiadas en el repositorio.
-- La experiencia offline se apoya en las capacidades offline nativas de Mapbox. Deben comprobarse descarga, persistencia, reapertura en frío y funcionamiento en modo avión por separado.
-- Que se descargue una región o se compile el APK no demuestra por sí solo cobertura nacional ni funcionamiento offline correcto.
-- El routing se configura externamente mediante `VALHALLA_BASE_URL`; la integración y las respuestas reales deben validarse.
-- Android es la plataforma prioritaria del MVP.
+- Mapbox Maps SDK (mapbox_maps_flutter 3.33.0) proporciona estilos y teselas cartográficas.
+- Mapbox Navigation SDK v3.33.0 se integra en Android mediante Kotlin y MethodChannel.
+- La app conserva el contrato Dart RoutingService; el adaptador Android invoca el motor nativo Mapbox Navigation.
+- El routing peatonal usa el perfil mapbox/walking.
+- La descarga offline incluye estilo, teselas de mapa y tileset de routing en un único TileStore compartido.
+- No existe dependencia de un VPS ni de un ordenador doméstico para el cálculo de rutas.
+- Valhalla queda fuera del camino activo del MVP. ops/valhalla se conserva como referencia opcional y no debe desplegarse como requisito de producción.
 
-## Estado del código revisado
+## Alcance de la descarga
 
-- La aplicación utiliza una superficie Mapbox compartida para mapa, planificación y detalle de rutas.
-- Se conservan los modelos y capacidades de GPS, grabación de recorridos, GPX, Valhalla y los módulos de seguridad.
-- La infraestructura de distribución cartográfica anterior y las abstracciones que no forman parte de la solución activa se retiran en esta rama.
-- La existencia de una pantalla cartográfica o la compilación de un APK no demuestra por sí sola que el mapa funcione en un dispositivo, que una descarga se pueda volver a abrir offline ni que exista cobertura nacional.
-- La comunidad social es una propuesta de producto; sus fases no deben considerarse implementadas hasta pasar sus criterios y pruebas.
+La implementación inicial conserva una región de prueba delimitada en Córdoba (zoom 8–15). No representa mapas ni routing offline de toda España. La ampliación debe hacerse mediante regiones explícitas seleccionadas y descargadas por el usuario.
 
-## Validación disponible
+## Seguridad y configuración
+
+- MAPBOX_ACCESS_TOKEN es el token público usado en runtime.
+- MAPBOX_DOWNLOADS_TOKEN es un secreto de compilación de Maven con permiso Downloads:Read; no debe entrar en Git ni en el APK.
+- CI necesita MAPBOX_DOWNLOADS_TOKEN para resolver Navigation SDK.
+- No incluir tokens privilegiados en Dart, Kotlin ni configuración versionada.
+
+## Validación pendiente
 
 | Comprobación | Estado |
 |---|---|
-| Inspección remota de código y configuración | Parcial; véase la rama de consolidación y sus cambios |
-| Análisis estático Dart | Consultar el estado de CI del commit vigente |
-| Pruebas automatizadas | Consultar el estado de CI del commit vigente |
-| Compilación APK | Consultar el estado del workflow Android staging del commit vigente |
-| Instalación en dispositivo Android | No declarada hasta disponer de evidencia |
-| Mapa online en OPPO | No declarado hasta comprobarlo en el dispositivo |
-| Mapa descargado, reapertura en frío y modo avión | Prueba física pendiente para el commit vigente |
-| Routing real con Valhalla | No declarado hasta comprobar endpoint y respuesta |
+| Contrato Dart RoutingService | Integrado en rama de trabajo |
+| Adaptador Android MethodChannel | Integrado; requiere compilación |
+| Dependencia Navigation SDK 3.33.0 | Configurada; requiere resolver Maven con token |
+| Repositorio Maven privado Mapbox | Configurado; requiere secreto de CI |
+| Descarga compartida Maps + routing en TileStore | Código integrado; requiere compilación y comprobación |
+| Cálculo online | Requiere prueba real con token y conectividad |
+| Cálculo offline de ruta nueva en Córdoba | Pendiente de prueba física Android |
+| Reapertura en frío / reinicio / modo avión | Pendiente de evidencia en dispositivo |
+| Cobertura fuera de Córdoba | No implementada ni declarada |
+| Integración equivalente iOS | Fuera del MVP Android actual |
 
-## Pendientes prioritarios
+## Siguientes verificaciones
 
-1. Confirmar que CI, análisis, pruebas y APK de staging corresponden al HEAD vigente de la rama.
-2. Instalar el APK resultante en Android y comprobar el mapa online, permisos y GPS.
-3. Descargar un área de prueba, cerrar por completo la aplicación, reabrir sin conexión y comprobar la cartografía en modo avión.
-4. Confirmar el alcance real de las regiones offline; no inferir cobertura nacional a partir de una zona de prueba.
-5. Verificar routing con un endpoint real de Valhalla configurado.
-6. Auditar autenticación móvil/web, perfil, backend Go, PostgreSQL y permisos antes de iniciar la comunidad descrita en la issue #11.
+1. Añadir el secreto GitHub Actions MAPBOX_DOWNLOADS_TOKEN con permiso Downloads:Read.
+2. Ejecutar CI y corregir cualquier incompatibilidad real de las APIs Kotlin/Gradle.
+3. Generar e instalar el APK staging en el dispositivo Android.
+4. Descargar Córdoba y comprobar una ruta nueva en modo avión tras cierre forzado.
+5. Solo después de validar esta región, diseñar descargas regionales ampliables por el usuario.
 
-## Criterio de seguridad
-
-No incluir secretos en código o Git. Respetar licencias y condiciones de uso de la cartografía. No marcar funcionalidades como completadas sin evidencia reproducible. Las contribuciones comunitarias deben distinguirse de la información oficial y verificada.
+No se marca routing offline como completado hasta disponer de evidencia reproducible del dispositivo.

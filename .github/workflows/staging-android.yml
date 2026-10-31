@@ -30,7 +30,7 @@ permissions:
 
 env:
   APP_ENV: staging
-  VALHALLA_BASE_URL: https://routing.espanaoutdoor.es
+  MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
   SOURCE_GATEWAY_BASE_URL: https://api.espanaoutdoor.es
   RESCUE_LINK_BASE_URL: https://rescue.espanaoutdoor.es
   OIDC_ISSUER: https://auth.espanaoutdoor.es/realms/espana-outdoor
@@ -46,10 +46,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
+          for name in SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
             value="${!name:-}"; test -n "$value"
             case "$value" in https://*) ;; *) echo "$name must use HTTPS"; exit 1;; esac
           done
+      - name: Check Mapbox Navigation Maven token
+        shell: bash
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
       - name: Verify staging build profile
         run: python3 tool/verify_build_profile.py --profile staging
       - name: Setup Java 21
@@ -102,7 +105,6 @@ jobs:
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \

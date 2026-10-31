@@ -31,6 +31,7 @@ class RouteResult {
     this.ascentMeters,
     this.descentMeters,
     this.steps = const [],
+    this.source,
   });
 
   final List<LatLng> points;
@@ -39,11 +40,11 @@ class RouteResult {
   final double? ascentMeters;
   final double? descentMeters;
   final List<RouteStep> steps;
+
+  /// Router that produced this result: online, offline, or another provider.
+  final String? source;
 }
 
-/// Provider-neutral outdoor routing boundary. The production adapter is expected
-/// to delegate to a mature engine such as Valhalla rather than implement routing
-/// algorithms in the application layer.
 abstract interface class RoutingService {
   Future<RouteResult> route(RouteRequest request);
   Future<RouteResult> match(List<LatLng> track);

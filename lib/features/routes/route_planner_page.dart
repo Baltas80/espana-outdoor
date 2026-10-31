@@ -122,8 +122,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       final service = ref.read(routingServiceProvider);
       if (service == null) {
         throw StateError(
-          'Valhalla no está configurado en esta compilación. '
-          'Falta VALHALLA_BASE_URL.',
+          'Mapbox Navigation no está disponible en esta compilación. '
+          'Comprueba MAPBOX_ACCESS_TOKEN y la plataforma Android.',
         );
       }
 
@@ -157,7 +157,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       return 'No se puede conectar con el servicio de rutas. Comprueba la conexión.';
     }
     if (message.contains('TimeoutException')) {
-      return 'Valhalla ha tardado demasiado en responder. Inténtalo de nuevo.';
+      return 'Mapbox ha tardado demasiado en responder. Inténtalo de nuevo.';
     }
     return message;
   }
@@ -270,7 +270,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                       const SizedBox(height: 10),
                       const LinearProgressIndicator(),
                       const SizedBox(height: 4),
-                      const Text('Calculando ruta a pie con Valhalla…'),
+                      const Text('Calculando ruta a pie con Mapbox Navigation…'),
                     ],
                     if (_error != null) ...[
                       const SizedBox(height: 8),
@@ -319,11 +319,17 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                           _route!.descentMeters == null) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Desnivel no disponible: el servidor Valhalla no '
+                          'Desnivel no disponible: Mapbox no '
                           'ha devuelto datos de elevación para esta ruta.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
+                      Text(
+                        _route!.source == 'offline'
+                            ? 'Ruta calculada sin conexión'
+                            : 'Ruta calculada con conexión',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       if (_route!.steps.isNotEmpty) ...[
                         const Divider(height: 20),
                         Text(

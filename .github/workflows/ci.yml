@@ -33,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_ENV: ci
+      MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -93,6 +94,8 @@ jobs:
           test/source_gateway_config_test.dart
       - name: Full test suite
         run: flutter test --coverage --concurrency=1
+      - name: Check Mapbox Navigation Maven token
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
       - name: Android release build
         run: |
           flutter build apk --release --dart-define=APP_ENV=ci

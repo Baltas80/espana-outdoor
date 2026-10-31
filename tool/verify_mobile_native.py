@@ -52,6 +52,18 @@ def verify_android() -> None:
         raise SystemExit("Missing Android app Gradle file.")
 
     content = gradle.read_text(encoding="utf-8")
+    if "com.mapbox.navigationcore:android-ndk27:3.33.0" not in content:
+        raise SystemExit("Mapbox Navigation SDK v3.33.0 dependency is missing.")
+    settings_candidates = (ROOT / "android" / "settings.gradle.kts", ROOT / "android" / "settings.gradle")
+    settings = next((path for path in settings_candidates if path.exists()), None)
+    if settings is None or "api.mapbox.com/downloads/v2/releases/maven" not in settings.read_text(encoding="utf-8"):
+        raise SystemExit("Mapbox Navigation Maven repository is missing from dependencyResolutionManagement.")
+    main_activities = list((ROOT / "android" / "app" / "src" / "main" / "kotlin").rglob("MainActivity.kt"))
+    if not main_activities or "com.espanaoutdoors/navigation" not in main_activities[0].read_text(encoding="utf-8"):
+        raise SystemExit("The generated MainActivity is missing the Mapbox Navigation MethodChannel.")
+    bridge = ROOT / "android" / "app" / "src" / "main" / "kotlin" / "com" / "espana" / "outdoors" / "navigation" / "MapboxNavigationBridge.kt"
+    if not bridge.exists():
+        raise SystemExit("MapboxNavigationBridge.kt is missing.")
     gradle_properties = ROOT / "android" / "gradle.properties"
     if not gradle_properties.exists():
         raise SystemExit("Missing generated Android gradle.properties.")
@@ -88,6 +100,9 @@ def verify_android() -> None:
     print("android_min_sdk=24")
     print("android_auth_redirect_scheme=verified")
     print("android_no_legacy_oidc_callback=verified")
+    print("mapbox_navigation_sdk=3.33.0")
+    print("mapbox_navigation_maven=verified")
+    print("mapbox_navigation_bridge=verified")
 
 
 def verify_ios() -> None:
