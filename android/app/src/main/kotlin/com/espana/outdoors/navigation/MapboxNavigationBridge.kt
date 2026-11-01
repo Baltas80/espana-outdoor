@@ -107,13 +107,28 @@ class MapboxNavigationBridge(context: Context) {
             }
 
             override fun onFailure(reasons: List<RouterFailure>, routeOptions: RouteOptions) {
+                // Keep diagnostics useful without exposing the original request URL,
+                // which contains the public access token and coordinates.
+                val failures = reasons.map { failure ->
+                    mapOf(
+                        "type" to failure.type,
+                        "message" to failure.message,
+                        "routerOrigin" to failure.routerOrigin,
+                        "retryable" to failure.isRetryable
+                    )
+                }
+                val summary = failures.joinToString("; ") { failure ->
+                    "${failure["type"]}: ${failure["message"]} " +
+                        "(router=${failure["routerOrigin"]}, retryable=${failure["retryable"]})"
+                }.ifBlank { "Mapbox could not calculate this route." }
                 mainHandler.post {
                     result.error(
                         "ROUTE_FAILED",
-                        reasons.joinToString("; ") { it.toString() }.ifBlank {
-                            "Mapbox could not calculate this route."
-                        },
-                        null
+                        summary,
+                        mapOf(
+                            "failures" to failures,
+                            "retryable" to reasons.any { it.isRetryable }
+                        )
                     )
                 }
             }

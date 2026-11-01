@@ -8,6 +8,7 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'integration_test/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -17,6 +18,7 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'integration_test/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -144,6 +146,8 @@ jobs:
         id: android_map_smoke
         if: success() && steps.kvm_setup.outcome == 'success'
         uses: reactivecircus/android-emulator-runner@v2.38.0
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         with:
           api-level: 35
           target: google_apis
@@ -156,7 +160,11 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+          script: |
+            bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+            flutter test integration_test/mapbox_android_live_route_test.dart \
+              -d emulator-5554 \
+              --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
