@@ -160,14 +160,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
-      - name: Mapbox Android live routing integration test
-        env:
-          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          flutter test -d emulator-5554 --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" integration_test/mapbox_android_live_route_test.dart
+          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online && flutter test -d emulator-5554 --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" integration_test/mapbox_android_live_route_test.dart
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
