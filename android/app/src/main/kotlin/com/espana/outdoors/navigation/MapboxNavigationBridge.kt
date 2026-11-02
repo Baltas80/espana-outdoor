@@ -90,8 +90,7 @@ class MapboxNavigationBridge(context: Context) {
         }
 
         val options = RouteOptions.builder()
-            .applyDefaultNavigationOptions()
-            .profile("walking")
+            .applyDefaultNavigationOptions("walking")
             .coordinatesList(points)
             .steps(true)
             .overview("full")
