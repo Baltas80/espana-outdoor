@@ -84,6 +84,8 @@ def verify_android() -> None:
         "Maps SDK shared TileStore": "MapboxMapsOptions.tileStore = store",
         "Navigation SDK shared TileStore": ".tileStore(store)",
         "Maps read/update mode": "TileStoreUsageMode.READ_AND_UPDATE",
+        "TileStore request access token": "TileStoreOptions.MAPBOX_ACCESS_TOKEN",
+        "TileStore request token value": "Value(accessToken)",
         "strict online/offline source": "RouterOrigin.ONLINE",
         "synchronous offline metadata persistence": ".commit()",
     }.items():

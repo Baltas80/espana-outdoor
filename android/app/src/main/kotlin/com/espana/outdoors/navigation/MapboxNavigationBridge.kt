@@ -8,6 +8,7 @@ import com.mapbox.common.MapboxOptions
 import com.mapbox.bindgen.Value
 import com.mapbox.common.TileRegionLoadOptions
 import com.mapbox.common.TileStore
+import com.mapbox.common.TileStoreOptions
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
 import com.mapbox.maps.GlyphsRasterizationMode
@@ -50,6 +51,9 @@ class MapboxNavigationBridge(context: Context) {
 
         MapboxOptions.accessToken = accessToken
         val store = getOrCreateProcessTileStore(appContext)
+        // TileStore has its own request options. Set the public runtime token on
+        // this exact shared instance before either Maps or Navigation can use it.
+        store.setOption(TileStoreOptions.MAPBOX_ACCESS_TOKEN, Value(accessToken))
         tileStore = store
         // This same TileStore is used by Maps and Navigation for every offline region.
         MapboxMapsOptions.tileStore = store
