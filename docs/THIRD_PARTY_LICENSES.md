@@ -85,7 +85,7 @@ Las licencias permisivas indicadas aquí no eliminan la obligación de conservar
 
 Los módulos indirectos registrados en `go.mod/go.sum` no se presentan aquí como si fueran dependencias directas. Deben quedar incluidos en el inventario transitive/SBOM de cada release.
 
-| Mapbox Navigation SDK Android | 3.33.0 | Cálculo de rutas online/offline Android | Licencia y términos comerciales Mapbox | https://docs.mapbox.com/android/navigation/guides/install/ | Uso sujeto a términos de Mapbox; verificar tarifas y derechos de distribución antes del release |
+| Mapbox Navigation SDK Android | 3.34.1 | Cálculo de rutas online/offline Android | Licencia y términos comerciales Mapbox | https://docs.mapbox.com/android/navigation/guides/install/ | Uso sujeto a términos de Mapbox; verificar tarifas y derechos de distribución antes del release |
 
 ## No incorporado / no distribuido como dependencia actual
 

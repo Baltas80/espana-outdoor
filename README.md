@@ -23,7 +23,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - ADR de cartografía/offline con decisión de no usar los servidores públicos de teselas OSM para descargas offline.
 - Licencia propietaria incorporada para el código y activos propios; las dependencias de terceros conservan sus licencias.
 - Registro inicial de dependencias y alternativas maduras en `docs/THIRD_PARTY_LICENSES.md`.
-- Mapbox Navigation SDK v3.33.0 integrado en Android mediante Kotlin/MethodChannel detrás de la interfaz RoutingService; no requiere VPS.
+- Mapbox Navigation SDK v3.34.1 integrado en Android mediante Kotlin/MethodChannel detrás de la interfaz RoutingService; no requiere VPS.
 - Mapbox Maps SDK y Navigation SDK comparten TileStore para descargar cartografía y routing peatonal offline.
 - La primera región de prueba queda delimitada en Córdoba (zoom 8–15); la validación en modo avión y la cobertura nacional siguen pendientes.
 - RevenueCat conectado a la frontera de producto mediante entitlements Free/Premium/Professional.
@@ -56,7 +56,7 @@ La arquitectura conserva interfaces abstractas para permitir en el futuro integr
 - flutter_secure_storage para secretos y credenciales locales.
 - Hive CE para persistencia local de rutas.
 - GPX para importación/exportación.
-- Mapbox Navigation SDK v3.33.0 para routing peatonal online/offline en Android.
+- Mapbox Navigation SDK v3.34.1 para routing peatonal online/offline en Android.
 - `background_downloader` como infraestructura de transferencias en segundo plano; no habilita por sí solo mapas sin conexión.
 - RevenueCat para billing/entitlements.
 - OpenID Connect para identidad; Keycloak es el proveedor de infraestructura objetivo.
@@ -66,7 +66,7 @@ Las versiones se mantienen deliberadamente en rangos compatibles y deben revisar
 
 ## Configuración de routing
 
-Android utiliza Mapbox Navigation SDK v3.33.0 mediante un puente nativo Kotlin y el adaptador Flutter MapboxNavigationRoutingService. No necesita VPS ni VALHALLA_BASE_URL.
+Android utiliza Mapbox Navigation SDK v3.34.1 mediante un puente nativo Kotlin y el adaptador Flutter MapboxNavigationRoutingService. No necesita VPS ni VALHALLA_BASE_URL.
 
 El SDK se resuelve desde el Maven privado de Mapbox. Configura el secreto de compilación MAPBOX_DOWNLOADS_TOKEN (scope Downloads:Read) en GitHub Actions y como variable de entorno local. Nunca lo incluyas en Git ni en el APK. El token público MAPBOX_ACCESS_TOKEN se inyecta mediante --dart-define=MAPBOX_ACCESS_TOKEN=....
 

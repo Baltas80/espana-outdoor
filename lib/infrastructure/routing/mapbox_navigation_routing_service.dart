@@ -31,9 +31,6 @@ class MapboxNavigationRoutingService implements RoutingService {
       );
     }
 
-    await _channel.invokeMethod<void>('configure', {
-      'accessToken': _accessToken,
-    });
     final response = await _channel.invokeMapMethod<String, dynamic>(
       'requestRoute',
       {
@@ -53,6 +50,13 @@ class MapboxNavigationRoutingService implements RoutingService {
     final points = _decodePolyline6(geometry).toList(growable: false);
     if (points.length < 2) {
       throw const FormatException('Mapbox route geometry is incomplete.');
+    }
+
+    final source = response['source'];
+    if (source != 'online' && source != 'offline') {
+      throw FormatException(
+        'Mapbox returned an unrecognized router origin: $source',
+      );
     }
 
     final steps = <RouteStep>[];
@@ -77,7 +81,7 @@ class MapboxNavigationRoutingService implements RoutingService {
       distanceMeters: _asDouble(response['distanceMeters']),
       durationSeconds: _asDouble(response['durationSeconds']),
       steps: List.unmodifiable(steps),
-      source: response['source'] == 'offline' ? 'offline' : 'online',
+      source: source as String,
     );
   }
 

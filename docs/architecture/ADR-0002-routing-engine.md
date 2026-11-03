@@ -2,7 +2,7 @@
 
 - Estado: aceptado para el MVP Android.
 - Decisión: Mapbox Navigation SDK v3 detrás de RoutingService.
-- Versión alineada: 3.33.0 (mapbox_maps_flutter 3.33.0 / Maps Android 11.33.0).
+- Versión alineada: Mapbox Maps Flutter 3.34.1 / Maps Android 11.34.1 / Navigation Android 3.34.1. Android fija NDK r27d (27.3.13750724) y selecciona los artefactos -ndk27.
 - Perfil inicial: peatonal, mapbox/walking.
 
 ## Contexto
@@ -17,7 +17,7 @@ El código Dart mantiene el contrato RoutingService. El SDK nativo se conecta me
 
 ## Datos offline
 
-Maps SDK y Navigation SDK deben recibir el mismo objeto TileStore. Cada región descargada contiene el estilo y las teselas visuales de Mapbox junto con el tileset de routing peatonal. Descargar solo el mapa no permite solicitar rutas nuevas sin conexión.
+Maps SDK y Navigation SDK deben recibir el mismo objeto TileStore persistente. Android lo crea una sola vez por proceso, en el directorio privado no incluido en copias de seguridad, y lo configura antes de runApp y del primer MapWidget. Cada región descargada contiene el estilo y las teselas visuales de Mapbox junto con el tileset de routing peatonal. Descargar solo el mapa no permite solicitar rutas nuevas sin conexión. CI y el test físico deben exigir orígenes de ruta ONLINE/OFFLINE explícitos, no inferirlos.
 
 ## Alcance y límites
 

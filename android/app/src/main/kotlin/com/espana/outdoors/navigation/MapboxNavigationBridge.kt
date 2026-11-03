@@ -25,6 +25,7 @@ import com.mapbox.navigation.base.route.RouterFailure
 import com.mapbox.navigation.base.route.RouterOrigin
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
+import java.io.File
 
 class MapboxNavigationBridge(context: Context) {
     private val appContext = context.applicationContext
@@ -39,10 +40,17 @@ class MapboxNavigationBridge(context: Context) {
         require(accessToken.startsWith("pk.")) {
             "A public Mapbox access token (pk.) is required."
         }
-        if (navigation != null && configuredToken == accessToken) return
+        if (navigation != null && configuredToken == accessToken && tileStore != null && offlineManager != null) return
+
+        if (navigation != null) {
+            MapboxNavigationProvider.destroy()
+            navigation = null
+        }
+        offlineManager = null
 
         MapboxOptions.accessToken = accessToken
-        val store = tileStore ?: TileStore.create().also { tileStore = it }
+        val store = getOrCreateProcessTileStore(appContext)
+        tileStore = store
         // This same TileStore is used by Maps and Navigation for every offline region.
         MapboxMapsOptions.tileStore = store
         MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_AND_UPDATE
@@ -133,6 +141,22 @@ class MapboxNavigationBridge(context: Context) {
             }
 
             override fun onRoutesReady(routes: List<NavigationRoute>, routerOrigin: String) {
+                val source = when (routerOrigin) {
+                    RouterOrigin.ONLINE -> "online"
+                    RouterOrigin.OFFLINE -> "offline"
+                    else -> null
+                }
+                if (source == null) {
+                    mainHandler.post {
+                        result.error(
+                            "UNKNOWN_ROUTER_ORIGIN",
+                            "Mapbox returned a route from an unrecognized router.",
+                            mapOf("routerOrigin" to routerOrigin)
+                        )
+                    }
+                    return
+                }
+
                 val route = routes.firstOrNull()?.directionsRoute
                 val geometry = route?.geometry()
                 if (route == null || geometry.isNullOrBlank()) {
@@ -153,7 +177,8 @@ class MapboxNavigationBridge(context: Context) {
                     "geometry" to geometry,
                     "distanceMeters" to route.distance(),
                     "durationSeconds" to route.duration(),
-                    "source" to if (routerOrigin == RouterOrigin.OFFLINE) "offline" else "online",
+                    "source" to source,
+                    "routerOrigin" to routerOrigin,
                     "steps" to steps
                 )
                 mainHandler.post { result.success(response) }
@@ -239,10 +264,24 @@ class MapboxNavigationBridge(context: Context) {
                 { /* Native Mapbox download progress. */ }
             ) { tileExpected ->
                 if (tileExpected.isValue) {
-                    appContext.getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
+                    // A force-stop/reboot test must not race an asynchronous
+                    // SharedPreferences write. Persist the completion marker
+                    // to disk before reporting success to Dart.
+                    val markerPersisted = appContext
+                        .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
                         .edit()
                         .putBoolean("offline:$regionId", true)
-                        .apply()
+                        .commit()
+                    if (!markerPersisted) {
+                        mainHandler.post {
+                            result.error(
+                                "OFFLINE_REGION_PERSISTENCE_FAILED",
+                                "Offline region metadata could not be committed to persistent storage.",
+                                null
+                            )
+                        }
+                        return@loadTileRegion
+                    }
                     mainHandler.post {
                         result.success(
                             mapOf(
@@ -291,6 +330,30 @@ class MapboxNavigationBridge(context: Context) {
         if (navigation != null) {
             MapboxNavigationProvider.destroy()
             navigation = null
+        }
+        offlineManager = null
+        configuredToken = null
+        // Keep the process-wide TileStore alive; its files remain on disk.
+
+    }
+
+    private companion object {
+        private const val TILE_STORE_DIRECTORY = "mapbox-tiles"
+
+        @Volatile
+        private var processTileStore: TileStore? = null
+
+        @Synchronized
+        private fun getOrCreateProcessTileStore(context: Context): TileStore {
+            processTileStore?.let { return it }
+
+            // Keep offline resources private and persistent, but outside Android backup.
+            val directory = File(context.noBackupFilesDir, TILE_STORE_DIRECTORY)
+            check(directory.isDirectory || directory.mkdirs()) {
+                "Could not create the persistent Mapbox TileStore directory."
+            }
+            val path = directory.absolutePath + File.separator
+            return TileStore.create(path).also { processTileStore = it }
         }
     }
 }

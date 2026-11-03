@@ -2,11 +2,11 @@
 
 ## Cartografía
 
-Mapbox Maps SDK (mapbox_maps_flutter 3.33.0) es el motor cartográfico de Android. El estilo de producto es Mapbox Outdoors (mapbox://styles/mapbox/outdoors-v12). Mapbox proporciona estilos, teselas vectoriales, fuentes, etiquetas y recursos cartográficos. El MVP no necesita un servidor propio de teselas.
+Mapbox Maps SDK (mapbox_maps_flutter 3.34.1) es el motor cartográfico de Android. El estilo de producto es Mapbox Outdoors (mapbox://styles/mapbox/outdoors-v12). Mapbox proporciona estilos, teselas vectoriales, fuentes, etiquetas y recursos cartográficos. El MVP no necesita un servidor propio de teselas.
 
 ## Routing
 
-Android utiliza Mapbox Navigation SDK v3.33.0 mediante un puente nativo Kotlin (MapboxNavigationBridge) y un adaptador Flutter (MapboxNavigationRoutingService). El contrato de dominio RoutingService se mantiene. No se requiere VPS ni endpoint Valhalla para el MVP.
+Android utiliza Mapbox Navigation SDK v3.34.1 mediante un puente nativo Kotlin (MapboxNavigationBridge) y un adaptador Flutter (MapboxNavigationRoutingService). El contrato de dominio RoutingService se mantiene. No se requiere VPS ni endpoint Valhalla para el MVP.
 
 - Con conexión, Navigation SDK puede solicitar rutas a Mapbox Directions.
 - Sin conexión, puede calcular rutas localmente si la región de routing correspondiente se ha descargado previamente.
@@ -21,7 +21,8 @@ La pantalla de mapas offline descarga en una misma región y en un único TileSt
 2. Las teselas visuales del mapa para zoom 8–15.
 3. El tileset de routing peatonal de Mapbox Navigation SDK.
 
-Es obligatorio compartir el mismo objeto TileStore entre Maps SDK y Navigation SDK. El puente nativo configura ese almacenamiento antes de crear el primer MapWidget.
+Es obligatorio compartir el mismo objeto TileStore entre Maps SDK y Navigation SDK. Android lo crea una sola vez por proceso en el directorio privado persistente no respaldado de la aplicación; el puente lo asigna a MapboxMapsOptions y RoutingTilesOptions antes de runApp y del primer MapWidget.
+La compilación fija NDK r27d (27.3.13750724) y utiliza los artefactos -ndk27 de Maps Android 11.34.1 y Navigation Android 3.34.1, compatibles con dispositivos de páginas de memoria de 16 KB.
 
 La primera región sigue siendo una prueba delimitada en Córdoba. No representa cobertura de España completa ni debe presentarse como tal.
 
@@ -44,3 +45,7 @@ La compilación correcta o la mera visualización del mapa en modo avión no dem
 - GPS, grabación de recorridos, GPX, persistencia local y funciones de seguridad siguen siendo independientes del proveedor de routing.
 - El relieve visual no equivale a un perfil de elevación; la app no debe mostrar desniveles sin una fuente de elevación fiable.
 - Mapbox Navigation SDK se distribuye bajo los términos de Mapbox; verificar tarifas y condiciones antes de publicar.
+
+
+## Validación real de rutas
+La prueba de integración separa la ruta conectada (fuera de la región descargada) de la ruta offline nueva dentro de Córdoba. Debe completar la descarga, forzar el cierre de la aplicación, activar modo avión y solicitar una ruta nueva. El resultado debe devolver explícitamente RouterOrigin.ONLINE en la fase conectada y RouterOrigin.OFFLINE en la fase sin conectividad. Para el dispositivo OPPO, ejecutar tool/test_mapbox_oppo_routes.ps1 con ADB y los tokens Mapbox presentes en el entorno.

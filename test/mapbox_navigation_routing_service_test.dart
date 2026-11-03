@@ -78,12 +78,41 @@ void main() {
       ),
     );
 
-    expect(calls, ['configure', 'requestRoute']);
+    expect(calls, ['requestRoute']);
     expect(result.source, 'offline');
     expect(result.points, expectedPoints);
     expect(result.distanceMeters, 1200.0);
     expect(result.durationSeconds, 900.0);
     expect(result.steps.single.instruction, 'Continúa por el sendero');
+  });
+
+
+  test('rejects an unknown router source instead of labeling it online', () async {
+    const points = [
+      LatLng(37.8882, -4.7794),
+      LatLng(37.8900, -4.7700),
+    ];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'requestRoute') {
+        return <String, Object?>{
+          'geometry': _encodePolyline6(points),
+          'distanceMeters': 1200.0,
+          'durationSeconds': 900.0,
+          'source': 'custom-or-unknown',
+          'steps': [
+            {'instruction': 'Continúa', 'distanceMeters': 1200.0, 'durationSeconds': 900.0},
+          ],
+        };
+      }
+      throw MissingPluginException(call.method);
+    });
+
+    final service = MapboxNavigationRoutingService(accessToken: 'pk.test');
+    await expectLater(
+      service.route(const RouteRequest(points: points)),
+      throwsFormatException,
+    );
   });
 
   test('rejects a route request with fewer than two coordinates', () async {

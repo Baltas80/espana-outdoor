@@ -70,27 +70,27 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate Android project
+      - name: Verify committed Android native project
+        run: python3 tool/verify_mobile_native.py --platform android
+      - name: Install pinned Android NDK r27d
         shell: bash
         run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-      - name: Verify Android native configuration
-        run: python3 tool/verify_mobile_native.py --platform android
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Dependencies
+        id: pub_get
         run: flutter pub get
+      - name: Export resolved Pub lockfile for dependency audit
+        if: steps.pub_get.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock-${{ github.run_id }}
+          path: pubspec.lock
+          if-no-files-found: error
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
@@ -189,8 +189,8 @@ jobs:
             echo 'ERROR: /dev/kvm is not available on this runner.'
             exit 1
           fi
-      - name: Android map native smoke
-        id: android_map_smoke
+      - name: Android online and offline route integration
+        id: android_route_integration
         if: success() && steps.kvm_setup.outcome == 'success'
         uses: reactivecircus/android-emulator-runner@v2.38.0
         env:
@@ -207,15 +207,50 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online && flutter test -d emulator-5554 --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" integration_test/mapbox_android_live_route_test.dart
-      - name: Upload Android map smoke evidence
+          script: |
+            set -euo pipefail
+            original_wifi="$(adb shell settings get global wifi_on | tr -d '\r\n')"
+            airplane_enabled=0
+            restore_network() {
+              if [[ "$airplane_enabled" = "1" ]]; then
+                adb shell cmd connectivity airplane-mode disable || {
+                  adb shell settings put global airplane_mode_on 0
+                  adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false >/dev/null
+                }
+                if [[ "$original_wifi" = "1" ]]; then adb shell svc wifi enable; else adb shell svc wifi disable; fi
+              fi
+            }
+            trap restore_network EXIT
+
+            flutter test -d emulator-5554 \
+              --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
+              --dart-define=ROUTE_TEST_MODE=online_and_download \
+              integration_test/mapbox_android_live_route_test.dart
+
+            adb shell cmd connectivity airplane-mode enable || {
+              adb shell settings put global airplane_mode_on 1
+              adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
+            }
+            airplane_enabled=1
+            adb shell svc wifi disable
+            sleep 3
+            test "$(adb shell settings get global airplane_mode_on | tr -d '\r\n')" = "1"
+            test "$(adb shell settings get global wifi_on | tr -d '\r\n')" != "1"
+            adb shell am force-stop com.espanaoutdoors.espana_outdoors
+
+            flutter test -d emulator-5554 \
+              --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
+              --dart-define=ROUTE_TEST_MODE=offline \
+              integration_test/mapbox_android_live_route_test.dart
+
+            adb shell logcat -d > "$RUNNER_TEMP/espana-outdoor-route-logcat.txt"
+            adb shell cmd connectivity airplane-mode disable || true
+            airplane_enabled=0
+            if [[ "$original_wifi" = "1" ]]; then adb shell svc wifi enable; else adb shell svc wifi disable; fi
+      - name: Upload Android route validation evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
         with:
-          name: android-map-smoke-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/espana-outdoor-map-logcat.txt
-            ${{ runner.temp }}/espana-window.xml
-            ${{ runner.temp }}/espana-window-post-map.xml
-            ${{ runner.temp }}/espana-outdoor-map.png
+          name: android-route-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/espana-outdoor-route-logcat.txt
           if-no-files-found: ignore

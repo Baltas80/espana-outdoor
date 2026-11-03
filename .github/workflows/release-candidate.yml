@@ -32,22 +32,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate Android project
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp pubspec.yaml "${RUNNER_TEMP}/pubspec.yaml"
-          cp lib/main.dart "${RUNNER_TEMP}/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "${RUNNER_TEMP}/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "${RUNNER_TEMP}/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "${RUNNER_TEMP}/pubspec.yaml" pubspec.yaml
-          cp "${RUNNER_TEMP}/main.dart" lib/main.dart
-          if [[ -f "${RUNNER_TEMP}/analysis_options.yaml" ]]; then cp "${RUNNER_TEMP}/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "${RUNNER_TEMP}/widget_test.dart" ]]; then cp "${RUNNER_TEMP}/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-
       - name: Check production endpoints and Mapbox token
         shell: bash
         run: |
@@ -72,12 +56,17 @@ jobs:
         run: python3 tool/verify_build_profile.py --profile production
 
 
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-
-      - name: Verify Android native configuration
+      - name: Verify committed Android native project
         run: python3 tool/verify_mobile_native.py --platform android
-
+      - name: Install pinned Android NDK r27d
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Dependencies
         run: flutter pub get
 

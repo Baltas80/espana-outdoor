@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Revisión de la arquitectura de routing: 31/10/2026. Este documento separa integración de código de validación física en Android.
+Revisión de la arquitectura de routing: 03/11/2026. Este documento separa integración de código de validación física en Android.
 
 ## Objetivo MVP
 
@@ -8,8 +8,8 @@ Android primero. El criterio de aceptación es un APK instalable con mapa Mapbox
 
 ## Arquitectura cartográfica y routing
 
-- Mapbox Maps SDK (mapbox_maps_flutter 3.33.0) proporciona estilos y teselas cartográficas.
-- Mapbox Navigation SDK v3.33.0 se integra en Android mediante Kotlin y MethodChannel.
+- Mapbox Maps SDK (mapbox_maps_flutter 3.34.1) proporciona estilos y teselas cartográficas.
+- Mapbox Navigation SDK v3.34.1 se integra en Android mediante Kotlin y MethodChannel.
 - La app conserva el contrato Dart RoutingService; el adaptador Android invoca el motor nativo Mapbox Navigation.
 - El routing peatonal usa el perfil mapbox/walking.
 - La descarga offline incluye estilo, teselas de mapa y tileset de routing en un único TileStore compartido.
@@ -33,9 +33,9 @@ La implementación inicial conserva una región de prueba delimitada en Córdoba
 |---|---|
 | Contrato Dart RoutingService | Integrado en rama de trabajo |
 | Adaptador Android MethodChannel | Integrado; requiere compilación |
-| Dependencia Navigation SDK 3.33.0 | Configurada; requiere resolver Maven con token |
+| Dependencia Navigation SDK 3.34.1 | Versión fijada; compilación y resolución Maven en CI pendientes |
 | Repositorio Maven privado Mapbox | Configurado; requiere secreto de CI |
-| Descarga compartida Maps + routing en TileStore | Código integrado; requiere compilación y comprobación |
+| Descarga compartida Maps + routing en TileStore | TileStore persistente único implementado; requiere prueba real online/offline |
 | Cálculo online | Requiere prueba real con token y conectividad |
 | Cálculo offline de ruta nueva en Córdoba | Pendiente de prueba física Android |
 | Reapertura en frío / reinicio / modo avión | Pendiente de evidencia en dispositivo |
@@ -51,3 +51,6 @@ La implementación inicial conserva una región de prueba delimitada en Córdoba
 5. Solo después de validar esta región, diseñar descargas regionales ampliables por el usuario.
 
 No se marca routing offline como completado hasta disponer de evidencia reproducible del dispositivo.
+
+
+La integración Android fija NDK r27d (27.3.13750724) y usa los artefactos NDK27 de Maps 11.34.1 y Navigation 3.34.1. CI verifica los ficheros nativos versionados sin ejecutar flutter create sobre Android. La validación de aceptación requiere una ruta online y una ruta nueva offline, confirmadas por su origen nativo, primero en CI y después en el OPPO físico.
