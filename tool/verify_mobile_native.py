@@ -84,13 +84,19 @@ def verify_android() -> None:
         "Maps SDK shared TileStore": "MapboxMapsOptions.tileStore = store",
         "Navigation SDK shared TileStore": ".tileStore(store)",
         "Maps read/update mode": "TileStoreUsageMode.READ_AND_UPDATE",
-        "TileStore request access token": "TileStoreOptions.MAPBOX_ACCESS_TOKEN",
-        "TileStore request token value": "Value(accessToken)",
+        "global Mapbox runtime token": "MapboxOptions.accessToken = accessToken",
         "strict online/offline source": "RouterOrigin.ONLINE",
         "synchronous offline metadata persistence": ".commit()",
     }.items():
         if fragment not in bridge:
             raise SystemExit(f"Native Mapbox bridge is missing: {label}")
+
+    token_index = bridge.find("MapboxOptions.accessToken = accessToken")
+    store_init_index = bridge.find("getOrCreateProcessTileStore(appContext)")
+    if token_index < 0 or store_init_index < 0 or token_index > store_init_index:
+        raise SystemExit("Set the global Mapbox access token before creating the shared TileStore.")
+    if "TileStoreOptions.MAPBOX_ACCESS_TOKEN" in bridge:
+        raise SystemExit("TileStoreOptions.MAPBOX_ACCESS_TOKEN was removed from Maps SDK v11.")
 
     main_dart = (ROOT / "lib" / "main.dart").read_text(encoding="utf-8")
     configure_index = main_dart.find("_navigationChannel.invokeMethod<void>('configure'")
