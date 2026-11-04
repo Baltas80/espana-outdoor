@@ -116,7 +116,7 @@ jobs:
           python3 tool/verify_android_release.py --apk "$apk"
       - name: Upload Android staging APK
         if: always()
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-staging-apk
           path: build/app/outputs/flutter-apk/*.apk
@@ -157,7 +157,7 @@ jobs:
           script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
       - name: Upload Android map smoke evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-map-smoke-${{ github.run_id }}
           path: |

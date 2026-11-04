@@ -138,7 +138,7 @@ jobs:
           } > build/android-release-manifest.txt
 
       - name: Upload Android candidate
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-release-candidate
           path: |
