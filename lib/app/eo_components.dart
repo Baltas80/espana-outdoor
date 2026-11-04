@@ -248,6 +248,7 @@ class EONavigationBar extends StatelessWidget {
 
   static const destinations = <(IconData, IconData, String)>[
     (Icons.explore_outlined, Icons.explore, 'Explorar'),
+    (Icons.groups_outlined, Icons.groups, 'Comunidad'),
     (Icons.map_outlined, Icons.map, 'Mapa'),
     (Icons.route_outlined, Icons.route, 'Rutas'),
     (Icons.shield_outlined, Icons.shield, 'Seguridad'),
