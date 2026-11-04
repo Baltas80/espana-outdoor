@@ -77,6 +77,9 @@ void main() {
           'maxZoom': 15,
         },
       );
+      // Native downloadOfflineRegion completes only after the TileStore
+      // callback succeeds and the persistent completion marker is committed.
+      // Query TileStore itself afterward so an ID/marker alone cannot pass.
       final downloaded = await _navigationChannel.invokeMethod<bool>(
         'hasOfflineRegion',
         {'regionId': _regionId},

@@ -207,60 +207,13 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: |
-            set -eu
-            original_wifi="$(adb shell settings get global wifi_on | tr -d '\r\n')"
-            airplane_enabled=0
-            restore_network() {
-              if [ "$airplane_enabled" = "1" ]; then
-                adb shell cmd connectivity airplane-mode disable || {
-                  adb shell settings put global airplane_mode_on 0
-                  adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false >/dev/null
-                }
-                if [ "$original_wifi" = "1" ]; then
-                  adb shell svc wifi enable
-                else
-                  adb shell svc wifi disable
-                fi
-              fi
-            }
-            trap restore_network EXIT HUP INT TERM
-
-            flutter test -d emulator-5554 \
-              --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-              --dart-define=ROUTE_TEST_MODE=online_and_download \
-              integration_test/mapbox_android_live_route_test.dart
-
-            adb shell cmd connectivity airplane-mode enable || {
-              adb shell settings put global airplane_mode_on 1
-              adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
-            }
-            airplane_enabled=1
-            adb shell svc wifi disable
-            sleep 3
-            airplane_state="$(adb shell settings get global airplane_mode_on | tr -d '\r\n')"
-            wifi_state="$(adb shell settings get global wifi_on | tr -d '\r\n')"
-            test "$airplane_state" = "1"
-            test "$wifi_state" != "1"
-            adb shell am force-stop com.espanaoutdoors.espana_outdoors
-
-            flutter test -d emulator-5554 \
-              --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-              --dart-define=ROUTE_TEST_MODE=offline \
-              integration_test/mapbox_android_live_route_test.dart
-
-            adb shell logcat -d > "$RUNNER_TEMP/espana-outdoor-route-logcat.txt"
-            adb shell cmd connectivity airplane-mode disable || true
-            airplane_enabled=0
-            if [ "$original_wifi" = "1" ]; then
-              adb shell svc wifi enable
-            else
-              adb shell svc wifi disable
-            fi
+          script: bash tool/staging_android_route_integration.sh
       - name: Upload Android route validation evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-route-validation-${{ github.run_id }}
-          path: ${{ runner.temp }}/espana-outdoor-route-logcat.txt
+          path: |
+            ${{ runner.temp }}/espana-outdoor-route-logcat.txt
+            ${{ runner.temp }}/espana-outdoor-route-test-output.txt
           if-no-files-found: ignore

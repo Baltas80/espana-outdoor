@@ -36,19 +36,9 @@ kotlin {
     }
 }
 
-// Force the transitive Maps dependency from the Flutter plugin to use the
-// NDK 27 variant too; adding the NDK27 artifact directly alone is not enough.
-configurations.configureEach {
-    resolutionStrategy.dependencySubstitution {
-        substitute(module("com.mapbox.maps:android"))
-            .using(module("com.mapbox.maps:android-ndk27:11.34.1"))
-            .because("Use the supported NDK 27 artifact for 16 KB page-size compatibility")
-    }
-}
-
 dependencies {
-    implementation("com.mapbox.maps:android-ndk27:11.34.1")
-    implementation("com.mapbox.navigationcore:android-ndk27:3.34.1")
+    implementation("com.mapbox.maps:android-ndk27:11.34.2")
+    implementation("com.mapbox.navigationcore:android-ndk27:3.34.2")
 }
 
 flutter {
