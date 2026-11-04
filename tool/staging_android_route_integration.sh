@@ -14,10 +14,16 @@ restore_network() {
   local status=$?
   trap - EXIT HUP INT TERM
   if [[ "$AIRPLANE_CHANGED" == "1" ]]; then
-    adb -s "$DEVICE_SERIAL" shell cmd connectivity airplane-mode disable >/dev/null 2>&1 || {
+    local restore_action=disable
+    local restore_state=false
+    if [[ "$ORIGINAL_AIRPLANE" == "1" ]]; then
+      restore_action=enable
+      restore_state=true
+    fi
+    adb -s "$DEVICE_SERIAL" shell cmd connectivity airplane-mode "$restore_action" >/dev/null 2>&1 || {
       adb -s "$DEVICE_SERIAL" shell settings put global airplane_mode_on "$ORIGINAL_AIRPLANE" >/dev/null 2>&1 || true
       adb -s "$DEVICE_SERIAL" shell am broadcast -a android.intent.action.AIRPLANE_MODE \
-        --ez state "$([[ "$ORIGINAL_AIRPLANE" == "1" ]] && echo true || echo false)" >/dev/null 2>&1 || true
+        --ez state "$restore_state" >/dev/null 2>&1 || true
     }
   fi
   if [[ "$ORIGINAL_WIFI" == "1" ]]; then
@@ -46,11 +52,11 @@ flutter test -d "$DEVICE_SERIAL" \
   --dart-define=ROUTE_TEST_MODE=online_and_download \
   integration_test/mapbox_android_live_route_test.dart 2>&1 | tee "$TEST_LOG_PATH"
 
+AIRPLANE_CHANGED=1
 adb -s "$DEVICE_SERIAL" shell cmd connectivity airplane-mode enable || {
   adb -s "$DEVICE_SERIAL" shell settings put global airplane_mode_on 1
   adb -s "$DEVICE_SERIAL" shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
 }
-AIRPLANE_CHANGED=1
 adb -s "$DEVICE_SERIAL" shell svc wifi disable
 sleep 3
 [[ "$(adb -s "$DEVICE_SERIAL" shell settings get global airplane_mode_on | tr -d '\r\n')" == 1 ]]
