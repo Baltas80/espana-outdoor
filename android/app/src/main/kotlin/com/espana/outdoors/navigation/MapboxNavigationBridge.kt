@@ -355,7 +355,11 @@ class MapboxNavigationBridge(context: Context) {
                 "Could not create the persistent Mapbox TileStore directory."
             }
             val path = directory.absolutePath + File.separator
-            return TileStore.create(path).also { processTileStore = it }
+            val rootPath = TileStore.setRootPath(path)
+            check(rootPath.isValue) {
+                "Could not set the persistent Mapbox TileStore root path: $rootPath"
+            }
+            return TileStore.create().also { processTileStore = it }
         }
     }
 }
