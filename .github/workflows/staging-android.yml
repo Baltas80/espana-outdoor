@@ -8,6 +8,8 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'integration_test/**'
+      - 'android/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -17,6 +19,8 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'integration_test/**'
+      - 'android/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -30,7 +34,7 @@ permissions:
 
 env:
   APP_ENV: staging
-  VALHALLA_BASE_URL: https://routing.espanaoutdoor.es
+  MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
   SOURCE_GATEWAY_BASE_URL: https://api.espanaoutdoor.es
   RESCUE_LINK_BASE_URL: https://rescue.espanaoutdoor.es
   OIDC_ISSUER: https://auth.espanaoutdoor.es/realms/espana-outdoor
@@ -46,10 +50,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
+          for name in SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
             value="${!name:-}"; test -n "$value"
             case "$value" in https://*) ;; *) echo "$name must use HTTPS"; exit 1;; esac
           done
+      - name: Check Mapbox Navigation Maven token
+        shell: bash
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
       - name: Verify staging build profile
         run: python3 tool/verify_build_profile.py --profile staging
       - name: Setup Java 21
@@ -63,27 +70,27 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate Android project
+      - name: Verify committed Android native project
+        run: python3 tool/verify_mobile_native.py --platform android
+      - name: Install pinned Android NDK r27d
         shell: bash
         run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-      - name: Verify Android native configuration
-        run: python3 tool/verify_mobile_native.py --platform android
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Dependencies
+        id: pub_get
         run: flutter pub get
+      - name: Export resolved Pub lockfile for dependency audit
+        if: steps.pub_get.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock-${{ github.run_id }}
+          path: pubspec.lock
+          if-no-files-found: error
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
@@ -102,12 +109,56 @@ jobs:
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+      - name: Diagnose direct Mapbox Directions HTTP response
+        continue-on-error: true
+        shell: bash
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$MAPBOX_ACCESS_TOKEN"
+          body_file="$(mktemp)"
+          headers_file="$(mktemp)"
+          http_status="$(curl --silent --show-error --get \
+            --output "$body_file" \
+            --dump-header "$headers_file" \
+            --write-out '%{http_code}' \
+            --data-urlencode 'geometries=polyline6' \
+            --data-urlencode 'overview=full' \
+            --data-urlencode 'steps=true' \
+            --data-urlencode 'language=es' \
+            --data-urlencode "access_token=$MAPBOX_ACCESS_TOKEN" \
+            'https://api.mapbox.com/directions/v5/mapbox/walking/-4.7794,37.8882;-4.7700,37.8900')"
+          python3 - "$body_file" "$headers_file" "$http_status" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          body_path, headers_path, status = sys.argv[1:]
+          raw = pathlib.Path(body_path).read_text(encoding="utf-8", errors="replace")
+          headers = pathlib.Path(headers_path).read_text(encoding="utf-8", errors="replace")
+          try:
+              payload = json.loads(raw)
+          except json.JSONDecodeError:
+              payload = {}
+          request_id = next(
+              (line.split(":", 1)[1].strip() for line in headers.splitlines()
+               if line.lower().startswith(("x-request-id:", "x-mapbox-request-id:"))),
+              "<not-provided>",
+          )
+          print(f"HTTP_STATUS={status}")
+          print(f"MAPBOX_CODE={payload.get('code', '<not-json-or-absent>')}")
+          message = " ".join(str(payload.get("message", "")).split())
+          print(f"MAPBOX_MESSAGE={message[:500] if message else '<none>'}")
+          print(f"ROUTES_COUNT={len(payload.get('routes', [])) if isinstance(payload.get('routes'), list) else 0}")
+          print(f"MAPBOX_REQUEST_ID={request_id}")
+          PY
+          rm -f "$body_file" "$headers_file"
       - name: Verify APK
         if: always()
         run: |
@@ -138,10 +189,12 @@ jobs:
             echo 'ERROR: /dev/kvm is not available on this runner.'
             exit 1
           fi
-      - name: Android map native smoke
-        id: android_map_smoke
+      - name: Android online and offline route integration
+        id: android_route_integration
         if: success() && steps.kvm_setup.outcome == 'success'
         uses: reactivecircus/android-emulator-runner@v2.38.0
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         with:
           api-level: 35
           target: google_apis
@@ -154,15 +207,13 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
-      - name: Upload Android map smoke evidence
+          script: bash tool/staging_android_route_integration.sh
+      - name: Upload Android route validation evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
         with:
-          name: android-map-smoke-${{ github.run_id }}
+          name: android-route-validation-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/espana-outdoor-map-logcat.txt
-            ${{ runner.temp }}/espana-window.xml
-            ${{ runner.temp }}/espana-window-post-map.xml
-            ${{ runner.temp }}/espana-outdoor-map.png
+            ${{ runner.temp }}/espana-outdoor-route-logcat.txt
+            ${{ runner.temp }}/espana-outdoor-route-test-output.txt
           if-no-files-found: ignore

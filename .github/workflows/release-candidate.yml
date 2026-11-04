@@ -9,7 +9,7 @@ permissions:
 env:
   APP_ENV: production
   MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
-  VALHALLA_BASE_URL: ${{ secrets.VALHALLA_BASE_URL }}
+  MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
   SOURCE_GATEWAY_BASE_URL: ${{ secrets.SOURCE_GATEWAY_BASE_URL }}
   RESCUE_LINK_BASE_URL: ${{ secrets.RESCUE_LINK_BASE_URL }}
 
@@ -32,55 +32,41 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate Android project
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp pubspec.yaml "${RUNNER_TEMP}/pubspec.yaml"
-          cp lib/main.dart "${RUNNER_TEMP}/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "${RUNNER_TEMP}/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "${RUNNER_TEMP}/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "${RUNNER_TEMP}/pubspec.yaml" pubspec.yaml
-          cp "${RUNNER_TEMP}/main.dart" lib/main.dart
-          if [[ -f "${RUNNER_TEMP}/analysis_options.yaml" ]]; then cp "${RUNNER_TEMP}/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "${RUNNER_TEMP}/widget_test.dart" ]]; then cp "${RUNNER_TEMP}/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-
       - name: Check production endpoints and Mapbox token
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          test -n "${MAPBOX_ACCESS_TOKEN:-}" || { echo "Missing MAPBOX_ACCESS_TOKEN."; exit 1; }
+          for name in SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
-            if [[ -z "$value" ]]; then
-              echo "Missing required production secret: $name"
-              exit 1
-            fi
-            if [[ "$value" != https://* ]]; then
-              echo "$name must use HTTPS"
-              exit 1
-            fi
+            test -n "$value" || { echo "Missing required production secret: $name"; exit 1; }
+            case "$value" in https://*) ;; *) echo "$name must use HTTPS"; exit 1;; esac
             case "$value" in
               *example.com*|*example.org*|*example.net*|*localhost*|*127.0.0.1*|*::1*|*.local/*|*.local)
-                echo "$name contains a placeholder or local endpoint: $value"
+                echo "$name contains a placeholder or local endpoint."
                 exit 1
                 ;;
             esac
           done
 
+      - name: Check Mapbox Navigation Maven token
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
+
       - name: Verify production build profile
         run: python3 tool/verify_build_profile.py --profile production
 
 
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-
-      - name: Verify Android native configuration
+      - name: Verify committed Android native project
         run: python3 tool/verify_mobile_native.py --platform android
-
+      - name: Install pinned Android NDK r27d
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Dependencies
         run: flutter pub get
 
@@ -94,7 +80,6 @@ jobs:
           DART_DEFINES=(
             --dart-define=APP_ENV="$APP_ENV"
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
-            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL"
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
           )
@@ -155,20 +140,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          test -n "${MAPBOX_ACCESS_TOKEN:-}" || { echo "Missing MAPBOX_ACCESS_TOKEN."; exit 1; }
+          for name in SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
             value="${!name:-}"
-            if [[ -z "$value" ]]; then
-              echo "Missing required production secret: $name"
-              exit 1
-            fi
-            if [[ "$value" != https://* ]]; then
-              echo "$name must use HTTPS"
-              exit 1
-            fi
+            test -n "$value" || { echo "Missing required production secret: $name"; exit 1; }
+            case "$value" in https://*) ;; *) echo "$name must use HTTPS"; exit 1;; esac
             case "$value" in
               *example.com*|*example.org*|*example.net*|*localhost*|*127.0.0.1*|*::1*|*.local/*|*.local)
-                echo "$name contains a placeholder or local endpoint: $value"
+                echo "$name contains a placeholder or local endpoint."
                 exit 1
                 ;;
             esac
@@ -207,7 +186,6 @@ jobs:
           flutter build ios --release --no-codesign \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
-            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
 

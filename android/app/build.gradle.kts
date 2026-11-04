@@ -1,14 +1,12 @@
-﻿
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.espana_outdoors"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.3.13750724"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -16,7 +14,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.espana_outdoors"
+        // Preserve the package ID already emitted by the Android staging workflow.
+        applicationId = "com.espanaoutdoors.espana_outdoors"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.espanaoutdoors"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
@@ -33,10 +32,13 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(
-            org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-        )
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
+}
+
+dependencies {
+    implementation("com.mapbox.maps:android-ndk27:11.34.2")
+    implementation("com.mapbox.navigationcore:android-ndk27:3.34.2")
 }
 
 flutter {

@@ -33,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_ENV: ci
+      MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -47,23 +48,17 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate mobile platform projects
+      - name: Verify committed Android native project
+        run: python3 tool/verify_mobile_native.py --platform android
+      - name: Install pinned Android NDK r27d
         shell: bash
         run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter create . --platforms=android,ios --org com.espanaoutdoors
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-      - name: Verify Android native configuration
-        run: python3 tool/verify_mobile_native.py --platform android
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Verify CI build profile
         run: python3 tool/verify_build_profile.py --profile ci
       - name: Dependencies
@@ -93,6 +88,8 @@ jobs:
           test/source_gateway_config_test.dart
       - name: Full test suite
         run: flutter test --coverage --concurrency=1
+      - name: Check Mapbox Navigation Maven token
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
       - name: Android release build
         run: |
           flutter build apk --release --dart-define=APP_ENV=ci
