@@ -55,32 +55,32 @@ class HomePage extends StatelessWidget {
                     _FeatureGrid(
                       items: [
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/routes.svg',
+                          asset: 'assets/visuals/icons/library/route.svg',
                           label: 'Rutas',
                           onTap: () => context.go('/routes'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/map.svg',
+                          asset: 'assets/visuals/icons/library/map.svg',
                           label: 'Mapa',
                           onTap: () => context.go('/map'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/offline.svg',
+                          asset: 'assets/visuals/icons/library/offline.svg',
                           label: 'Offline',
                           onTap: () => context.go('/offline'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/pets.svg',
+                          asset: 'assets/visuals/icons/library/pets.svg',
                           label: 'Mascotas',
                           onTap: () => context.go('/pets'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/wildlife.svg',
+                          asset: 'assets/visuals/icons/library/wildlife.svg',
                           label: 'Fauna',
                           onTap: () => context.go('/wildlife'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/natura.svg',
+                          asset: 'assets/visuals/icons/library/nature.svg',
                           label: 'Natura 2000',
                           onTap: () => context.go('/natura'),
                         ),
@@ -105,7 +105,7 @@ class HomePage extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const OutdoorAssetIcon(
-                                  asset: 'assets/visuals/icons/safety.svg',
+                                  asset: 'assets/visuals/icons/library/safety.svg',
                                   size: 44,
                                 ),
                               ),
@@ -221,20 +221,20 @@ class _ReadinessCard extends StatelessWidget {
         child: Column(
           children: [
             _ReadinessRow(
-              asset: 'assets/visuals/icons/offline.svg',
+              asset: 'assets/visuals/icons/library/offline.svg',
               label: 'Mapa offline',
               value: 'Preparar',
               onTap: () => context.go('/offline'),
             ),
             const Divider(height: 24),
             const _ReadinessRow(
-              asset: 'assets/visuals/icons/map.svg',
+              asset: 'assets/visuals/icons/library/map.svg',
               label: 'Ubicación',
               value: 'Disponible',
             ),
             const Divider(height: 24),
             _ReadinessRow(
-              asset: 'assets/visuals/icons/safety.svg',
+              asset: 'assets/visuals/icons/library/safety.svg',
               label: 'Contacto de confianza',
               value: 'Configurar',
               onTap: () => context.go('/safety/contacts'),
