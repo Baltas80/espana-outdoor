@@ -165,7 +165,7 @@ class EspanaOutdoorApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildOutdoorTheme(Brightness.light),
         darkTheme: buildOutdoorTheme(Brightness.dark),
-                routerConfig: _router,
+        routerConfig: _router,
       );
 }
 
