@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'eo_icons.dart';
+
 /// España Outdoor V1 component system.
 ///
 /// These components are the single UI vocabulary for the premium visual
@@ -235,10 +237,6 @@ class EOAppBar extends StatelessWidget implements PreferredSizeWidget {
         surfaceTintColor: Colors.transparent,
       );
 }
-
-import 'package:flutter/material.dart';
-
-import 'eo_icons.dart';
 
 /// Shared navigation dock. A consistent icon size and selected container make
 /// current location obvious without relying on colour alone.
