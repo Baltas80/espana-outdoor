@@ -93,7 +93,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 16),
           _RouteVisualCard(
             asset: 'assets/images/routes/lagos_covadonga.jpg',
-            icon: 'assets/visuals/icons/routes.svg',
+            icon: 'assets/visuals/icons/library/route.svg',
             title: 'Lagos de Covadonga',
             subtitle: 'Picos de Europa · Asturias',
             meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
@@ -102,7 +102,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 12),
           _RouteVisualCard(
             asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
-            icon: 'assets/visuals/icons/natura.svg',
+            icon: 'assets/visuals/icons/library/nature.svg',
             title: 'Mulhacén · Sierra Nevada',
             subtitle: 'Sierra Nevada · Granada',
             meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
@@ -111,7 +111,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 12),
           _RouteVisualCard(
             asset: 'assets/images/routes/caminito_del_rey.jpg',
-            icon: 'assets/visuals/icons/map.svg',
+            icon: 'assets/visuals/icons/library/map.svg',
             title: 'Caminito del Rey',
             subtitle: 'Málaga · Andalucía',
             meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
