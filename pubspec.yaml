@@ -29,7 +29,7 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
   purchases_flutter: ^10.14.0
-  purchases_ui_flutter: ^10.14.0
+  purchases_ui_flutter: ^10.19.0
   background_downloader: ^9.6.3
   flutter_appauth: ^12.1.0
   sentry_flutter: ^9.30.1
