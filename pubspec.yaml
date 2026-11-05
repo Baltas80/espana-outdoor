@@ -59,6 +59,7 @@ flutter:
     - assets/emergency/
     - assets/backgrounds/
     - assets/visuals/
+    - assets/visuals/icons/library/premium/
     - assets/landscapes/
     - assets/flora_fauna/flora/
     - assets/flora_fauna/fauna/
