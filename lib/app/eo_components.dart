@@ -330,7 +330,7 @@ class _EONavItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  EOIcon(destination.$1, size: 23, color: color, semanticLabel: destination.$2),
+                  EOIcon(destination.$1, size: 30, semanticLabel: destination.$2),
                   const SizedBox(height: 4),
                   Text(
                     destination.$2,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
+import '../../app/outdoor_visuals.dart';
 import '../../core/sensors/outdoor_sensor_models.dart';
 import '../../core/sensors/outdoor_sensor_service.dart';
 
@@ -27,7 +28,7 @@ class InstrumentsPage extends ConsumerWidget {
           const SizedBox(height: 12),
           _MetricCard(icon: Icons.speed_outlined, title: 'Presión atmosférica', value: sensor.pressureHpa == null ? 'No disponible' : '${sensor.pressureHpa!.toStringAsFixed(1)} hPa', subtitle: sensor.barometerAvailable ? 'Sensor barométrico del dispositivo' : 'El dispositivo no expone un barómetro compatible'),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.terrain_outlined, title: 'Altitud barométrica', value: sensor.sensorAltitudeMeters == null ? 'No disponible' : '${sensor.sensorAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Estimación con presión estándar; calibra para mayor precisión'),
+          _MetricCard(icon: Icons.terrain_outlined, visualIcon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/elevation.webp', size: 42), title: 'Altitud barométrica', value: sensor.sensorAltitudeMeters == null ? 'No disponible' : '${sensor.sensorAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Estimación con presión estándar; calibra para mayor precisión'),
           const SizedBox(height: 12),
           _MetricCard(icon: Icons.gps_fixed, title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
           const SizedBox(height: 12),
@@ -51,7 +52,7 @@ class InstrumentsPage extends ConsumerWidget {
 class _IntroCard extends StatelessWidget {
   const _IntroCard();
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [Icon(Icons.explore_outlined, size: 42, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 14), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Herramientas de campo', style: TextStyle(fontWeight: FontWeight.w800)), SizedBox(height: 4), Text('Brújula, presión y altitud usando los sensores del teléfono.')]))])));
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/compass.webp', size: 52), const SizedBox(width: 14), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Herramientas de campo', style: TextStyle(fontWeight: FontWeight.w800)), SizedBox(height: 4), Text('Brújula, presión y altitud usando los sensores del teléfono.')]))])));
 }
 
 class _CompassCard extends StatelessWidget {
@@ -90,14 +91,15 @@ class _ToolCard extends StatelessWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.icon, required this.title, required this.value, required this.subtitle, this.trailing});
+  const _MetricCard({required this.icon, required this.title, required this.value, required this.subtitle, this.trailing, this.visualIcon});
   final IconData icon;
+  final Widget? visualIcon;
   final String title;
   final String value;
   final String subtitle;
   final Widget? trailing;
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(icon, size: 32), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(value, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 2), Text(subtitle, style: Theme.of(context).textTheme.bodySmall)])), if (trailing != null) trailing!])));
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [visualIcon ?? Icon(icon, size: 32), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(value, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 2), Text(subtitle, style: Theme.of(context).textTheme.bodySmall)])), if (trailing != null) trailing!])));
 }
 
 String _cardinalDirection(double heading) {

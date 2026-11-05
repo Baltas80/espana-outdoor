@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-/// Official España Outdoor vector icon set. All assets use a 24x24 grid,
-/// consistent 1.8px strokes and transparent backgrounds.
+/// Premium España Outdoor icon library. Every icon resolves to an independent
+/// raster asset generated from the approved artwork.
 enum EOIconName {
   compass,
   map,
@@ -35,19 +34,20 @@ class EOIcon extends StatelessWidget {
   final Color? color;
   final String? semanticLabel;
 
-  String get asset => 'assets/visuals/icons/library/${name.name}.svg';
+  String get asset =>
+      'assets/visuals/icons/library/premium/${name.name}.webp';
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
+    return Image.asset(
       asset,
       width: size,
       height: size,
       fit: BoxFit.contain,
-      colorFilter: color == null
-          ? null
-          : ColorFilter.mode(color!, BlendMode.srcIn),
-      semanticsLabel: semanticLabel ?? name.name,
+      filterQuality: FilterQuality.high,
+      color: color,
+      colorBlendMode: color == null ? null : BlendMode.srcIn,
+      semanticLabel: semanticLabel ?? name.name,
     );
   }
 }

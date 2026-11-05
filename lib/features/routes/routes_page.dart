@@ -54,7 +54,7 @@ class _RoutesPageState extends State<RoutesPage> {
           IconButton(
             tooltip: 'Importar GPX',
             onPressed: _importGpx,
-            icon: const Icon(Icons.file_upload_outlined),
+            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/gpx.webp', size: 28),
           ),
         ],
       ),
@@ -74,17 +74,24 @@ class _RoutesPageState extends State<RoutesPage> {
             child: Row(
               children: [
                 for (final item in const [
-                  'Todas',
-                  'Senderismo',
-                  'MTB',
-                  'Cicloturismo',
+                  ('Todas', null),
+                  ('Senderismo', 'hiking'),
+                  ('MTB', 'cycling'),
+                  ('Cicloturismo', 'cycling'),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
-                      label: Text(item),
-                      selected: _filter == item,
-                      onSelected: (_) => setState(() => _filter = item),
+                      avatar: item.$2 == null
+                          ? null
+                          : OutdoorAssetIcon(
+                              asset:
+                                  'assets/visuals/icons/library/premium/${item.$2}.webp',
+                              size: 24,
+                            ),
+                      label: Text(item.$1),
+                      selected: _filter == item.$1,
+                      onSelected: (_) => setState(() => _filter = item.$1),
                     ),
                   ),
               ],
@@ -93,7 +100,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 16),
           _RouteVisualCard(
             asset: 'assets/images/routes/lagos_covadonga.jpg',
-            icon: 'assets/visuals/icons/library/route.svg',
+            icon: 'assets/visuals/icons/library/premium/route.webp',
             title: 'Lagos de Covadonga',
             subtitle: 'Picos de Europa · Asturias',
             meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
@@ -102,7 +109,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 12),
           _RouteVisualCard(
             asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
-            icon: 'assets/visuals/icons/library/nature.svg',
+            icon: 'assets/visuals/icons/library/premium/nature.webp',
             title: 'Mulhacén · Sierra Nevada',
             subtitle: 'Sierra Nevada · Granada',
             meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
@@ -111,7 +118,7 @@ class _RoutesPageState extends State<RoutesPage> {
           const SizedBox(height: 12),
           _RouteVisualCard(
             asset: 'assets/images/routes/caminito_del_rey.jpg',
-            icon: 'assets/visuals/icons/library/map.svg',
+            icon: 'assets/visuals/icons/library/premium/map.webp',
             title: 'Caminito del Rey',
             subtitle: 'Málaga · Andalucía',
             meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
@@ -135,13 +142,13 @@ class _RoutesPageState extends State<RoutesPage> {
           ],
           FilledButton.icon(
             onPressed: () => context.push('/routes/planner'),
-            icon: const Icon(Icons.alt_route),
+            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/route.webp', size: 24),
             label: const Text('Planificar una ruta'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: _importGpx,
-            icon: const Icon(Icons.upload_file_outlined),
+            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/gpx.webp', size: 24),
             label: const Text('Importar GPX'),
           ),
         ],
@@ -216,14 +223,14 @@ class _RouteVisualCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
-                    padding: const EdgeInsets.all(8),
+                    width: 50,
+                    height: 50,
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: .34),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: OutdoorAssetIcon(asset: icon, size: 26),
+                    child: OutdoorAssetIcon(asset: icon, size: 38),
                   ),
                   const Spacer(),
                   Text(

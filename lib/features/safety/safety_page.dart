@@ -119,7 +119,14 @@ class _SafetyPageState extends State<SafetyPage> {
             title: 'SOS / Emergencia',
             subtitle: 'Llamada y ubicación en tiempo real.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          const Center(
+            child: OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/safety.webp',
+              size: 72,
+            ),
+          ),
+          const SizedBox(height: 10),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -183,21 +190,21 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 10),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/wildlife.svg',
+            asset: 'assets/visuals/icons/library/premium/wildlife.webp',
             title: 'Fauna y flora',
             subtitle: 'Respeta la naturaleza y anticipa riesgos.',
             onTap: () => context.go('/wildlife'),
           ),
           const SizedBox(height: 8),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/pets.svg',
+            asset: 'assets/visuals/icons/library/premium/pets.webp',
             title: 'Mascotas',
             subtitle: 'Calor, agua, normativa y preparación.',
             onTap: () => context.go('/pets'),
           ),
           const SizedBox(height: 8),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/natura.svg',
+            asset: 'assets/visuals/icons/library/premium/nature.webp',
             title: 'NATURA PROTECT',
             subtitle: 'Espacios sensibles y navegación responsable.',
             onTap: () => context.go('/natura'),

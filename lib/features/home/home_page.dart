@@ -55,32 +55,32 @@ class HomePage extends StatelessWidget {
                     _FeatureGrid(
                       items: [
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/route.svg',
+                          asset: 'assets/visuals/icons/library/premium/route.webp',
                           label: 'Rutas',
                           onTap: () => context.go('/routes'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/map.svg',
+                          asset: 'assets/visuals/icons/library/premium/map.webp',
                           label: 'Mapa',
                           onTap: () => context.go('/map'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/offline.svg',
+                          asset: 'assets/visuals/icons/library/premium/offline.webp',
                           label: 'Offline',
                           onTap: () => context.go('/offline'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/pets.svg',
+                          asset: 'assets/visuals/icons/library/premium/pets.webp',
                           label: 'Mascotas',
                           onTap: () => context.go('/pets'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/wildlife.svg',
+                          asset: 'assets/visuals/icons/library/premium/wildlife.webp',
                           label: 'Fauna',
                           onTap: () => context.go('/wildlife'),
                         ),
                         _HomeFeature(
-                          asset: 'assets/visuals/icons/library/nature.svg',
+                          asset: 'assets/visuals/icons/library/premium/nature.webp',
                           label: 'Natura 2000',
                           onTap: () => context.go('/natura'),
                         ),
@@ -105,7 +105,7 @@ class HomePage extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const OutdoorAssetIcon(
-                                  asset: 'assets/visuals/icons/library/safety.svg',
+                                  asset: 'assets/visuals/icons/library/premium/safety.webp',
                                   size: 44,
                                 ),
                               ),
@@ -194,7 +194,7 @@ class _HomeFeature extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutdoorAssetIcon(asset: asset, size: 36),
+            OutdoorAssetIcon(asset: asset, size: 48),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -221,20 +221,20 @@ class _ReadinessCard extends StatelessWidget {
         child: Column(
           children: [
             _ReadinessRow(
-              asset: 'assets/visuals/icons/library/offline.svg',
+              asset: 'assets/visuals/icons/library/premium/offline.webp',
               label: 'Mapa offline',
               value: 'Preparar',
               onTap: () => context.go('/offline'),
             ),
             const Divider(height: 24),
             const _ReadinessRow(
-              asset: 'assets/visuals/icons/library/map.svg',
+              asset: 'assets/visuals/icons/library/premium/map.webp',
               label: 'Ubicación',
               value: 'Disponible',
             ),
             const Divider(height: 24),
             _ReadinessRow(
-              asset: 'assets/visuals/icons/library/safety.svg',
+              asset: 'assets/visuals/icons/library/premium/safety.webp',
               label: 'Contacto de confianza',
               value: 'Configurar',
               onTap: () => context.go('/safety/contacts'),
@@ -268,7 +268,7 @@ class _ReadinessRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            OutdoorAssetIcon(asset: asset, size: 30),
+            OutdoorAssetIcon(asset: asset, size: 34),
             const SizedBox(width: 12),
             Expanded(child: Text(label)),
             Text(

@@ -45,8 +45,10 @@ class NaturaProtectPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.forest_outlined,
-                      size: 36, color: theme.colorScheme.onPrimaryContainer),
+                  const OutdoorAssetIcon(
+                    asset: 'assets/visuals/icons/library/premium/nature.webp',
+                    size: 56,
+                  ),
                   const SizedBox(height: 12),
                   Text('Descubre. Respeta. Conserva.',
                       style: theme.textTheme.headlineSmall?.copyWith(

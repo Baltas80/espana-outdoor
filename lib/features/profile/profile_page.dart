@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
+import '../../app/outdoor_visuals.dart';
 import '../../core/auth/community_identity_api.dart';
 import '../../core/auth/oidc_config.dart';
 import '../../core/auth/oidc_service.dart';
@@ -145,6 +146,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8),
+          child: OutdoorAssetIcon(
+            asset: 'assets/visuals/icons/library/premium/profile.webp',
+            size: 32,
+          ),
+        ),
         title: const Text('Perfil'),
         actions: [
           IconButton(

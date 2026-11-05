@@ -157,7 +157,14 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           OutdoorVisualHero(asset: 'assets/visuals/hero_rescue.svg', title: 'Rescue Link', subtitle: 'Ayuda cercana, con controles de seguridad y privacidad.'),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          const Center(
+            child: OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/rescue.webp',
+              size: 80,
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
