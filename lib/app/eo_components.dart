@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'eo_icons.dart';
+import 'design_system/eo_icon_library.dart';
 
 /// España Outdoor V1 component system.
 ///
@@ -250,12 +250,12 @@ class EONavigationBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onDestinationSelected;
 
-  static const destinations = <(IconData, String)>[
-    (EOIcons.explore, 'Explorar'),
-    (EOIcons.map, 'Mapa'),
-    (EOIcons.routes, 'Rutas'),
-    (EOIcons.safety, 'Seguridad'),
-    (EOIcons.profile, 'Perfil'),
+  static const destinations = <(EOIconName, String)>[
+    (EOIconName.compass, 'Explorar'),
+    (EOIconName.map, 'Mapa'),
+    (EOIconName.route, 'Rutas'),
+    (EOIconName.safety, 'Seguridad'),
+    (EOIconName.profile, 'Perfil'),
   ];
 
   @override
@@ -296,7 +296,7 @@ class _EONavItem extends StatelessWidget {
 
   final int index;
   final int currentIndex;
-  final (IconData, String) destination;
+  final (EOIconName, String) destination;
   final ValueChanged<int> onTap;
 
   @override
@@ -330,7 +330,7 @@ class _EONavItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(destination.$1, size: 23, color: color),
+                  EOIcon(destination.$1, size: 23, color: color, semanticLabel: destination.$2),
                   const SizedBox(height: 4),
                   Text(
                     destination.$2,
