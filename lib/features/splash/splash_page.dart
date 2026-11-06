@@ -102,7 +102,7 @@ class _SplashPageState extends State<SplashPage> {
                                 letterSpacing: -0.9,
                                 shadows: const [
                                   Shadow(
-                                    color: Color(0x330FFFFFF),
+                                    color: Color(0x33FFFFFF),
                                     blurRadius: 10,
                                   ),
                                 ],
