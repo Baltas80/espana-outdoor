@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import os
 import plistlib
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_ANDROID_APPLICATION_ID = "com.espanaoutdoors.espana_outdoors"
+EXPECTED_ANDROID_APPLICATION_ID = os.environ.get(
+    "ANDROID_APPLICATION_ID", "com.espanaoutdoors.espana_outdoors"
+).strip()
 
 ANDROID_PERMISSIONS = {
     "android.permission.ACCESS_COARSE_LOCATION",
