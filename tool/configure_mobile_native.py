@@ -98,13 +98,13 @@ def patch_android() -> None:
         "ANDROID_APPLICATION_ID", "com.espanaoutdoors.espana_outdoors"
     ).strip()
     if not re.fullmatch(
-        r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+",
+        r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+",
         application_id,
     ):
         raise SystemExit("ANDROID_APPLICATION_ID is not a valid Android package name.")
 
     app_id_pattern = re.compile(
-        r"""(?m)^(\\s*applicationId(?:\\s*=\\s*|\\s+))(["'])([^"']+)(["'])\\s*$"""
+        r"""(?m)^(\s*applicationId(?:\s*=\s*|\s+))(["'])([^"']+)(["'])\s*$"""
     )
     gradle, app_id_count = app_id_pattern.subn(
         lambda match: (
@@ -122,7 +122,7 @@ def patch_android() -> None:
         "ANDROID_APP_AUTH_REDIRECT_SCHEME", "com.espanaoutdoors"
     ).strip()
     if not re.fullmatch(
-        r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)*",
+        r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*",
         redirect_scheme,
     ):
         raise SystemExit("ANDROID_APP_AUTH_REDIRECT_SCHEME is invalid.")
