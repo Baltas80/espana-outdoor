@@ -40,6 +40,11 @@ env:
 jobs:
   android-staging:
     runs-on: ubuntu-latest
+    # Install staging previews side-by-side with the production package.
+    # Never overwrite the user's installed app with a runner-specific debug signature.
+    env:
+      ANDROID_APPLICATION_ID: com.espanaoutdoors.espana_outdoors.iconspreview
+      ANDROID_APP_AUTH_REDIRECT_SCHEME: com.espanaoutdoors
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Check staging endpoints
