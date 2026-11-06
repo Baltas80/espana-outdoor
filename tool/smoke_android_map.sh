@@ -44,22 +44,36 @@ if start < 0 or end < 0:
 root = ET.fromstring(raw[start:end + len("</hierarchy>")])
 for node in root.iter("node"):
     text = (node.attrib.get("text") or "").strip()
-    if "isn't responding" not in text and "isn\u0027t responding" not in text:
+    if "isn't responding" not in text and "isn\\u0027t responding" not in text:
         continue
-    suffix = " isn't responding" if text.endswith(" isn't responding") else " isn\u0027t responding"
+    suffix = " isn't responding" if text.endswith(" isn't responding") else " isn\\u0027t responding"
     owner = text[:-len(suffix)]
     if owner == target:
         print(f"APP_ANR|{text}")
         raise SystemExit(3)
+
+    buttons = {}
     for child in root.iter("node"):
-        if (child.attrib.get("text") or "").strip() != "Wait":
+        label = (child.attrib.get("text") or "").strip()
+        if label not in ("Wait", "Close app"):
             continue
-        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", child.attrib.get("bounds", ""))
+        match = re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", child.attrib.get("bounds", ""))
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
-            print(f"SYSTEM_ANR|{owner}|{(x1+x2)//2}|{(y1+y2)//2}")
-            raise SystemExit(0)
-    print(f"SYSTEM_ANR|{owner}||")
+            buttons[label] = ((x1+x2)//2, (y1+y2)//2)
+
+    # Pixel Launcher can remain ANR-blocked after a cold emulator boot.
+    # Close only this unrelated launcher process to uncover the app UI;
+    # an ANR belonging to the target application remains a hard failure.
+    if "launcher" in owner.lower() and "Close app" in buttons:
+        x, y = buttons["Close app"]
+        print(f"SYSTEM_ANR_CLOSE|{owner}|{x}|{y}")
+        raise SystemExit(0)
+    if "Wait" in buttons:
+        x, y = buttons["Wait"]
+        print(f"SYSTEM_ANR_WAIT|{owner}|{x}|{y}")
+        raise SystemExit(0)
+    print(f"SYSTEM_ANR_WAIT|{owner}||")
     raise SystemExit(0)
 raise SystemExit(1)
 PY
@@ -76,14 +90,32 @@ PY
       exit 1
     fi
 
-    IFS='|' read -r kind owner wait_x wait_y <"${result}"
-    test "${kind}" = "SYSTEM_ANR"
-    if test -n "${wait_x}" && test -n "${wait_y}"; then
-      echo "Dismissing system ANR for ${owner} with Wait"
-      adb shell input tap "${wait_x}" "${wait_y}"
-    else
-      adb shell input keyevent 4
-    fi
+    IFS='|' read -r kind owner action_x action_y <"${result}"
+    case "${kind}" in
+      SYSTEM_ANR_CLOSE)
+        echo "Closing unrelated unresponsive launcher ${owner} to uncover the app under test"
+        if test -n "${action_x}" && test -n "${action_y}"; then
+          adb shell input tap "${action_x}" "${action_y}"
+        else
+          echo "FAIL: Close app action unavailable for unrelated launcher ANR."
+          cat "${file}"
+          exit 1
+        fi
+        ;;
+      SYSTEM_ANR_WAIT)
+        echo "Dismissing unrelated system ANR for ${owner} with Wait"
+        if test -n "${action_x}" && test -n "${action_y}"; then
+          adb shell input tap "${action_x}" "${action_y}"
+        else
+          adb shell input keyevent 4
+        fi
+        ;;
+      *)
+        echo "FAIL: unexpected Android ANR classification: ${kind}"
+        cat "${file}"
+        exit 1
+        ;;
+    esac
     sleep 2
   done
   ui_dump "${file}"
