@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import plistlib
 import re
 from pathlib import Path
@@ -93,6 +94,130 @@ def patch_android() -> None:
         raise SystemExit("Missing generated Android app Gradle file.")
 
     gradle = gradle_path.read_text(encoding="utf-8")
+    application_id = os.environ.get(
+        "ANDROID_APPLICATION_ID", "com.espanaoutdoors.espana_outdoors"
+    ).strip()
+    if not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+",
+        application_id,
+    ):
+        raise SystemExit("ANDROID_APPLICATION_ID is not a valid Android package name.")
+    app_id_pattern = re.compile(
+        r'''(?m)^(\\s*applicationId(?:\\s*=\\s*|\\s+))(["'])([^"']+)(["'])\\s*
+        # AGP 9 has built-in Kotlin; Flutter's generated app template can still
+        # apply the legacy Kotlin Android plugin, which AGP 9 rejects.
+        gradle = re.sub(
+            r"""(?m)^\s*id\(["'](?:org\.jetbrains\.kotlin\.android|kotlin-android)["']\)\s*\n""",
+            "",
+            gradle,
+        )
+        gradle = gradle.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
+        placeholder = (
+            '        manifestPlaceholders["appAuthRedirectScheme"] = '
+            f'"{redirect_scheme}"'
+        )
+    else:
+        gradle = gradle.replace(
+            "minSdkVersion flutter.minSdkVersion",
+            "minSdkVersion 24",
+        )
+        placeholder = (
+            '        manifestPlaceholders = '
+            f'[appAuthRedirectScheme: "{redirect_scheme}"]'
+        )
+
+    if "appAuthRedirectScheme" not in gradle:
+        default_config = "    defaultConfig {"
+        if default_config not in gradle:
+            raise SystemExit("Android Gradle file has no defaultConfig block.")
+        gradle = gradle.replace(
+            default_config,
+            f"{default_config}\n{placeholder}",
+            1,
+        )
+
+    gradle_path.write_text(gradle, encoding="utf-8")
+
+    # AGP 9 exposes the Kotlin DSL to plugins through built-in Kotlin.
+    # Mapbox's Android module configures the kotlin {} extension; disabling
+    # built-in Kotlin makes that extension unavailable and breaks the build.
+    # Flutter 3.47 supports opting in, so keep it enabled for this AGP 9 project.
+    gradle_properties = ROOT / "android" / "gradle.properties"
+    if not gradle_properties.exists():
+        raise SystemExit("Missing generated Android gradle.properties.")
+    properties = gradle_properties.read_text(encoding="utf-8")
+    property_line = "android.builtInKotlin=true"
+    lines = [line for line in properties.splitlines() if not line.startswith("android.builtInKotlin=")]
+    lines.append(property_line)
+    gradle_properties.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def patch_ios() -> None:
+    plist_path = ROOT / "ios" / "Runner" / "Info.plist"
+    if not plist_path.exists():
+        raise SystemExit(f"Missing generated iOS Info.plist: {plist_path}")
+
+    with plist_path.open("rb") as handle:
+        plist = plistlib.load(handle)
+
+    plist.setdefault(
+        "NSLocationWhenInUseUsageDescription",
+        "España Outdoor necesita tu ubicación para GPS, navegación, grabación de rutas y funciones de seguridad.",
+    )
+    plist.setdefault(
+        "NSLocationAlwaysAndWhenInUseUsageDescription",
+        "España Outdoor puede necesitar tu ubicación en segundo plano mientras grabas o navegas una ruta.",
+    )
+
+    modes = plist.setdefault("UIBackgroundModes", [])
+    if "location" not in modes:
+        modes.append("location")
+
+    with plist_path.open("wb") as handle:
+        plistlib.dump(plist, handle, fmt=plistlib.FMT_XML, sort_keys=False)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Apply platform-specific native configuration after flutter create."
+    )
+    parser.add_argument(
+        "--platform",
+        choices=("android", "ios", "all"),
+        default="all",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    if args.platform in ("android", "all"):
+        patch_android()
+    if args.platform in ("ios", "all"):
+        patch_ios()
+    print(f"Mobile native configuration applied: {args.platform}.")
+''
+    )
+    gradle, app_id_count = app_id_pattern.subn(
+        lambda match: f"{match.group(1)}{match.group(2)}{application_id}{match.group(4)}",
+        gradle,
+    )
+    if app_id_count != 1:
+        raise SystemExit(
+            "Expected exactly one Android applicationId declaration; "
+            f"found {app_id_count}."
+        )
+
+    redirect_scheme = os.environ.get(
+        "ANDROID_APP_AUTH_REDIRECT_SCHEME", "com.espanaoutdoors"
+    ).strip()
+    if not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)*",
+        redirect_scheme,
+    ):
+        raise SystemExit("ANDROID_APP_AUTH_REDIRECT_SCHEME is invalid.")
+    gradle = gradle.replace('"com.espanaoutdoors"', f'"{redirect_scheme}"')
+
     if gradle_path.suffix == ".kts":
         # AGP 9 has built-in Kotlin; Flutter's generated app template can still
         # apply the legacy Kotlin Android plugin, which AGP 9 rejects.
