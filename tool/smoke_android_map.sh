@@ -44,9 +44,9 @@ if start < 0 or end < 0:
 root = ET.fromstring(raw[start:end + len("</hierarchy>")])
 for node in root.iter("node"):
     text = (node.attrib.get("text") or "").strip()
-    if "isn't responding" not in text and "isn\\u0027t responding" not in text:
+    if "isn't responding" not in text and "isn\u0027t responding" not in text:
         continue
-    suffix = " isn't responding" if text.endswith(" isn't responding") else " isn\\u0027t responding"
+    suffix = " isn't responding" if text.endswith(" isn't responding") else " isn\u0027t responding"
     owner = text[:-len(suffix)]
     if owner == target:
         print(f"APP_ANR|{text}")
@@ -57,7 +57,7 @@ for node in root.iter("node"):
         label = (child.attrib.get("text") or "").strip()
         if label not in ("Wait", "Close app"):
             continue
-        match = re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", child.attrib.get("bounds", ""))
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", child.attrib.get("bounds", ""))
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
             buttons[label] = ((x1+x2)//2, (y1+y2)//2)
