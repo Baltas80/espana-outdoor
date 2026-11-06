@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/brand.dart';
@@ -16,10 +19,14 @@ class _SplashPageState extends State<SplashPage> {
   static const _minimumDisplayDuration = Duration(milliseconds: 1200);
 
   Timer? _timer;
+  late final Future<Uint8List> _heroBytes;
 
   @override
   void initState() {
     super.initState();
+    _heroBytes = rootBundle
+        .loadString('assets/backgrounds/splash_hero.webp.base64')
+        .then((encoded) => base64Decode(encoded.trim()));
     _timer = Timer(_minimumDisplayDuration, () {
       if (mounted) context.go('/');
     });
@@ -45,14 +52,28 @@ class _SplashPageState extends State<SplashPage> {
             children: [
               Semantics(
                 excludeSemantics: true,
-                child: Image.asset(
-                  'assets/backgrounds/splash_hero.webp',
-                  key: const ValueKey('splash-hero-background'),
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  filterQuality: FilterQuality.high,
+                child: FutureBuilder<Uint8List>(
+                  future: _heroBytes,
+                  builder: (context, snapshot) {
+                    final bytes = snapshot.data;
+                    if (bytes == null) {
+                      return const ColoredBox(
+                        color: OutdoorBrand.darkBackground,
+                      );
+                    }
+                    return Image.memory(
+                      bytes,
+                      key: const ValueKey('splash-hero-background'),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      width: constraints.maxWidth,
+                      height: constraints.maxHeight,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (_, __, ___) => const ColoredBox(
+                        color: OutdoorBrand.darkBackground,
+                      ),
+                    );
+                  },
                 ),
               ),
               const Positioned.fill(
