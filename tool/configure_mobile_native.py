@@ -139,7 +139,7 @@ def patch_android() -> None:
         gradle = gradle.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
         placeholder = (
             '        manifestPlaceholders["appAuthRedirectScheme"] = '
-            '"com.espanaoutdoors"'
+            f'"{redirect_scheme}"'
         )
     else:
         gradle = gradle.replace(
@@ -148,7 +148,7 @@ def patch_android() -> None:
         )
         placeholder = (
             '        manifestPlaceholders = '
-            '[appAuthRedirectScheme: "com.espanaoutdoors"]'
+            f'[appAuthRedirectScheme: "{redirect_scheme}"]'
         )
 
     if "appAuthRedirectScheme" not in gradle:
