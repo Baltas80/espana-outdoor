@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
-import '../../app/outdoor_visuals.dart';
 import '../../app/design_system/eo_icon_library.dart';
 import '../../core/auth/community_identity_api.dart';
 import '../../core/auth/oidc_config.dart';
@@ -270,8 +269,8 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Mapas offline',
             onTap: () => context.go('/offline'),
           ),
-          _ProfileItem(
-            icon: const EOIcon(EOIconName.photos, size: 36),
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.photos, size: 36),
             title: 'Mis fotos',
           ),
           _ProfileItem(
@@ -279,12 +278,12 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Puntos de interés',
             onTap: () => context.go('/explore'),
           ),
-          _ProfileItem(
-            icon: const EOIcon(EOIconName.history, size: 36),
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.history, size: 36),
             title: 'Historial',
           ),
-          _ProfileItem(
-            icon: const EOIcon(EOIconName.achievements, size: 36),
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.achievements, size: 36),
             title: 'Logros',
           ),
           const SizedBox(height: 16),

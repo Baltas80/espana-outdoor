@@ -12,7 +12,7 @@ class ExplorePage extends StatelessWidget {
     (title: 'Mascotas', icon: EOIconName.pets, description: 'Rutas compatibles y riesgos'),
     (title: 'Fauna', icon: EOIconName.wildlife, description: 'Encuentros y conservación'),
     (title: 'Meteorología', icon: EOIconName.weather, description: 'Condiciones para tu salida'),
-    (title: 'Incendios', icon: EOIconName.wildfire, fallback: null, description: 'Situación y avisos'),
+    (title: 'Incendios', icon: EOIconName.wildfire, description: 'Situación y avisos'),
     (title: 'Offline', icon: EOIconName.offline, description: 'Prepara zonas sin conexión'),
   ];
 
