@@ -68,7 +68,7 @@ class ExplorePage extends StatelessWidget {
           const SizedBox(height: 24),
           Card(
             child: ListTile(
-              leading: const EOIcon(EOIconName.poi, size: 40),
+              leading: const EOIcon(EOIconName.map, size: 40),
               title: const Text('Abrir mapa'),
               subtitle: const Text('Explora el territorio y prepara tu recorrido.'),
               trailing: const Icon(Icons.chevron_right),
