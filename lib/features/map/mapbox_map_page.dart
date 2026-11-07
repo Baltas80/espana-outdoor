@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../app/eo_components.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/location/route_recorder.dart';
 import '../menu/menu_sheet.dart';
@@ -138,7 +139,7 @@ class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.map_outlined, color: EOColors.green),
+                  const EOIcon(EOIconName.map, size: 28),
                   const SizedBox(width: EOSpacing.sm),
                   Expanded(
                     child: Text(
