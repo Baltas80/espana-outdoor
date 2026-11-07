@@ -274,7 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
             onTap: () => context.go('/offline'),
           ),
           _ProfileItem(
-            icon: Icons.photo_library_outlined,
+            icon: const Icon(Icons.photo_library_outlined),
             title: 'Mis fotos',
           ),
           _ProfileItem(
@@ -283,11 +283,11 @@ class _ProfilePageState extends State<ProfilePage> {
             onTap: () => context.go('/explore'),
           ),
           _ProfileItem(
-            icon: Icons.history,
+            icon: const Icon(Icons.history),
             title: 'Historial',
           ),
           _ProfileItem(
-            icon: Icons.emoji_events_outlined,
+            icon: const Icon(Icons.emoji_events_outlined),
             title: 'Logros',
           ),
           const SizedBox(height: 16),

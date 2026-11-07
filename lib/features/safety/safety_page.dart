@@ -162,7 +162,7 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.contact_emergency_outlined,
+            icon: const Icon(Icons.contact_emergency_outlined, size: 30),
             title: 'Contactos',
             subtitle: 'Contactos de emergencia',
             onTap: () => context.go('/safety/contacts'),
@@ -176,7 +176,7 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.cell_tower_outlined,
+            icon: const Icon(Icons.cell_tower_outlined, size: 30),
             title: 'Cobertura',
             subtitle: 'Señal y comunicación',
             onTap: () => context.go('/map'),

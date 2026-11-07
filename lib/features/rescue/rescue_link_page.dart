@@ -199,12 +199,12 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
             subtitle: '112 y servicios competentes tienen prioridad.',
           ),
           const _RoleTile(
-            icon: Icons.contact_emergency_outlined,
+            icon: const Icon(Icons.contact_emergency_outlined),
             title: '2. Contactos de confianza',
             subtitle: 'Personas elegidas por el usuario.',
           ),
           const _RoleTile(
-            icon: Icons.volunteer_activism_outlined,
+            icon: const Icon(Icons.volunteer_activism_outlined),
             title: '3. Voluntarios autorizados',
             subtitle: 'Solo cuando el escenario sea apto y con controles de riesgo.',
           ),
