@@ -40,7 +40,7 @@ class BacktrackPage extends ConsumerWidget {
               padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  Icon(Icons.undo, size: 40, color: Theme.of(context).colorScheme.primary),
+                  const EOIcon(EOIconName.backtrack, size: 52),
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Column(

@@ -149,17 +149,14 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: AppBar(
         leading: const Padding(
           padding: EdgeInsets.all(8),
-          child: OutdoorAssetIcon(
-            asset: 'assets/visuals/icons/library/premium/profile.webp',
-            size: 32,
-          ),
+          child: EOIcon(EOIconName.profile, size: 32),
         ),
         title: const Text('Perfil'),
         actions: [
           IconButton(
             tooltip: 'Configuración',
             onPressed: () {},
-            icon: const Icon(Icons.settings_outlined),
+            icon: const EOIcon(EOIconName.settings, size: 30),
           ),
         ],
       ),
@@ -274,27 +271,27 @@ class _ProfilePageState extends State<ProfilePage> {
             onTap: () => context.go('/offline'),
           ),
           _ProfileItem(
-            icon: const Icon(Icons.photo_library_outlined),
+            icon: const EOIcon(EOIconName.photos, size: 36),
             title: 'Mis fotos',
           ),
           _ProfileItem(
-            icon: const EOIcon(EOIconName.map, size: 36),
+            icon: const EOIcon(EOIconName.poi, size: 36),
             title: 'Puntos de interés',
             onTap: () => context.go('/explore'),
           ),
           _ProfileItem(
-            icon: const Icon(Icons.history),
+            icon: const EOIcon(EOIconName.history, size: 36),
             title: 'Historial',
           ),
           _ProfileItem(
-            icon: const Icon(Icons.emoji_events_outlined),
+            icon: const EOIcon(EOIconName.achievements, size: 36),
             title: 'Logros',
           ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
               onTap: () => context.go('/profile/plans'),
-              leading: const Icon(Icons.workspace_premium_outlined),
+              leading: const EOIcon(EOIconName.plans, size: 42),
               title: const Text(
                 'Free · Premium · Professional',
                 style: TextStyle(fontWeight: FontWeight.w800),

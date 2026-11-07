@@ -33,9 +33,9 @@ class InstrumentsPage extends ConsumerWidget {
           const SizedBox(height: 12),
           _MetricCard(icon: Icons.gps_fixed, visualIcon: const EOIcon(EOIconName.map, size: 42), title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
           const SizedBox(height: 12),
-          _ToolCard(icon: Icons.nightlight_round, title: 'Astronomía de campo', subtitle: 'Sol, amanecer, puesta, posición solar y fase lunar sin conexión.', onTap: () => context.push('/astronomy')),
+          _ToolCard(icon: const EOIcon(EOIconName.astronomy, size: 42), title: 'Astronomía de campo', subtitle: 'Sol, amanecer, puesta, posición solar y fase lunar sin conexión.', onTap: () => context.push('/astronomy')),
           const SizedBox(height: 10),
-          _ToolCard(icon: Icons.thunderstorm_outlined, title: 'Distancia de tormenta', subtitle: 'Estima la distancia de un rayo con el intervalo entre destello y trueno.', onTap: () => context.push('/weather/lightning')),
+          _ToolCard(icon: const Icon(Icons.thunderstorm_outlined), title: 'Distancia de tormenta', subtitle: 'Estima la distancia de un rayo con el intervalo entre destello y trueno.', onTap: () => context.push('/weather/lightning')),
           if (sensor.error != null) ...[
             const SizedBox(height: 12),
             Card(color: Theme.of(context).colorScheme.errorContainer, child: Padding(padding: const EdgeInsets.all(16), child: Text(sensor.error!))),
@@ -83,12 +83,12 @@ class _CompassCard extends StatelessWidget {
 
 class _ToolCard extends StatelessWidget {
   const _ToolCard({required this.icon, required this.title, required this.subtitle, required this.onTap});
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Card(child: ListTile(leading: Icon(icon), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_right), onTap: onTap));
+  Widget build(BuildContext context) => Card(child: ListTile(leading: icon, title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_right), onTap: onTap));
 }
 
 class _MetricCard extends StatelessWidget {

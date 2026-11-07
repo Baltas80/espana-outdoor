@@ -14,7 +14,7 @@ class MenuSheet extends StatelessWidget {
     (icon: EOIcon(EOIconName.compass, size: 32), label: 'Instrumentos', route: '/instruments'),
     (icon: EOIcon(EOIconName.nature, size: 32), label: 'Naturaleza', route: '/natura'),
     (icon: EOIcon(EOIconName.wildlife, size: 32), label: 'Fauna', route: '/wildlife'),
-    (icon: EOIcon(EOIconName.profile, size: 32), label: 'Ajustes', route: '/profile'),
+    (icon: EOIcon(EOIconName.settings, size: 32), label: 'Ajustes', route: '/profile'),
   ];
 
   @override

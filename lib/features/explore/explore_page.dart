@@ -7,13 +7,13 @@ class ExplorePage extends StatelessWidget {
   const ExplorePage({super.key});
 
   static const _areas = <
-      ({String title, EOIconName? icon, IconData? fallback, String description})>[
-    (title: 'Rutas', icon: EOIconName.route, fallback: null, description: 'Senderismo, trail y bicicleta'),
-    (title: 'Mascotas', icon: EOIconName.pets, fallback: null, description: 'Rutas compatibles y riesgos'),
-    (title: 'Fauna', icon: EOIconName.wildlife, fallback: null, description: 'Encuentros y conservación'),
-    (title: 'Meteorología', icon: EOIconName.weather, fallback: null, description: 'Condiciones para tu salida'),
-    (title: 'Incendios', icon: null, fallback: Icons.local_fire_department_outlined, description: 'Situación y avisos'),
-    (title: 'Offline', icon: EOIconName.offline, fallback: null, description: 'Prepara zonas sin conexión'),
+      ({String title, EOIconName icon, String description})>[
+    (title: 'Rutas', icon: EOIconName.route, description: 'Senderismo, trail y bicicleta'),
+    (title: 'Mascotas', icon: EOIconName.pets, description: 'Rutas compatibles y riesgos'),
+    (title: 'Fauna', icon: EOIconName.wildlife, description: 'Encuentros y conservación'),
+    (title: 'Meteorología', icon: EOIconName.weather, description: 'Condiciones para tu salida'),
+    (title: 'Incendios', icon: EOIconName.wildfire, fallback: null, description: 'Situación y avisos'),
+    (title: 'Offline', icon: EOIconName.offline, description: 'Prepara zonas sin conexión'),
   ];
 
   @override
@@ -54,10 +54,7 @@ class ExplorePage extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      if (item.icon != null)
-                        EOIcon(item.icon!, size: 48)
-                      else
-                        Icon(item.fallback, size: 32),
+                      EOIcon(item.icon, size: 48),
                       const Spacer(),
                       Text(item.title, style: const TextStyle(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 2),
@@ -71,7 +68,7 @@ class ExplorePage extends StatelessWidget {
           const SizedBox(height: 24),
           Card(
             child: ListTile(
-              leading: const EOIcon(EOIconName.map, size: 40),
+              leading: const EOIcon(EOIconName.poi, size: 40),
               title: const Text('Abrir mapa'),
               subtitle: const Text('Explora el territorio y prepara tu recorrido.'),
               trailing: const Icon(Icons.chevron_right),

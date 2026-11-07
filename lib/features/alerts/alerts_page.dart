@@ -16,7 +16,7 @@ class _AlertsPageState extends State<AlertsPage> {
   static const _sources = <({String name, String description, EOIconName icon})>[
     (name: 'AEMET', description: 'Meteorología y avisos meteorológicos oficiales.', icon: EOIconName.weather),
     (name: 'Protección Civil', description: 'Emergencias, avisos y recomendaciones oficiales.', icon: EOIconName.rescue),
-    (name: 'MITECO', description: 'Incendios, medio ambiente y datos territoriales.', icon: EOIconName.nature),
+    (name: 'MITECO', description: 'Incendios, medio ambiente y datos territoriales.', icon: EOIconName.wildfire),
     (name: 'Fuentes territoriales', description: 'Comunidades autónomas y administraciones competentes.', icon: EOIconName.map),
   ];
 
@@ -57,7 +57,7 @@ class _AlertsPageState extends State<AlertsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/safety.webp', size: 46),
+                  EOIcon(EOIconName.alerts, size: 54),
                   const SizedBox(height: 12),
                   Text('Información verificable', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
