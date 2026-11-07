@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
+import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/sensors/outdoor_sensor_models.dart';
 import '../../core/sensors/outdoor_sensor_service.dart';
 
@@ -25,15 +27,15 @@ class InstrumentsPage extends ConsumerWidget {
           const SizedBox(height: 16),
           _CompassCard(sensor: sensor),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.speed_outlined, title: 'Presión atmosférica', value: sensor.pressureHpa == null ? 'No disponible' : '${sensor.pressureHpa!.toStringAsFixed(1)} hPa', subtitle: sensor.barometerAvailable ? 'Sensor barométrico del dispositivo' : 'El dispositivo no expone un barómetro compatible'),
+          _MetricCard(icon: Icons.speed_outlined, visualIcon: const EOIcon(EOIconName.weather, size: 42), title: 'Presión atmosférica', value: sensor.pressureHpa == null ? 'No disponible' : '${sensor.pressureHpa!.toStringAsFixed(1)} hPa', subtitle: sensor.barometerAvailable ? 'Sensor barométrico del dispositivo' : 'El dispositivo no expone un barómetro compatible'),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.terrain_outlined, title: 'Altitud barométrica', value: sensor.sensorAltitudeMeters == null ? 'No disponible' : '${sensor.sensorAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Estimación con presión estándar; calibra para mayor precisión'),
+          _MetricCard(icon: Icons.terrain_outlined, visualIcon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/elevation.webp', size: 42), title: 'Altitud barométrica', value: sensor.sensorAltitudeMeters == null ? 'No disponible' : '${sensor.sensorAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Estimación con presión estándar; calibra para mayor precisión'),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.gps_fixed, title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
+          _MetricCard(icon: Icons.gps_fixed, visualIcon: const EOIcon(EOIconName.map, size: 42), title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
           const SizedBox(height: 12),
-          _ToolCard(icon: Icons.nightlight_round, title: 'Astronomía de campo', subtitle: 'Sol, amanecer, puesta, posición solar y fase lunar sin conexión.', onTap: () => context.push('/astronomy')),
+          _ToolCard(icon: const EOIcon(EOIconName.astronomy, size: 42), title: 'Astronomía de campo', subtitle: 'Sol, amanecer, puesta, posición solar y fase lunar sin conexión.', onTap: () => context.push('/astronomy')),
           const SizedBox(height: 10),
-          _ToolCard(icon: Icons.thunderstorm_outlined, title: 'Distancia de tormenta', subtitle: 'Estima la distancia de un rayo con el intervalo entre destello y trueno.', onTap: () => context.push('/weather/lightning')),
+          _ToolCard(icon: const Icon(Icons.thunderstorm_outlined), title: 'Distancia de tormenta', subtitle: 'Estima la distancia de un rayo con el intervalo entre destello y trueno.', onTap: () => context.push('/weather/lightning')),
           if (sensor.error != null) ...[
             const SizedBox(height: 12),
             Card(color: Theme.of(context).colorScheme.errorContainer, child: Padding(padding: const EdgeInsets.all(16), child: Text(sensor.error!))),
@@ -51,7 +53,7 @@ class InstrumentsPage extends ConsumerWidget {
 class _IntroCard extends StatelessWidget {
   const _IntroCard();
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [Icon(Icons.explore_outlined, size: 42, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 14), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Herramientas de campo', style: TextStyle(fontWeight: FontWeight.w800)), SizedBox(height: 4), Text('Brújula, presión y altitud usando los sensores del teléfono.')]))])));
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/compass.webp', size: 52), const SizedBox(width: 14), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Herramientas de campo', style: TextStyle(fontWeight: FontWeight.w800)), SizedBox(height: 4), Text('Brújula, presión y altitud usando los sensores del teléfono.')]))])));
 }
 
 class _CompassCard extends StatelessWidget {
@@ -81,23 +83,24 @@ class _CompassCard extends StatelessWidget {
 
 class _ToolCard extends StatelessWidget {
   const _ToolCard({required this.icon, required this.title, required this.subtitle, required this.onTap});
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Card(child: ListTile(leading: Icon(icon), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_right), onTap: onTap));
+  Widget build(BuildContext context) => Card(child: ListTile(leading: icon, title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(subtitle), trailing: const Icon(Icons.chevron_right), onTap: onTap));
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.icon, required this.title, required this.value, required this.subtitle, this.trailing});
+  const _MetricCard({required this.icon, required this.title, required this.value, required this.subtitle, this.trailing, this.visualIcon});
   final IconData icon;
+  final Widget? visualIcon;
   final String title;
   final String value;
   final String subtitle;
   final Widget? trailing;
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [Icon(icon, size: 32), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(value, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 2), Text(subtitle, style: Theme.of(context).textTheme.bodySmall)])), if (trailing != null) trailing!])));
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [visualIcon ?? Icon(icon, size: 32), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(value, style: Theme.of(context).textTheme.titleLarge), const SizedBox(height: 2), Text(subtitle, style: Theme.of(context).textTheme.bodySmall)])), if (trailing != null) trailing!])));
 }
 
 String _cardinalDirection(double heading) {

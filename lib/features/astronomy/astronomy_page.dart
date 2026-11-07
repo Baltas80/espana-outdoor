@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../app/photo_atlas.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/astronomy/outdoor_astronomy_service.dart';
 
 class AstronomyPage extends StatefulWidget {
@@ -65,7 +66,7 @@ class _AstronomyPageState extends State<AstronomyPage> {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Row(children: [
-                Icon(Icons.nightlight_round, size: 42, color: Theme.of(context).colorScheme.primary),
+                const EOIcon(EOIconName.astronomy, size: 54),
                 const SizedBox(width: 14),
                 const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Cielo sin conexión', style: TextStyle(fontWeight: FontWeight.w800)),

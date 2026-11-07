@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/outdoor_visuals.dart';
 import 'lightning_providers.dart';
 
 class LightningPage extends ConsumerStatefulWidget {
@@ -35,6 +36,13 @@ class _LightningPageState extends ConsumerState<LightningPage> {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Center(
+                  child: OutdoorAssetIcon(
+                    asset: 'assets/visuals/icons/library/premium/weather.webp',
+                    size: 64,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 const Text('Calcula la distancia de un rayo', style: TextStyle(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 const Text('Cuenta los segundos entre el destello y el trueno e introdúcelos aquí.'),

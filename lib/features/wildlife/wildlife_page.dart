@@ -33,7 +33,7 @@ class WildlifePage extends ConsumerWidget {
         children: [
           const OutdoorVisualHero(asset: 'assets/visuals/hero_wildlife.svg', title: 'Fauna', subtitle: 'Guía y prevención para encuentros con especies.'),
           const SizedBox(height: 18),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [OutdoorAssetIcon(asset: 'assets/visuals/icons/wildlife.svg', size: 64)]),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/wildlife.webp', size: 72)]),
           const SizedBox(height: 16),
           Text(
             'Encuentros con fauna',

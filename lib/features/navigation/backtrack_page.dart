@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/location/route_recorder.dart';
 import '../../core/navigation/backtrack.dart';
@@ -39,7 +40,7 @@ class BacktrackPage extends ConsumerWidget {
               padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  Icon(Icons.undo, size: 40, color: Theme.of(context).colorScheme.primary),
+                  const EOIcon(EOIconName.backtrack, size: 52),
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Column(
@@ -79,14 +80,14 @@ class BacktrackPage extends ConsumerWidget {
             title: 'Puntos registrados',
             value: '${recording.points.length}',
             subtitle: recording.isRecording ? 'GrabaciÃ³n activa' : 'Inicia una ruta para generar el track',
-            icon: Icons.route,
+            icon: const EOIcon(EOIconName.route, size: 30),
           ),
           const SizedBox(height: 12),
           _StatCard(
             title: 'Distancia grabada',
             value: _distance(recording.distanceMeters),
             subtitle: recording.persistenceHealthy ? 'Persistencia local operativa' : 'Aviso: no se pudo guardar el Ãºltimo punto',
-            icon: Icons.straighten,
+            icon: const Icon(Icons.straighten),
           ),
           const SizedBox(height: 18),
           if (guidance == null)
@@ -145,12 +146,12 @@ class _StatCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
-  final IconData icon;
+  final Widget icon;
 
   @override
   Widget build(BuildContext context) => Card(
         child: ListTile(
-          leading: Icon(icon),
+          leading: icon,
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
           subtitle: Text(subtitle),
           trailing: Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),

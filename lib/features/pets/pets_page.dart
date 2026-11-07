@@ -40,7 +40,7 @@ class _PetsPageState extends State<PetsPage> {
         children: [
           const OutdoorVisualHero(asset: 'assets/visuals/hero_pets.svg', title: 'Mascotas', subtitle: 'Rutas pet-friendly y preparación antes de salir.'),
           const SizedBox(height: 18),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [OutdoorAssetIcon(asset: 'assets/visuals/icons/pets.svg', size: 64)]),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/pets.webp', size: 72)]),
           const SizedBox(height: 16),
           Text(
             'Preparación para mascotas',
