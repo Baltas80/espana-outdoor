@@ -18,6 +18,18 @@ enum EOIconName {
   gpx,
   rescue,
   profile,
+  wildfire,
+  contacts,
+  coverage,
+  photos,
+  history,
+  achievements,
+  plans,
+  settings,
+  astronomy,
+  poi,
+  alerts,
+  backtrack,
 }
 
 class EOIcon extends StatelessWidget {
