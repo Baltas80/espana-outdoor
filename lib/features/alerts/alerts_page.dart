@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 
 import '../../core/sources/source_gateway_config.dart';
 import '../../infrastructure/sources/remote_source_gateway.dart';
@@ -12,11 +13,11 @@ class AlertsPage extends StatefulWidget {
 }
 
 class _AlertsPageState extends State<AlertsPage> {
-  static const _sources = <({String name, String description, IconData icon})>[
-    (name: 'AEMET', description: 'Meteorología y avisos meteorológicos oficiales.', icon: Icons.cloud_outlined),
-    (name: 'Protección Civil', description: 'Emergencias, avisos y recomendaciones oficiales.', icon: Icons.campaign_outlined),
-    (name: 'MITECO', description: 'Incendios, medio ambiente y datos territoriales.', icon: Icons.local_fire_department_outlined),
-    (name: 'Fuentes territoriales', description: 'Comunidades autónomas y administraciones competentes.', icon: Icons.account_balance_outlined),
+  static const _sources = <({String name, String description, EOIconName icon})>[
+    (name: 'AEMET', description: 'Meteorología y avisos meteorológicos oficiales.', icon: EOIconName.weather),
+    (name: 'Protección Civil', description: 'Emergencias, avisos y recomendaciones oficiales.', icon: EOIconName.rescue),
+    (name: 'MITECO', description: 'Incendios, medio ambiente y datos territoriales.', icon: EOIconName.nature),
+    (name: 'Fuentes territoriales', description: 'Comunidades autónomas y administraciones competentes.', icon: EOIconName.map),
   ];
 
   late final Future<List<_AlertRecord>> _alertsFuture;
@@ -56,7 +57,7 @@ class _AlertsPageState extends State<AlertsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  OutdoorAssetIcon(asset: 'assets/visuals/icons/alerts.svg', size: 46),
+                  OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/safety.webp', size: 46),
                   const SizedBox(height: 12),
                   Text('Información verificable', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
@@ -101,7 +102,7 @@ class _AlertsPageState extends State<AlertsPage> {
           Text('Fuentes previstas', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
           for (final source in _sources) ...[
-            Card(child: ListTile(leading: Icon(source.icon), title: Text(source.name, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(source.description))),
+            Card(child: ListTile(leading: EOIcon(source.icon, size: 40), title: Text(source.name, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text(source.description))),
             const SizedBox(height: 8),
           ],
           const SizedBox(height: 8),

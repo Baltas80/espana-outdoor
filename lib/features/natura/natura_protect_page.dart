@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 
 class NaturaProtectPage extends StatelessWidget {
   const NaturaProtectPage({super.key});
@@ -8,24 +9,24 @@ class NaturaProtectPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final items = <({IconData icon, String title, String body})>[
+    final items = <({Widget icon, String title, String body})>[
       (
-        icon: Icons.eco_outlined,
+        icon: const EOIcon(EOIconName.nature, size: 32),
         title: 'Impacto responsable',
         body: 'Reduce la presión sobre hábitats sensibles y prioriza senderos y zonas autorizadas.',
       ),
       (
-        icon: Icons.pets_outlined,
+        icon: const EOIcon(EOIconName.wildlife, size: 32),
         title: 'Fauna sensible',
         body: 'Las ubicaciones sensibles no se muestran con precisión cuando existe riesgo de perturbación.',
       ),
       (
-        icon: Icons.no_backpack_outlined,
+        icon: const EOIcon(EOIconName.nature, size: 32),
         title: 'No dejar huella',
         body: 'Evita residuos, ruidos, atajos y cualquier conducta que degrade el entorno.',
       ),
       (
-        icon: Icons.info_outline,
+        icon: const Icon(Icons.info_outline),
         title: 'Datos con procedencia',
         body: 'La información ambiental debe conservar fuente, fecha y nivel de confianza.',
       ),
@@ -70,7 +71,7 @@ class NaturaProtectPage extends StatelessWidget {
               child: ListTile(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                leading: Icon(item.icon),
+                leading: SizedBox(width: 36, height: 36, child: Center(child: item.icon)),
                 title: Text(item.title,
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(item.body),

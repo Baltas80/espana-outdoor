@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/domain/outdoor_models.dart';
 import '../../core/emergency/emergency_service.dart';
 import '../../core/emergency/emergency_share_service.dart';
@@ -154,7 +155,7 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 16),
           _SafetyTile(
-            icon: Icons.location_on_outlined,
+            icon: const EOIcon(EOIconName.map, size: 32),
             title: 'Mi ubicación',
             subtitle: 'Compartir en tiempo real',
             onTap: _shareEmergency,
@@ -168,7 +169,7 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.security_outlined,
+            icon: const EOIcon(EOIconName.safety, size: 32),
             title: 'Seguridad',
             subtitle: 'Consejos y protocolos',
             onTap: () => context.go('/alerts'),
@@ -223,7 +224,7 @@ class _SafetyTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -234,7 +235,7 @@ class _SafetyTile extends StatelessWidget {
           onTap: onTap,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          leading: Icon(icon, size: 30),
+          leading: SizedBox(width: 36, height: 36, child: Center(child: icon)),
           title: Text(
             title,
             maxLines: 1,

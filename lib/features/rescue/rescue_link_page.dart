@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -193,7 +194,7 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
           ),
           const SizedBox(height: 14),
           const _RoleTile(
-            icon: Icons.emergency_outlined,
+            icon: const EOIcon(EOIconName.rescue, size: 32),
             title: '1. Servicios oficiales',
             subtitle: '112 y servicios competentes tienen prioridad.',
           ),
@@ -260,13 +261,13 @@ class _RoleTile extends StatelessWidget {
     required this.subtitle,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
 
   @override
   Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon),
+        leading: icon,
         title: Text(
           title,
           style: const TextStyle(fontWeight: FontWeight.w700),

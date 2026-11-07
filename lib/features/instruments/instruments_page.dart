@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/sensors/outdoor_sensor_models.dart';
 import '../../core/sensors/outdoor_sensor_service.dart';
 
@@ -26,11 +27,11 @@ class InstrumentsPage extends ConsumerWidget {
           const SizedBox(height: 16),
           _CompassCard(sensor: sensor),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.speed_outlined, title: 'Presión atmosférica', value: sensor.pressureHpa == null ? 'No disponible' : '${sensor.pressureHpa!.toStringAsFixed(1)} hPa', subtitle: sensor.barometerAvailable ? 'Sensor barométrico del dispositivo' : 'El dispositivo no expone un barómetro compatible'),
+          _MetricCard(icon: Icons.speed_outlined, visualIcon: const EOIcon(EOIconName.weather, size: 42), title: 'Presión atmosférica', value: sensor.pressureHpa == null ? 'No disponible' : '${sensor.pressureHpa!.toStringAsFixed(1)} hPa', subtitle: sensor.barometerAvailable ? 'Sensor barométrico del dispositivo' : 'El dispositivo no expone un barómetro compatible'),
           const SizedBox(height: 12),
           _MetricCard(icon: Icons.terrain_outlined, visualIcon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/elevation.webp', size: 42), title: 'Altitud barométrica', value: sensor.sensorAltitudeMeters == null ? 'No disponible' : '${sensor.sensorAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Estimación con presión estándar; calibra para mayor precisión'),
           const SizedBox(height: 12),
-          _MetricCard(icon: Icons.gps_fixed, title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
+          _MetricCard(icon: Icons.gps_fixed, visualIcon: const EOIcon(EOIconName.map, size: 42), title: 'Altitud GPS', value: sensor.gpsAltitudeMeters == null ? 'No disponible' : '${sensor.gpsAltitudeMeters!.toStringAsFixed(0)} m', subtitle: 'Referencia independiente del barómetro', trailing: IconButton(tooltip: 'Actualizar GPS', onPressed: () => ref.read(outdoorSensorProvider.notifier).refreshGpsAltitude(), icon: const Icon(Icons.refresh))),
           const SizedBox(height: 12),
           _ToolCard(icon: Icons.nightlight_round, title: 'Astronomía de campo', subtitle: 'Sol, amanecer, puesta, posición solar y fase lunar sin conexión.', onTap: () => context.push('/astronomy')),
           const SizedBox(height: 10),
