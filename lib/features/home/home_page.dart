@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/brand.dart';
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../shop/shop_entry_card.dart';
 
 class HomePage extends StatelessWidget {
@@ -29,7 +30,7 @@ class HomePage extends StatelessWidget {
                 IconButton(
                   tooltip: 'Perfil',
                   onPressed: () => context.go('/profile'),
-                  icon: const Icon(Icons.person_outline),
+                  icon: const EOIcon(EOIconName.profile, size: 30),
                 ),
               ],
             ),
@@ -234,7 +235,7 @@ class _ReadinessCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             _ReadinessRow(
-              asset: 'assets/visuals/icons/library/premium/safety.webp',
+              asset: 'assets/visuals/icons/library/premium/contacts.webp',
               label: 'Contacto de confianza',
               value: 'Configurar',
               onTap: () => context.go('/safety/contacts'),

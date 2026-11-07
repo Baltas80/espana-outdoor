@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/gpx/gpx_import_service.dart';
 import '../../core/storage/local_route_store.dart';
 
@@ -323,7 +324,7 @@ class _ImportedTrackCard extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
               onPressed: onOpen,
-              icon: const Icon(Icons.map_outlined),
+              icon: const EOIcon(EOIconName.map, size: 24),
               label: const Text('Ver ruta'),
             ),
             const SizedBox(height: 12),

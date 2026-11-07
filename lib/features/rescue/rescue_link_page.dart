@@ -199,7 +199,7 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
             subtitle: '112 y servicios competentes tienen prioridad.',
           ),
           const _RoleTile(
-            icon: const Icon(Icons.contact_emergency_outlined),
+            icon: const EOIcon(EOIconName.contacts, size: 32),
             title: '2. Contactos de confianza',
             subtitle: 'Personas elegidas por el usuario.',
           ),
@@ -221,7 +221,7 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
             Card(
               color: Theme.of(context).colorScheme.primaryContainer,
               child: ListTile(
-                leading: const Icon(Icons.verified_user_outlined),
+                leading: const EOIcon(EOIconName.safety, size: 32),
                 title: const Text(
                   'Sesión activa',
                   style: TextStyle(fontWeight: FontWeight.w800),
