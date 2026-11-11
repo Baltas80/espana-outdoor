@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/domain/outdoor_models.dart';
 import '../../core/emergency/emergency_service.dart';
 import '../../core/emergency/emergency_share_service.dart';
@@ -119,7 +120,14 @@ class _SafetyPageState extends State<SafetyPage> {
             title: 'SOS / Emergencia',
             subtitle: 'Llamada y ubicación en tiempo real.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          const Center(
+            child: OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/safety.webp',
+              size: 72,
+            ),
+          ),
+          const SizedBox(height: 10),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -147,28 +155,28 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 16),
           _SafetyTile(
-            icon: Icons.location_on_outlined,
+            icon: const EOIcon(EOIconName.map, size: 32),
             title: 'Mi ubicación',
             subtitle: 'Compartir en tiempo real',
             onTap: _shareEmergency,
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.contact_emergency_outlined,
+            icon: const EOIcon(EOIconName.contacts, size: 34),
             title: 'Contactos',
             subtitle: 'Contactos de emergencia',
             onTap: () => context.go('/safety/contacts'),
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.security_outlined,
+            icon: const EOIcon(EOIconName.safety, size: 32),
             title: 'Seguridad',
             subtitle: 'Consejos y protocolos',
             onTap: () => context.go('/alerts'),
           ),
           const SizedBox(height: 10),
           _SafetyTile(
-            icon: Icons.cell_tower_outlined,
+            icon: const EOIcon(EOIconName.coverage, size: 34),
             title: 'Cobertura',
             subtitle: 'Señal y comunicación',
             onTap: () => context.go('/map'),
@@ -183,21 +191,21 @@ class _SafetyPageState extends State<SafetyPage> {
           ),
           const SizedBox(height: 10),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/wildlife.svg',
+            asset: 'assets/visuals/icons/library/premium/wildlife.webp',
             title: 'Fauna y flora',
             subtitle: 'Respeta la naturaleza y anticipa riesgos.',
             onTap: () => context.go('/wildlife'),
           ),
           const SizedBox(height: 8),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/pets.svg',
+            asset: 'assets/visuals/icons/library/premium/pets.webp',
             title: 'Mascotas',
             subtitle: 'Calor, agua, normativa y preparación.',
             onTap: () => context.go('/pets'),
           ),
           const SizedBox(height: 8),
           _SafetyInfoRow(
-            asset: 'assets/visuals/icons/natura.svg',
+            asset: 'assets/visuals/icons/library/premium/nature.webp',
             title: 'NATURA PROTECT',
             subtitle: 'Espacios sensibles y navegación responsable.',
             onTap: () => context.go('/natura'),
@@ -216,7 +224,7 @@ class _SafetyTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -227,7 +235,7 @@ class _SafetyTile extends StatelessWidget {
           onTap: onTap,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          leading: Icon(icon, size: 30),
+          leading: SizedBox(width: 36, height: 36, child: Center(child: icon)),
           title: Text(
             title,
             maxLines: 1,

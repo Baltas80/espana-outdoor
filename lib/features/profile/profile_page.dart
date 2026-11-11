@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/photo_atlas.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../core/auth/community_identity_api.dart';
 import '../../core/auth/oidc_config.dart';
 import '../../core/auth/oidc_service.dart';
@@ -145,12 +146,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8),
+          child: EOIcon(EOIconName.profile, size: 32),
+        ),
         title: const Text('Perfil'),
         actions: [
           IconButton(
             tooltip: 'Configuración',
             onPressed: () {},
-            icon: const Icon(Icons.settings_outlined),
+            icon: const EOIcon(EOIconName.settings, size: 30),
           ),
         ],
       ),
@@ -255,37 +260,37 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 12),
           _ProfileItem(
-            icon: Icons.favorite_border,
+            icon: const EOIcon(EOIconName.route, size: 36),
             title: 'Rutas guardadas',
             onTap: () => context.go('/routes'),
           ),
           _ProfileItem(
-            icon: Icons.download_for_offline_outlined,
+            icon: const EOIcon(EOIconName.offline, size: 36),
             title: 'Mapas offline',
             onTap: () => context.go('/offline'),
           ),
-          _ProfileItem(
-            icon: Icons.photo_library_outlined,
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.photos, size: 36),
             title: 'Mis fotos',
           ),
           _ProfileItem(
-            icon: Icons.place_outlined,
+            icon: const EOIcon(EOIconName.poi, size: 36),
             title: 'Puntos de interés',
             onTap: () => context.go('/explore'),
           ),
-          _ProfileItem(
-            icon: Icons.history,
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.history, size: 36),
             title: 'Historial',
           ),
-          _ProfileItem(
-            icon: Icons.emoji_events_outlined,
+          const _ProfileItem(
+            icon: EOIcon(EOIconName.achievements, size: 36),
             title: 'Logros',
           ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
               onTap: () => context.go('/profile/plans'),
-              leading: const Icon(Icons.workspace_premium_outlined),
+              leading: const EOIcon(EOIconName.plans, size: 42),
               title: const Text(
                 'Free · Premium · Professional',
                 style: TextStyle(fontWeight: FontWeight.w800),
@@ -329,7 +334,7 @@ class _ProfileItem extends StatelessWidget {
     this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
   final VoidCallback? onTap;
 
@@ -338,7 +343,7 @@ class _ProfileItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 1),
         child: ListTile(
           onTap: onTap,
-          leading: Icon(icon),
+          leading: SizedBox(width: 36, height: 36, child: Center(child: icon)),
           title: Text(title),
           trailing: const Icon(Icons.chevron_right),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import '../../domain/subscriptions/entitlements.dart';
 import '../../infrastructure/subscriptions/revenuecat_subscription_service.dart';
 
@@ -139,6 +140,8 @@ class _PlansPageState extends State<PlansPage> {
             title: 'Planes',
             subtitle: 'Capacidades claras para cada forma de explorar.',
           ),
+          const SizedBox(height: 14),
+          const Center(child: EOIcon(EOIconName.plans, size: 72)),
           const SizedBox(height: 18),
           Text(
             'Elige cómo quieres explorar',

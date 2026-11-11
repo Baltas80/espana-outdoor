@@ -16,7 +16,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.espana_outdoors"
+        applicationId = "com.espanaoutdoors.espana_outdoors"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.espanaoutdoors"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion

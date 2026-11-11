@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../app/outdoor_visuals.dart';
+import '../../app/design_system/eo_icon_library.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -157,7 +158,14 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           OutdoorVisualHero(asset: 'assets/visuals/hero_rescue.svg', title: 'Rescue Link', subtitle: 'Ayuda cercana, con controles de seguridad y privacidad.'),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          const Center(
+            child: OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/rescue.webp',
+              size: 80,
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -186,17 +194,17 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
           ),
           const SizedBox(height: 14),
           const _RoleTile(
-            icon: Icons.emergency_outlined,
+            icon: const EOIcon(EOIconName.rescue, size: 32),
             title: '1. Servicios oficiales',
             subtitle: '112 y servicios competentes tienen prioridad.',
           ),
           const _RoleTile(
-            icon: Icons.contact_emergency_outlined,
+            icon: const EOIcon(EOIconName.contacts, size: 32),
             title: '2. Contactos de confianza',
             subtitle: 'Personas elegidas por el usuario.',
           ),
           const _RoleTile(
-            icon: Icons.volunteer_activism_outlined,
+            icon: const Icon(Icons.volunteer_activism_outlined),
             title: '3. Voluntarios autorizados',
             subtitle: 'Solo cuando el escenario sea apto y con controles de riesgo.',
           ),
@@ -213,7 +221,7 @@ class _RescueLinkPageState extends ConsumerState<RescueLinkPage> {
             Card(
               color: Theme.of(context).colorScheme.primaryContainer,
               child: ListTile(
-                leading: const Icon(Icons.verified_user_outlined),
+                leading: const EOIcon(EOIconName.safety, size: 32),
                 title: const Text(
                   'Sesión activa',
                   style: TextStyle(fontWeight: FontWeight.w800),
@@ -253,13 +261,13 @@ class _RoleTile extends StatelessWidget {
     required this.subtitle,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
 
   @override
   Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon),
+        leading: icon,
         title: Text(
           title,
           style: const TextStyle(fontWeight: FontWeight.w700),

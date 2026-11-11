@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../app/design_system/eo_icon_library.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' show Position;
 
@@ -290,12 +292,12 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                           _RouteMetric(
                             label: 'Distancia',
                             value: _distanceLabel(_route!.distanceMeters),
-                            icon: Icons.route_outlined,
+                            icon: const EOIcon(EOIconName.route, size: 22),
                           ),
                           _RouteMetric(
                             label: 'Tiempo estimado',
                             value: _durationLabel(_route!.durationSeconds),
-                            icon: Icons.schedule_outlined,
+                            icon: const Icon(Icons.schedule_outlined, size: 18),
                           ),
                           _RouteMetric(
                             label: 'Desnivel +',
@@ -303,7 +305,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                               _route!.ascentMeters,
                               ascent: true,
                             ),
-                            icon: Icons.trending_up,
+                            icon: const Icon(Icons.trending_up, size: 18),
                           ),
                           _RouteMetric(
                             label: 'Desnivel −',
@@ -311,7 +313,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                               _route!.descentMeters,
                               ascent: false,
                             ),
-                            icon: Icons.trending_down,
+                            icon: const Icon(Icons.trending_down, size: 18),
                           ),
                         ],
                       ),
@@ -412,7 +414,7 @@ class _RouteMetric extends StatelessWidget {
 
   final String label;
   final String value;
-  final IconData icon;
+  final Widget icon;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -420,7 +422,7 @@ class _RouteMetric extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18),
+            icon,
             const SizedBox(width: 7),
             Expanded(
               child: Column(

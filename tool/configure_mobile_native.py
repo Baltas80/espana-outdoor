@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import plistlib
 import re
 from pathlib import Path
@@ -93,6 +94,40 @@ def patch_android() -> None:
         raise SystemExit("Missing generated Android app Gradle file.")
 
     gradle = gradle_path.read_text(encoding="utf-8")
+    application_id = os.environ.get(
+        "ANDROID_APPLICATION_ID", "com.espanaoutdoors.espana_outdoors"
+    ).strip()
+    if not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+",
+        application_id,
+    ):
+        raise SystemExit("ANDROID_APPLICATION_ID is not a valid Android package name.")
+
+    app_id_pattern = re.compile(
+        r"""(?m)^(\s*applicationId(?:\s*=\s*|\s+))(["'])([^"']+)(["'])\s*$"""
+    )
+    gradle, app_id_count = app_id_pattern.subn(
+        lambda match: (
+            f"{match.group(1)}{match.group(2)}{application_id}{match.group(4)}"
+        ),
+        gradle,
+    )
+    if app_id_count != 1:
+        raise SystemExit(
+            "Expected exactly one Android applicationId declaration; "
+            f"found {app_id_count}."
+        )
+
+    redirect_scheme = os.environ.get(
+        "ANDROID_APP_AUTH_REDIRECT_SCHEME", "com.espanaoutdoors"
+    ).strip()
+    if not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*",
+        redirect_scheme,
+    ):
+        raise SystemExit("ANDROID_APP_AUTH_REDIRECT_SCHEME is invalid.")
+    gradle = gradle.replace('"com.espanaoutdoors"', f'"{redirect_scheme}"')
+
     if gradle_path.suffix == ".kts":
         # AGP 9 has built-in Kotlin; Flutter's generated app template can still
         # apply the legacy Kotlin Android plugin, which AGP 9 rejects.
@@ -104,7 +139,7 @@ def patch_android() -> None:
         gradle = gradle.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
         placeholder = (
             '        manifestPlaceholders["appAuthRedirectScheme"] = '
-            '"com.espanaoutdoors"'
+            f'"{redirect_scheme}"'
         )
     else:
         gradle = gradle.replace(
@@ -113,7 +148,7 @@ def patch_android() -> None:
         )
         placeholder = (
             '        manifestPlaceholders = '
-            '[appAuthRedirectScheme: "com.espanaoutdoors"]'
+            f'[appAuthRedirectScheme: "{redirect_scheme}"]'
         )
 
     if "appAuthRedirectScheme" not in gradle:

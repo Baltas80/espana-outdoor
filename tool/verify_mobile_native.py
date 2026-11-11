@@ -4,11 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import os
 import plistlib
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_ANDROID_APPLICATION_ID = os.environ.get(
+    "ANDROID_APPLICATION_ID", "com.espanaoutdoors.espana_outdoors"
+).strip()
 
 ANDROID_PERMISSIONS = {
     "android.permission.ACCESS_COARSE_LOCATION",
@@ -52,6 +56,24 @@ def verify_android() -> None:
         raise SystemExit("Missing Android app Gradle file.")
 
     content = gradle.read_text(encoding="utf-8")
+    application_id_match = re.search(
+        r'''(?m)^\s*applicationId(?:\s*=\s*|\s+)["']([^"']+)["']''',
+        content,
+    )
+    if (
+        application_id_match is None
+        or application_id_match.group(1) != EXPECTED_ANDROID_APPLICATION_ID
+    ):
+        actual = (
+            application_id_match.group(1)
+            if application_id_match is not None
+            else "<missing>"
+        )
+        raise SystemExit(
+            "Android applicationId must be "
+            f"{EXPECTED_ANDROID_APPLICATION_ID}; got {actual}."
+        )
+
     gradle_properties = ROOT / "android" / "gradle.properties"
     if not gradle_properties.exists():
         raise SystemExit("Missing generated Android gradle.properties.")
@@ -82,9 +104,9 @@ def verify_android() -> None:
             "configured as com.espanaoutdoors."
         )
 
-
     print("android_manifest=verified")
     print("android_permissions=verified")
+    print(f"android_application_id={EXPECTED_ANDROID_APPLICATION_ID}")
     print("android_min_sdk=24")
     print("android_auth_redirect_scheme=verified")
     print("android_no_legacy_oidc_callback=verified")

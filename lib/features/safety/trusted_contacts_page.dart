@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/emergency/trusted_contact.dart';
 import '../../core/emergency/trusted_contact_store.dart';
+import '../../app/design_system/eo_icon_library.dart';
 
 class TrustedContactsPage extends StatefulWidget {
   const TrustedContactsPage({super.key});
@@ -199,11 +200,7 @@ class _EmptyContacts extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.contact_emergency_outlined,
-              size: 56,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            const EOIcon(EOIconName.contacts, size: 72),
             const SizedBox(height: 16),
             Text(
               'Aún no hay contactos',

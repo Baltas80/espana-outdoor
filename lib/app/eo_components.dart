@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'design_system/eo_icon_library.dart';
+
 /// España Outdoor V1 component system.
 ///
 /// These components are the single UI vocabulary for the premium visual
@@ -236,6 +238,8 @@ class EOAppBar extends StatelessWidget implements PreferredSizeWidget {
       );
 }
 
+/// Shared navigation dock. A consistent icon size and selected container make
+/// current location obvious without relying on colour alone.
 class EONavigationBar extends StatelessWidget {
   const EONavigationBar({
     required this.currentIndex,
@@ -246,18 +250,18 @@ class EONavigationBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onDestinationSelected;
 
-  static const destinations = <(IconData, IconData, String)>[
-    (Icons.explore_outlined, Icons.explore, 'Explorar'),
-    (Icons.map_outlined, Icons.map, 'Mapa'),
-    (Icons.route_outlined, Icons.route, 'Rutas'),
-    (Icons.shield_outlined, Icons.shield, 'Seguridad'),
-    (Icons.person_outline, Icons.person, 'Perfil'),
+  static const destinations = <(EOIconName, String)>[
+    (EOIconName.compass, 'Explorar'),
+    (EOIconName.map, 'Mapa'),
+    (EOIconName.route, 'Rutas'),
+    (EOIconName.safety, 'Seguridad'),
+    (EOIconName.profile, 'Perfil'),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 76,
+      height: 78,
       decoration: const BoxDecoration(
         color: EOColors.surface,
         border: Border(top: BorderSide(color: EOColors.border)),
@@ -266,12 +270,12 @@ class EONavigationBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            for (var i = 0; i < destinations.length; i++)
+            for (var index = 0; index < destinations.length; index++)
               Expanded(
                 child: _EONavItem(
-                  index: i,
+                  index: index,
                   currentIndex: currentIndex,
-                  destination: destinations[i],
+                  destination: destinations[index],
                   onTap: onDestinationSelected,
                 ),
               ),
@@ -292,35 +296,56 @@ class _EONavItem extends StatelessWidget {
 
   final int index;
   final int currentIndex;
-  final (IconData, IconData, String) destination;
+  final (EOIconName, String) destination;
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
     final selected = index == currentIndex;
+    final color = selected ? EOColors.green : EOColors.textTertiary;
+
     return Semantics(
       selected: selected,
       button: true,
-      label: destination.$3,
-      child: InkWell(
-        onTap: () => onTap(index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected ? destination.$2 : destination.$1,
-              size: selected ? 25 : 23,
-              color: selected ? EOColors.green : EOColors.textTertiary,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              destination.$3,
-              style: EOTextStyles.label.copyWith(
-                color: selected ? EOColors.green : EOColors.textTertiary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      label: destination.$2,
+      child: Tooltip(
+        message: destination.$2,
+        child: InkWell(
+          onTap: () => onTap(index),
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              width: selected ? 64 : 48,
+              height: 54,
+              decoration: BoxDecoration(
+                color: selected
+                    ? EOColors.green.withValues(alpha: .16)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+                border: selected
+                    ? Border.all(color: EOColors.green.withValues(alpha: .34))
+                    : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  EOIcon(destination.$1, size: 30, semanticLabel: destination.$2),
+                  const SizedBox(height: 4),
+                  Text(
+                    destination.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: EOTextStyles.label.copyWith(
+                      color: color,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

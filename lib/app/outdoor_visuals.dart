@@ -108,10 +108,14 @@ class OutdoorAssetIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: SvgPicture.asset(asset, fit: BoxFit.contain),
-    );
+    final image = asset.toLowerCase().endsWith('.svg')
+        ? SvgPicture.asset(asset, fit: BoxFit.contain)
+        : Image.asset(
+            asset,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            semanticLabel: asset.split('/').last,
+          );
+    return SizedBox(width: size, height: size, child: image);
   }
 }

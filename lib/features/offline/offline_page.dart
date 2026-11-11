@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
+import '../../app/outdoor_visuals.dart';
+
 const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
@@ -148,7 +150,7 @@ class _OfflinePageState extends State<OfflinePage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Icon(Icons.map_outlined, size: 54),
+          const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/offline.webp', size: 64),
           const SizedBox(height: 16),
           Text(
             'Descarga de prueba · Córdoba',
