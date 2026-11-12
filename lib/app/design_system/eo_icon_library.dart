@@ -36,14 +36,12 @@ class EOIcon extends StatelessWidget {
   const EOIcon(
     this.name, {
     this.size = 24,
-    this.color,
     this.semanticLabel,
     super.key,
   });
 
   final EOIconName name;
   final double size;
-  final Color? color;
   final String? semanticLabel;
 
   String get asset =>
@@ -51,17 +49,12 @@ class EOIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        color ?? IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
-
     return Image.asset(
       asset,
       width: size,
       height: size,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
-      color: effectiveColor,
-      colorBlendMode: BlendMode.srcIn,
       semanticLabel: semanticLabel ?? name.name,
     );
   }
