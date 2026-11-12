@@ -16,3 +16,40 @@ void main() {
     }
   });
 }
+
+
+  testWidgets('premium icons use a contrasting theme or inherited icon color', (
+    tester,
+  ) async {
+    const lightIconColor = Color(0xFF102326);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.light().copyWith(
+          colorScheme: ThemeData.light().colorScheme.copyWith(
+                onSurface: lightIconColor,
+              ),
+        ),
+        home: const Scaffold(body: EOIcon(EOIconName.compass)),
+      ),
+    );
+
+    var image = tester.widget<Image>(find.byType(Image));
+    expect(image.color, lightIconColor);
+    expect(image.colorBlendMode, BlendMode.srcIn);
+
+    const inheritedColor = Color(0xFFFFFFFF);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.light(),
+        home: const Scaffold(
+          body: IconTheme(
+            data: IconThemeData(color: inheritedColor),
+            child: EOIcon(EOIconName.compass),
+          ),
+        ),
+      ),
+    );
+
+    image = tester.widget<Image>(find.byType(Image));
+    expect(image.color, inheritedColor);
+  });
