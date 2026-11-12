@@ -1,4 +1,6 @@
 import 'package:espana_outdoors/app/design_system/eo_icon_library.dart';
+import 'package:espana_outdoors/app/eo_components.dart';
+import 'package:espana_outdoors/app/outdoor_visuals.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,16 +19,13 @@ void main() {
     }
   });
 
-  testWidgets('premium icons use a contrasting theme or inherited icon color', (
+  testWidgets('premium artwork is not flattened by inherited theme colors', (
     tester,
   ) async {
     const lightIconColor = Color(0xFF102326);
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.light().copyWith(
-          colorScheme: ThemeData.light().colorScheme.copyWith(
-                onSurface: lightIconColor,
-              ),
           iconTheme: const IconThemeData(color: lightIconColor),
         ),
         home: const Scaffold(body: EOIcon(EOIconName.compass)),
@@ -34,16 +33,15 @@ void main() {
     );
 
     var image = tester.widget<Image>(find.byType(Image));
-    expect(image.color, lightIconColor);
-    expect(image.colorBlendMode, BlendMode.srcIn);
+    expect(image.color, isNull);
+    expect(image.colorBlendMode, isNull);
 
-    const inheritedColor = Color(0xFFFFFFFF);
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData.light(),
+        theme: ThemeData.dark(),
         home: const Scaffold(
           body: IconTheme(
-            data: IconThemeData(color: inheritedColor),
+            data: IconThemeData(color: Colors.white),
             child: EOIcon(EOIconName.compass),
           ),
         ),
@@ -51,6 +49,34 @@ void main() {
     );
 
     image = tester.widget<Image>(find.byType(Image));
-    expect(image.color, inheritedColor);
+    expect(image.color, isNull);
+    expect(image.colorBlendMode, isNull);
+  });
+
+  testWidgets('navigation and outdoor asset icons preserve source artwork', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: const Center(
+            child: OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/compass.webp',
+            ),
+          ),
+          bottomNavigationBar: EONavigationBar(
+            currentIndex: 0,
+            onDestinationSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final images = tester.widgetList<Image>(find.byType(Image));
+    expect(images, hasLength(6));
+    for (final image in images) {
+      expect(image.color, isNull);
+      expect(image.colorBlendMode, isNull);
+    }
   });
 }
