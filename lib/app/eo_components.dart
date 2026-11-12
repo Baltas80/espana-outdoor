@@ -333,7 +333,6 @@ class _EONavItem extends StatelessWidget {
                   EOIcon(
                     destination.$1,
                     size: 30,
-                    color: color,
                     semanticLabel: destination.$2,
                   ),
                   const SizedBox(height: 4),
