@@ -330,7 +330,12 @@ class _EONavItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  EOIcon(destination.$1, size: 30, semanticLabel: destination.$2),
+                  EOIcon(
+                    destination.$1,
+                    size: 30,
+                    color: color,
+                    semanticLabel: destination.$2,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     destination.$2,
@@ -528,7 +533,10 @@ class EOMapPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(EORadii.lg),
         border: Border.all(color: EOColors.border),
       ),
-      child: child,
+      child: IconTheme.merge(
+        data: const IconThemeData(color: EOColors.white),
+        child: child,
+      ),
     );
     final decorated = blur
         ? ClipRRect(
