@@ -26,6 +26,7 @@ void main() {
           colorScheme: ThemeData.light().colorScheme.copyWith(
                 onSurface: lightIconColor,
               ),
+          iconTheme: const IconThemeData(color: lightIconColor),
         ),
         home: const Scaffold(body: EOIcon(EOIconName.compass)),
       ),
