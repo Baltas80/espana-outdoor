@@ -390,7 +390,10 @@ class EOCard extends StatelessWidget {
                 ),
               ),
       ),
-      child: child,
+      child: IconTheme.merge(
+        data: const IconThemeData(color: EOColors.white),
+        child: child,
+      ),
     );
     return onTap == null
         ? content
