@@ -108,12 +108,20 @@ class OutdoorAssetIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor =
+        IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
     final image = asset.toLowerCase().endsWith('.svg')
-        ? SvgPicture.asset(asset, fit: BoxFit.contain)
+        ? SvgPicture.asset(
+            asset,
+            fit: BoxFit.contain,
+            colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+          )
         : Image.asset(
             asset,
             fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
+            color: iconColor,
+            colorBlendMode: BlendMode.srcIn,
             semanticLabel: asset.split('/').last,
           );
     return SizedBox(width: size, height: size, child: image);
