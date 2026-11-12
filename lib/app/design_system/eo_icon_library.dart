@@ -51,14 +51,17 @@ class EOIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor =
+        color ?? IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
+
     return Image.asset(
       asset,
       width: size,
       height: size,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
-      color: color,
-      colorBlendMode: color == null ? null : BlendMode.srcIn,
+      color: effectiveColor,
+      colorBlendMode: BlendMode.srcIn,
       semanticLabel: semanticLabel ?? name.name,
     );
   }
