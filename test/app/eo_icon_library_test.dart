@@ -15,8 +15,6 @@ void main() {
       expect(data.lengthInBytes, greaterThan(0), reason: asset);
     }
   });
-}
-
 
   testWidgets('premium icons use a contrasting theme or inherited icon color', (
     tester,
@@ -53,3 +51,4 @@ void main() {
     image = tester.widget<Image>(find.byType(Image));
     expect(image.color, inheritedColor);
   });
+}
