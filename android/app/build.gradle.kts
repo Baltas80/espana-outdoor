@@ -52,7 +52,7 @@ android {
 
     namespace = "com.example.espana_outdoors"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.3.13750724"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -86,8 +86,9 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.mapbox.maps:android-ndk27:11.34.1")
-    implementation("com.mapbox.navigationcore:android-ndk27:3.34.1")
+    implementation("com.mapbox.maps:android-ndk27:11.35.0")
+    implementation("com.mapbox.navigationcore:android-ndk27:3.35.0")
+    implementation("com.mapbox.common:common:24.35.0")
 }
 
 flutter {
