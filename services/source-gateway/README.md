@@ -7,8 +7,9 @@ First-party gateway for official live data. Provider credentials stay on the ser
 - AEMET OpenData municipality daily forecasts (`aemet-weather`).
 - AEMET API key is read only from `AEMET_API_KEY` at runtime.
 - `AEMET_API_KEY_EXPIRES_AT` is mandatory and is checked at startup.
-- The gateway uses OIDC bearer authentication, client-scoped role authorization, and per-subject rate limiting.
+- The gateway uses OIDC bearer authentication, client-scoped role authorization for source data, and per-subject rate limiting.
 - AEMET failures use bounded retry/backoff and stale-cache fallback.
+- The same service exposes a canonical community profile API when a TLS-protected PostgreSQL DATABASE_URL is configured.
 
 ## OIDC authorization policy
 
@@ -38,6 +39,9 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 | `OIDC_REQUIRED_ROLE` | yes | Exact role required under `resource_access[OIDC_AUDIENCE].roles` |
 | `AEMET_API_KEY` | yes | AEMET provider credential, runtime only |
 | `AEMET_API_KEY_EXPIRES_AT` | yes | RFC3339 expiry used for startup/health monitoring |
+| `DATABASE_URL` | for profiles | PostgreSQL URL; production must use sslmode=require or stronger |
+| `PROFILE_MIGRATION_PATH` | no | Defaults to migrations/001_community_profiles.sql |
+| `COMMUNITY_ALLOWED_ORIGINS` | no | Comma-separated HTTPS origins; defaults to the production website domains |
 | `AEMET_BASE_URL` | no | Defaults to `https://opendata.aemet.es/opendata/api` |
 | `PORT` | no | Defaults to `8080` |
 | `CACHE_FRESH_TTL` | no | Defaults to `10m` |
@@ -51,8 +55,14 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 - `GET /healthz` — gateway process health plus AEMET key-expiry state.
 - `GET /v1/sources/aemet-weather/health` — normalized provider health/freshness.
 - `GET /v1/sources/aemet-weather?municipalityCode=03099` — normalized forecast envelope.
+- `GET /v1/me` — provisions/returns the authenticated user's canonical profile.
+- `PATCH /v1/me` — updates only the authenticated user's display name.
 
-All `/v1/*` endpoints require a valid OIDC bearer token and the configured client-scoped role.
+The community profile endpoints require a valid OIDC bearer token with the configured audience. They derive the subject from the verified token and never accept a user ID from the request. Email is imported only when the issuer sets email_verified=true. PostgreSQL generates the canonical profile UUID.
+
+The source-data endpoints continue to require the configured client-scoped role. Profile endpoints return HTTP 503 when DATABASE_URL is not configured; existing AEMET endpoints remain available.
+
+CORS is restricted to COMMUNITY_ALLOWED_ORIGINS, allows bearer authorization headers and GET/PATCH only, and does not enable credentialed cookies or wildcard origins.
 
 The client must never send the AEMET API key. The gateway attaches it only to the AEMET provider request.
 
@@ -69,3 +79,10 @@ The client must never send the AEMET API key. The gateway attaches it only to th
 ## Deployment
 
 Use HTTPS at the edge, inject secrets through the platform secret manager, and expose `/healthz` to the infrastructure monitor. Do not publish AEMET credentials, access tokens or exact emergency locations in logs.
+
+
+## Shared identity setup
+
+Configure the web and Android clients against the same trusted OIDC issuer and public client using Authorization Code + PKCE (S256). Register both the HTTPS web callback and Android redirect URI in the client's allowlist. Configure an access-token audience mapper so the access token includes OIDC_AUDIENCE. Never add a client secret to Flutter or static web assets.
+
+The first authenticated GET /v1/me provisions a profile row from the verified token subject. The subject remains internal; clients receive only the server-generated profile UUID. PATCH /v1/me accepts exactly displayName, preventing callers from selecting another account or changing their email.

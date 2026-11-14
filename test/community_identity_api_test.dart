@@ -85,6 +85,53 @@ void main() {
     api.close();
   });
 
+  test('updates only the display name using PATCH', () async {
+    final client = _FakeClient((request) async => http.Response(
+          jsonEncode({
+            'id': 'canonical-user-uuid',
+            'displayName': 'New Name',
+            'createdAt': '2026-11-14T10:00:00.000Z',
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        ));
+    final api = CommunityIdentityApi(
+      baseUri: Uri.parse('https://api.example.test'),
+      client: client,
+    );
+
+    final profile = await api.updateMyProfile(
+      'valid-access-token',
+      displayName: '  New Name  ',
+    );
+
+    expect(profile.displayName, 'New Name');
+    expect(client.lastRequest?.method, 'PATCH');
+    expect(client.lastRequest?.url.path, '/v1/me');
+    expect(
+      client.lastRequest?.headers['Authorization'],
+      'Bearer valid-access-token',
+    );
+    final request = client.lastRequest! as http.Request;
+    expect(jsonDecode(request.body), {'displayName': 'New Name'});
+    api.close();
+  });
+
+  test('rejects an empty display name without sending a request', () async {
+    final client = _FakeClient((_) async => http.Response('{}', 200));
+    final api = CommunityIdentityApi(
+      baseUri: Uri.parse('https://api.example.test'),
+      client: client,
+    );
+
+    await expectLater(
+      api.updateMyProfile('valid-access-token', displayName: '   '),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(client.lastRequest, isNull);
+    api.close();
+  });
+
   test('fails closed when API base URL is not configured', () async {
     final api = CommunityIdentityApi(baseUri: null);
 

@@ -7,6 +7,7 @@ import (
     "fmt"
     "io"
     "log/slog"
+    "net"
     "net/http"
     "net/url"
     "os"
@@ -18,6 +19,7 @@ import (
     "time"
 
     "github.com/coreos/go-oidc/v3/oidc"
+    "github.com/jackc/pgx/v5/pgxpool"
     "golang.org/x/time/rate"
 )
 
@@ -59,12 +61,16 @@ type config struct {
     rateLimit rate.Limit
     rateBurst int
     clientTimeout time.Duration
+    databaseURL string
+    profileMigrationPath string
+    allowedOrigins map[string]struct{}
 }
 
 type server struct {
     cfg config
     client *http.Client
     verifier *oidc.IDTokenVerifier
+    profiles profileStore
     log *slog.Logger
     cacheMu sync.RWMutex
     cache map[string]cacheEntry
@@ -93,10 +99,47 @@ func main() {
         os.Exit(1)
     }
 
+    var profilePool *pgxpool.Pool
+    var profiles profileStore
+    if cfg.databaseURL != "" {
+        profilePool, err = pgxpool.New(ctx, cfg.databaseURL)
+        if err != nil {
+            log.Error("community profile database pool failed", "error", err)
+            os.Exit(1)
+        }
+        defer profilePool.Close()
+
+        pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+        err = profilePool.Ping(pingCtx)
+        cancel()
+        if err != nil {
+            log.Error("community profile database unavailable", "error", err)
+            os.Exit(1)
+        }
+
+        migration, err := os.ReadFile(cfg.profileMigrationPath)
+        if err != nil {
+            log.Error("community profile migration file missing", "path", cfg.profileMigrationPath, "error", err)
+            os.Exit(1)
+        }
+        migrationCtx, migrationCancel := context.WithTimeout(ctx, 10*time.Second)
+        _, err = profilePool.Exec(migrationCtx, string(migration))
+        migrationCancel()
+        if err != nil {
+            log.Error("community profile migration failed", "error", err)
+            os.Exit(1)
+        }
+        profiles = &postgresProfileStore{db: profilePool}
+        log.Info("community profile API enabled")
+    } else {
+        log.Warn("community profile API disabled; DATABASE_URL is not configured")
+    }
+
     s := &server{
         cfg: cfg,
         client: newProviderHTTPClient(cfg.clientTimeout),
         verifier: provider.Verifier(&oidc.Config{ClientID: cfg.oidcAudience}),
+        profiles: profiles,
         log: log,
         cache: make(map[string]cacheEntry),
         health: sourceHealth{status: "unavailable", observedAt: time.Now().UTC()},
@@ -111,6 +154,8 @@ func main() {
     mux.HandleFunc("GET /healthz", s.healthz)
     mux.HandleFunc("GET /v1/sources/{sourceID}/health", s.sourceHealth)
     mux.HandleFunc("GET /v1/sources/{sourceID}", s.sourceData)
+    mux.HandleFunc("GET /v1/me", s.myProfile)
+    mux.HandleFunc("PATCH /v1/me", s.updateMyProfile)
 
     srv := &http.Server{
         Addr: ":" + cfg.port,
@@ -156,6 +201,17 @@ func loadConfig(now time.Time) (config, error) {
     if err != nil { return config{}, err }
     requiredRole, err := requiredEnv("OIDC_REQUIRED_ROLE")
     if err != nil { return config{}, err }
+
+    databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+    if databaseURL != "" {
+        if err := validateDatabaseURL(databaseURL); err != nil { return config{}, err }
+    }
+    allowedOrigins, err := parseAllowedOrigins(envOrDefault(
+        "COMMUNITY_ALLOWED_ORIGINS",
+        "https://espanaoutdoor.es,https://www.espanaoutdoor.es",
+    ))
+    if err != nil { return config{}, err }
+
     key, err := requiredEnv("AEMET_API_KEY")
     if err != nil { return config{}, err }
     keyExpiryText, err := requiredEnv("AEMET_API_KEY_EXPIRES_AT")
@@ -197,6 +253,9 @@ func loadConfig(now time.Time) (config, error) {
         rateLimit: rate.Limit(rps),
         rateBurst: burst,
         clientTimeout: timeout,
+        databaseURL: databaseURL,
+        profileMigrationPath: envOrDefault("PROFILE_MIGRATION_PATH", "migrations/001_community_profiles.sql"),
+        allowedOrigins: allowedOrigins,
     }, nil
 }
 
@@ -232,11 +291,69 @@ func parseFloat(name string, fallback float64) (float64, error) {
     return parsed, nil
 }
 
+func validateDatabaseURL(raw string) error {
+    parsed, err := url.Parse(raw)
+    if err != nil || parsed.Host == "" || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") {
+        return errors.New("DATABASE_URL must be a PostgreSQL URL")
+    }
+    sslMode := strings.ToLower(parsed.Query().Get("sslmode"))
+    switch sslMode {
+    case "require", "verify-ca", "verify-full":
+        return nil
+    case "", "disable":
+        if isLoopbackHost(parsed.Hostname()) { return nil }
+    }
+    return errors.New("DATABASE_URL must enable TLS (sslmode=require or verify-full), except for local loopback development")
+}
+
+func parseAllowedOrigins(raw string) (map[string]struct{}, error) {
+    allowed := make(map[string]struct{})
+    for _, item := range strings.Split(raw, ",") {
+        value := strings.TrimSpace(item)
+        if value == "" { continue }
+        parsed, err := url.Parse(value)
+        if err != nil || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+            return nil, errors.New("COMMUNITY_ALLOWED_ORIGINS must contain origin URLs without paths or credentials")
+        }
+        if parsed.Scheme != "https" && !(parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname())) {
+            return nil, errors.New("COMMUNITY_ALLOWED_ORIGINS must use HTTPS except for localhost development")
+        }
+        origin := parsed.Scheme + "://" + strings.ToLower(parsed.Host)
+        allowed[origin] = struct{}{}
+    }
+    if len(allowed) == 0 { return nil, errors.New("COMMUNITY_ALLOWED_ORIGINS must contain at least one origin") }
+    return allowed, nil
+}
+
+func isLoopbackHost(host string) bool {
+    if strings.EqualFold(host, "localhost") { return true }
+    ip := net.ParseIP(host)
+    return ip != nil && ip.IsLoopback()
+}
+
 func (s *server) securityHeaders(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Cache-Control", "no-store")
         w.Header().Set("Referrer-Policy", "no-referrer")
         w.Header().Set("X-Content-Type-Options", "nosniff")
+
+        origin := strings.TrimSpace(r.Header.Get("Origin"))
+        if origin != "" {
+            if _, allowed := s.cfg.allowedOrigins[origin]; allowed {
+                w.Header().Set("Access-Control-Allow-Origin", origin)
+                w.Header().Add("Vary", "Origin")
+                w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+                w.Header().Set("Access-Control-Allow-Methods", "GET, PATCH, OPTIONS")
+                w.Header().Set("Access-Control-Max-Age", "600")
+            } else if r.Method == http.MethodOptions {
+                s.writeError(w, http.StatusForbidden, "origin not allowed")
+                return
+            }
+        }
+        if r.Method == http.MethodOptions {
+            w.WriteHeader(http.StatusNoContent)
+            return
+        }
         next.ServeHTTP(w, r)
     })
 }
@@ -571,29 +688,47 @@ func (s *server) allow(subject string) bool {
     return entry.limiter.Allow()
 }
 
-func (s *server) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {
+func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
     fields := strings.Fields(strings.TrimSpace(r.Header.Get("Authorization")))
     if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
         s.writeError(w, http.StatusUnauthorized, "authentication required")
-        return "", false
+        return nil, false
     }
     token, err := s.verifier.Verify(r.Context(), fields[1])
     if err != nil {
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
-        return "", false
+        return nil, false
     }
     var claims map[string]any
-    if err := token.Claims(&claims); err != nil { s.writeError(w, http.StatusUnauthorized, "invalid authentication"); return "", false }
+    if err := token.Claims(&claims); err != nil {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return nil, false
+    }
     if err := validateTemporalClaims(claims, time.Now().UTC()); err != nil {
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
-        return "", false
+        return nil, false
     }
+    return claims, true
+}
+
+func (s *server) authenticateIdentity(w http.ResponseWriter, r *http.Request) (string, map[string]any, bool) {
+    claims, ok := s.verifiedClaims(w, r)
+    if !ok { return "", nil, false }
+    subject, _ := claims["sub"].(string)
+    if strings.TrimSpace(subject) == "" {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return "", nil, false
+    }
+    return subject, claims, true
+}
+
+func (s *server) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {
+    subject, claims, ok := s.authenticateIdentity(w, r)
+    if !ok { return "", false }
     if err := authorizeClientRole(claims, s.cfg.oidcAudience, s.cfg.oidcRequiredRole); err != nil {
         s.writeError(w, http.StatusForbidden, "insufficient authorization")
         return "", false
     }
-    subject, _ := claims["sub"].(string)
-    if strings.TrimSpace(subject) == "" { s.writeError(w, http.StatusUnauthorized, "invalid authentication"); return "", false }
     return subject, true
 }
 
