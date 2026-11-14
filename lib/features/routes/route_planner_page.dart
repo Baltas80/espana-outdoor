@@ -323,7 +323,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                       const LinearProgressIndicator(),
                       const SizedBox(height: 4),
                       Text(
-                      'Calculando ruta ${_profileLabel.toLowerCase()} con Valhalla…',
+                      'Calculando ruta ${_profileLabel.toLowerCase()}…',
                     ),
                     ],
                     if (_error != null) ...[
