@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 DEVICE_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
-PACKAGE_NAME="com.espanaoutdoors.espana_outdoors"
+PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.espanaoutdoors.espana_outdoors}"
 EVIDENCE_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 LOGCAT_PATH="$EVIDENCE_DIR/espana-outdoor-route-logcat.txt"
 TEST_LOG_PATH="$EVIDENCE_DIR/espana-outdoor-route-test-output.txt"
@@ -39,6 +39,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 test -n "${MAPBOX_ACCESS_TOKEN:-}"
+test -n "${MAPBOX_DOWNLOADS_TOKEN:-}"
 [[ "$MAPBOX_ACCESS_TOKEN" == pk.* ]]
 adb -s "$DEVICE_SERIAL" get-state | grep -qx device
 
