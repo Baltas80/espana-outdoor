@@ -178,6 +178,8 @@ Future<void> _expectOfflineMapRendered(
     isTrue,
     reason: 'Mapbox must render the style and all visible tiles from the shared offline TileStore.',
   );
+  // Give the renderer time to draw the downloaded vector tiles after the style-load callback.
+  await tester.pump(const Duration(seconds: 2));
   final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
   expect(screenshot, isNotEmpty);
   final metrics = await _inspectRenderedPixels(screenshot);
