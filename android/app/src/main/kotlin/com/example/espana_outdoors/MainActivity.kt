@@ -34,7 +34,7 @@ class MainActivity : FlutterActivity() {
                                 // Log only the exception type; never emit token-bearing SDK messages.
                                 Log.e(
                                     logTag,
-                                    "mapbox_navigation_configuration_failed type=${error.javaClass.simpleName}"
+                                    "mapbox_navigation_configuration_failed type=${error.javaClass.simpleName} rootCause=${rootCause(error).javaClass.simpleName}"
                                 )
                                 result.error("NAVIGATION_INIT_FAILED", "Mapbox Navigation initialization failed.", null)
                             }
@@ -46,6 +46,14 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun rootCause(error: Throwable): Throwable {
+        var current = error
+        while (current.cause != null && current.cause !== current) {
+            current = current.cause!!
+        }
+        return current
     }
 
     override fun onDestroy() {
