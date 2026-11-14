@@ -179,6 +179,8 @@ Future<void> _expectOfflineMapRendered(
   );
   final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
   expect(screenshot, isNotEmpty);
+  // ignore: avoid_print
+  print('MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length}');
 }
 
 void _expectUsableRoute(RouteResult route) {
