@@ -20,8 +20,8 @@ Las comprobaciones anteriores de esas PR corresponden a sus respectivos HEAD y n
 
 ## Cambios preparados en la rama de integración offline
 
-1. Puente nativo Android entre Flutter y Mapbox Navigation SDK 3.34.2.
-2. Mapbox Maps SDK Android 11.34.2 y NDK r27d, alineados con `mapbox_maps_flutter 3.34.1`.
+1. Puente nativo Android entre Flutter y Mapbox Navigation SDK 3.34.1.
+2. Mapbox Maps SDK Android 11.34.1 y NDK r27d, alineados con `mapbox_maps_flutter 3.34.1`.
 3. Un único `TileStore` persistente bajo `noBackupFilesDir/mapbox-tiles`, compartido por Maps y Navigation. El token global se configura antes de crear el almacén.
 4. Descarga de estilo, teselas de mapa y routing peatonal de una región de prueba de Córdoba.
 5. La respuesta nativa identifica el origen real del router: `online` o `offline`. La app no debe etiquetar como offline una ruta devuelta por otro motor.
