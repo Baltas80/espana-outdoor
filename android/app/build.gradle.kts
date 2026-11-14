@@ -86,8 +86,8 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.mapbox.maps:android-ndk27:11.34.2")
-    implementation("com.mapbox.navigationcore:android-ndk27:3.34.2")
+    implementation("com.mapbox.maps:android-ndk27:11.34.1")
+    implementation("com.mapbox.navigationcore:android-ndk27:3.34.1")
 }
 
 flutter {
