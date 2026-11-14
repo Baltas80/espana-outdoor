@@ -49,6 +49,18 @@ def verify_android() -> None:
     for label, fragment in required_gradle.items():
         if fragment not in gradle:
             raise SystemExit(f"Android Gradle configuration is missing: {label}")
+    if "applicationId = applicationIdValue" not in gradle or "ANDROID_APPLICATION_ID" not in gradle:
+        raise SystemExit("Android staging package ID must be configurable without changing the production default.")
+
+    root_gradle_path = ROOT / "android" / "build.gradle.kts"
+    root_gradle = root_gradle_path.read_text(encoding="utf-8")
+    for fragment in (
+        "https://api.mapbox.com/downloads/v2/releases/maven",
+        "MAPBOX_DOWNLOADS_TOKEN",
+        'username = "mapbox"',
+    ):
+        if fragment not in root_gradle:
+            raise SystemExit("Android root Gradle is missing Mapbox Downloads Maven authentication.")
 
     release_signing_markers = (
         "ANDROID_RELEASE_STORE_FILE",
@@ -111,12 +123,42 @@ def verify_android() -> None:
         raise SystemExit("Set the global Mapbox access token before creating the shared TileStore.")
     if "TileStoreOptions.MAPBOX_ACCESS_TOKEN" in bridge:
         raise SystemExit("TileStoreOptions.MAPBOX_ACCESS_TOKEN was removed from Maps SDK v11.")
+    for label, fragment in {
+        "walking-only offline routing tiles": '.tilesProfile("walking")',
+        "shared Maps and Navigation region descriptors": "descriptors(listOf(mapsDescriptor, navigationDescriptor))",
+        "offline router origin": "RouterOrigin.OFFLINE",
+    }.items():
+        if fragment not in bridge:
+            raise SystemExit(f"Native Mapbox bridge is missing: {label}")
+    if '"message" to failure.message' in bridge:
+        raise SystemExit("Native Mapbox failure messages must not expose request URLs or tokens.")
 
     main_dart = (ROOT / "lib" / "main.dart").read_text(encoding="utf-8")
     configure_index = main_dart.find("_navigationChannel.invokeMethod<void>('configure'")
     run_app_index = main_dart.find("runApp(")
     if configure_index < 0 or run_app_index < 0 or configure_index > run_app_index:
         raise SystemExit("The shared native TileStore must be configured before runApp().")
+
+    offline_page = (ROOT / "lib" / "features" / "offline" / "offline_page.dart").read_text(encoding="utf-8")
+    if "downloadOfflineRegion" not in offline_page or "hasOfflineRegion" not in offline_page:
+        raise SystemExit("OfflinePage must use the native shared TileStore bridge.")
+    if "TileStore.createDefault" in offline_page or "OfflineManager.create" in offline_page:
+        raise SystemExit("OfflinePage must not create a second, separate Mapbox TileStore.")
+
+    routing_provider = (ROOT / "lib" / "core" / "routing" / "routing_provider.dart").read_text(encoding="utf-8")
+    composite = (ROOT / "lib" / "infrastructure" / "routing" / "composite_routing_service.dart").read_text(encoding="utf-8")
+    if "CompositeRoutingService" not in routing_provider or "MapboxNavigationRoutingService" not in routing_provider:
+        raise SystemExit("Android routing provider must use the composite Mapbox/Valhalla selector.")
+    if "'mtb'" not in composite or "'cycling'" not in composite or "valhalla.match" in composite:
+        raise SystemExit("Composite routing must preserve Valhalla for bicycle profiles and GPX matching.")
+
+    integration_test = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
+    if not integration_test.is_file():
+        raise SystemExit("The Android online/offline Mapbox integration test is missing.")
+    integration_text = integration_test.read_text(encoding="utf-8")
+    for marker in ("RouterOrigin.OFFLINE", "onMapLoadedListener", "MAPBOX_OFFLINE_MAP_RENDERED"):
+        if marker not in integration_text:
+            raise SystemExit(f"Android offline integration test is missing evidence marker: {marker}")
 
     pubspec = (ROOT / "pubspec.yaml").read_text(encoding="utf-8")
     if "mapbox_maps_flutter: 3.34.1" not in pubspec:
@@ -136,6 +178,16 @@ def verify_android() -> None:
             raise SystemExit(f"{name} regenerates the committed Android project.")
         if "configure_mobile_native.py --platform android" in workflow:
             raise SystemExit(f"{name} mutates Android sources after checkout.")
+        if name in ("staging-android.yml", "release-candidate.yml"):
+            if "MAPBOX_DOWNLOADS_TOKEN" not in workflow or "VALHALLA_BASE_URL" not in workflow:
+                raise SystemExit(f"{name} must preserve Mapbox Maven credentials and Valhalla routing configuration.")
+
+    staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
+    if "MAPBOX_OFFLINE_MAP_RENDERED" not in staging_script:
+        raise SystemExit("Android staging must require visible offline map rendering evidence.")
+    oppo_script = (ROOT / "tool" / "test_mapbox_oppo_routes.ps1").read_text(encoding="utf-8")
+    if "RebootAfterOffline" not in oppo_script:
+        raise SystemExit("The physical-device validation script must support post-reboot offline checks.")
 
     print("android_manifest=verified")
     print("android_main_activity=verified")
