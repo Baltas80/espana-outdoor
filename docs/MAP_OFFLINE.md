@@ -14,9 +14,13 @@ La prueba anterior de Córdoba fue reportada como funcional sin conexión en un 
 
 ### Cálculo de rutas offline
 
-El proveedor integrado actualmente en `main` utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`, por lo que el cálculo requiere conectividad con el endpoint configurado. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
+En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
 
-La integración nativa de Mapbox Navigation que añade un `TileStore` persistente compartido entre Maps y Navigation, junto con una solicitud de ruta cuyo origen debe ser explícitamente `OFFLINE`, está propuesta en la [PR #25](https://github.com/Baltas80/espana-outdoor/pull/25). Esa PR sigue sin integrar. Su rama está divergida de `main` (22 commits por delante y 9 por detrás a 14/11/2026), y debe portarse/rebasarse y volver a probarse antes de fusionar. La PR usa Mapbox Maps 3.34.1; `main` conserva 3.33.0.
+La integración nativa propuesta está en la [PR #53](https://github.com/Baltas80/espana-outdoor/pull/53). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
+
+La PR #25 y el primer intento #52 se cerraron como supersedidos. La PR #53 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
+
+La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
 ## Reglas
 
@@ -46,7 +50,7 @@ Registrar por separado resultados de tests automatizados, emulador y dispositivo
 ## Estado y pendientes
 
 - Mapa offline: descarga de una región de prueba presente en `main`; falta repetir la validación física sobre el HEAD actual.
-- Navegación offline nativa: propuesta en PR #25, no integrada.
+- Navegación offline nativa: propuesta en PR #53, no integrada.
 - Cobertura nacional: no acreditada.
 - Reapertura en frío y tras reinicio: pendiente para el APK candidato.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; la ruta Valhalla sigue dependiendo del endpoint online.
