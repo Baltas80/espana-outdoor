@@ -16,7 +16,7 @@ La prueba anterior de Córdoba fue reportada como funcional sin conexión en un 
 
 En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
 
-La integración nativa propuesta está en la [PR #57](https://github.com/Baltas80/espana-outdoor/pull/53). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
+La integración nativa propuesta está en la [PR #57](https://github.com/Baltas80/espana-outdoor/pull/57). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
 
 Las PR #25, #52 y #53 se cerraron como supersedidas. La PR #57 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
 
