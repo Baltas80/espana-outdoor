@@ -16,7 +16,7 @@ La prueba anterior de Córdoba fue reportada como funcional sin conexión en un 
 
 En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
 
-La integración nativa propuesta está en la [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
+La integración nativa está en la [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX. La versión Flutter `mapbox_maps_flutter 3.34.1` resuelve Maps Android 11.35.0; por eso Navigation se alinea con 3.35.0, Navigation Native 324.35.0 y Core Common 24.35.0. El APK anterior combinaba Navigation Native 324.34.1 con Common 24.35.0 y fallaba al inicializar por un símbolo nativo ausente. La rama actual corrige esa incompatibilidad; la nueva ejecución de Android staging debe confirmarlo antes de integrar.
 
 Las PR #25, #52, #53, #57 y #59 se cerraron como supersedidas. La PR #61 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
 
@@ -31,6 +31,8 @@ La implementación propuesta no habilita routing offline de bicicleta, cobertura
 - Mostrar progreso, errores, reintentos y estado de la descarga de Mapbox.
 - No declarar cobertura nacional ni producción completa por haber descargado la región de Córdoba.
 - No mostrar cálculo offline disponible hasta recibir y validar una respuesta de routing con origen nativo `OFFLINE`.
+
+Android compila con NDK 28.2.13676358 para satisfacer los plugins Flutter nativos; los artefactos Mapbox usan el sufijo `-ndk27` para conservar la compatibilidad de páginas de 16 KB.
 
 ## Protocolo de aceptación Android
 
