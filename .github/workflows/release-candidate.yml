@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL COMMUNITY_API_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
@@ -106,6 +106,8 @@ jobs:
                 ;;
             esac
           done
+          test -n "${OIDC_CLIENT_ID:-}"
+          test -n "${OIDC_REDIRECT_URI:-}"
 
       - name: Verify production build profile
         run: python3 tool/verify_build_profile.py --profile production
@@ -192,7 +194,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then echo "Missing required secret: MAPBOX_ACCESS_TOKEN"; exit 1; fi
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL; do
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL COMMUNITY_API_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Missing required production secret: $name"
@@ -209,6 +211,8 @@ jobs:
                 ;;
             esac
           done
+          test -n "${OIDC_CLIENT_ID:-}"
+          test -n "${OIDC_REDIRECT_URI:-}"
 
       - name: Verify production build profile
         run: python3 tool/verify_build_profile.py --profile production
