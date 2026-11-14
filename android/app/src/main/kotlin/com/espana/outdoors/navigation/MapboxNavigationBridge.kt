@@ -121,13 +121,12 @@ class MapboxNavigationBridge(context: Context) {
                 val failures = reasons.map { failure ->
                     mapOf(
                         "type" to failure.type,
-                        "message" to failure.message,
                         "routerOrigin" to failure.routerOrigin,
                         "retryable" to failure.isRetryable
                     )
                 }
                 val summary = failures.joinToString("; ") { failure ->
-                    "${failure["type"]}: ${failure["message"]} " +
+                    "${failure["type"]} " +
                         "(router=${failure["routerOrigin"]}, retryable=${failure["retryable"]})"
                 }.ifBlank { "Mapbox could not calculate this route." }
                 mainHandler.post {
@@ -242,7 +241,7 @@ class MapboxNavigationBridge(context: Context) {
         ) { styleExpected ->
             if (!styleExpected.isValue) {
                 mainHandler.post {
-                    result.error("STYLE_DOWNLOAD_FAILED", styleExpected.toString(), null)
+                    result.error("STYLE_DOWNLOAD_FAILED", "Mapbox style pack download failed.", null)
                 }
                 return@loadStylePack
             }
@@ -295,7 +294,7 @@ class MapboxNavigationBridge(context: Context) {
                     }
                 } else {
                     mainHandler.post {
-                        result.error("OFFLINE_REGION_DOWNLOAD_FAILED", tileExpected.toString(), null)
+                        result.error("OFFLINE_REGION_DOWNLOAD_FAILED", "Mapbox map and routing tile download failed.", null)
                     }
                 }
             }
@@ -316,7 +315,7 @@ class MapboxNavigationBridge(context: Context) {
         store.getAllTileRegions { expected ->
             if (!expected.isValue) {
                 mainHandler.post {
-                    result.error("OFFLINE_STATUS_FAILED", expected.toString(), null)
+                    result.error("OFFLINE_STATUS_FAILED", "Mapbox could not read the stored offline region list.", null)
                 }
                 return@getAllTileRegions
             }
