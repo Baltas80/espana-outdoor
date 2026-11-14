@@ -135,7 +135,7 @@ if (System.getenv('APP_ENV') == 'production' && !releaseSigningConfigured) {
 def configure_application_id(gradle_path: Path, gradle: str, application_id: str) -> str:
     """Set the application ID in either Groovy or Kotlin DSL, including fresh templates."""
     dynamic_application_id = re.search(
-        r"(?m)^[ \\t]*applicationId\\s*=\\s*applicationIdValue\\s*$",
+        r"(?m)^[ \t]*applicationId\s*=\s*applicationIdValue\s*$",
         gradle,
     )
     if dynamic_application_id is not None and "ANDROID_APPLICATION_ID" in gradle:
