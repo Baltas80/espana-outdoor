@@ -62,6 +62,34 @@ final class CommunityIdentityApi {
   bool get isConfigured => baseUri != null;
 
   Future<CommunityIdentityProfile> fetchMyProfile(String accessToken) async {
+    final response = await _client
+        .get(
+          _endpoint(accessToken),
+          headers: _headers(accessToken),
+        )
+        .timeout(const Duration(seconds: 12));
+    return _parseProfileResponse(response);
+  }
+
+  Future<CommunityIdentityProfile> updateMyProfile(
+    String accessToken, {
+    required String displayName,
+  }) async {
+    final normalizedName = displayName.trim();
+    if (normalizedName.isEmpty) {
+      throw ArgumentError.value(displayName, 'displayName', 'Must not be empty.');
+    }
+    final response = await _client
+        .patch(
+          _endpoint(accessToken),
+          headers: _headers(accessToken),
+          body: jsonEncode({'displayName': normalizedName}),
+        )
+        .timeout(const Duration(seconds: 12));
+    return _parseProfileResponse(response);
+  }
+
+  Uri _endpoint(String accessToken) {
     final base = baseUri;
     if (base == null) {
       throw StateError('Community API is not configured.');
@@ -69,21 +97,24 @@ final class CommunityIdentityApi {
     if (accessToken.trim().isEmpty) {
       throw ArgumentError.value(accessToken, 'accessToken', 'Must not be empty.');
     }
+    return base.resolve('/v1/me');
+  }
 
-    final endpoint = base.resolve('/v1/me');
-    final response = await _client
-        .get(
-          endpoint,
-          headers: {
-            'Authorization': 'Bearer $accessToken',
-            'Accept': 'application/json',
-          },
-        )
-        .timeout(const Duration(seconds: 12));
+  Map<String, String> _headers(String accessToken) => {
+        'Authorization': 'Bearer $accessToken',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
 
+  CommunityIdentityProfile _parseProfileResponse(http.Response response) {
     if (response.statusCode == 401) {
       throw const CommunityIdentityApiException(
         'La API ha rechazado el token. Comprueba la audiencia OIDC.',
+      );
+    }
+    if (response.statusCode == 403) {
+      throw const CommunityIdentityApiException(
+        'El proveedor de identidad no autoriza este cliente.',
       );
     }
     if (response.statusCode != 200) {

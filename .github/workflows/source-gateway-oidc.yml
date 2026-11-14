@@ -36,3 +36,18 @@ jobs:
 
       - name: Run full source-gateway test suite
         run: go test ./...
+
+      - name: Build and inspect Source Gateway container
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="source-gateway:ci"
+          docker build --pull --tag "$image" .
+          container_id="$(docker create "$image")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/app/migrations/001_community_profiles.sql" "$RUNNER_TEMP/001_community_profiles.sql"
+          test -s "$RUNNER_TEMP/001_community_profiles.sql"
+          image_user="$(docker image inspect --format '{{.Config.User}}' "$image")"
+          test "$image_user" = "nonroot:nonroot"
+          echo "container_migration=present"
+          echo "container_user=$image_user"
