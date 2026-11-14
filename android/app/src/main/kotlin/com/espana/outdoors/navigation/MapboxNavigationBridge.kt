@@ -120,7 +120,7 @@ class MapboxNavigationBridge(context: Context) {
                 // which contains the public access token and coordinates.
                 val failures = reasons.map { failure ->
                     mapOf(
-                        "type" to failure.type,
+                        "type" to failure.type.toString(),
                         "routerOrigin" to failure.routerOrigin,
                         "retryable" to failure.isRetryable
                     )
