@@ -24,7 +24,7 @@ class MainActivity : FlutterActivity() {
                         runCatching { navigationBridge.configure(token) }
                             .onSuccess { result.success(null) }
                             .onFailure {
-                                result.error("NAVIGATION_INIT_FAILED", it.message, null)
+                                result.error("NAVIGATION_INIT_FAILED", "Mapbox Navigation initialization failed.", null)
                             }
                     }
                 }
