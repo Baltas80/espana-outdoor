@@ -16,9 +16,9 @@ La prueba anterior de Córdoba fue reportada como funcional sin conexión en un 
 
 En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
 
-La integración nativa propuesta está en la [PR #53](https://github.com/Baltas80/espana-outdoor/pull/53). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
+La integración nativa propuesta está en la [PR #57](https://github.com/Baltas80/espana-outdoor/pull/53). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
 
-La PR #25 y el primer intento #52 se cerraron como supersedidos. La PR #53 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
+Las PR #25, #52 y #53 se cerraron como supersedidas. La PR #57 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
 
 La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
@@ -50,7 +50,14 @@ Registrar por separado resultados de tests automatizados, emulador y dispositivo
 ## Estado y pendientes
 
 - Mapa offline: descarga de una región de prueba presente en `main`; falta repetir la validación física sobre el HEAD actual.
-- Navegación offline nativa: propuesta en PR #53, no integrada.
+- Navegación offline nativa: propuesta en PR #57, no integrada.
 - Cobertura nacional: no acreditada.
 - Reapertura en frío y tras reinicio: pendiente para el APK candidato.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; la ruta Valhalla sigue dependiendo del endpoint online.
+
+
+## Diagnóstico de arranque Android
+
+La ejecución anterior de staging de la implementación en PR #53 instaló el APK y arrancó el emulador, pero no encontró el destino accesible `Mapa` después de la espera acotada. La jerarquía UI capturada estaba vacía y el artefacto no contenía logcat; por tanto, no hay evidencia suficiente para atribuir el bloqueo a una excepción concreta.
+
+La PR #57 añade marcadores de arranque sin secretos, timeout para inicialización opcional de Mapbox Navigation y del servicio de descargas, y captura de logcat, screenshot y estado de Activity cuando falla el smoke. La siguiente ejecución debe aportar esa evidencia antes de concluir la causa. El timeout no equivale a validar routing offline.
