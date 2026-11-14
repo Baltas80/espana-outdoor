@@ -32,6 +32,39 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Prepare Android release signing
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          ANDROID_RELEASE_CERT_SHA256: ${{ secrets.ANDROID_RELEASE_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_STORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD ANDROID_RELEASE_CERT_SHA256; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required repository secret: $name"
+              exit 1
+            fi
+          done
+          certificate_sha256="$(printf '%s' "$ANDROID_RELEASE_CERT_SHA256" | tr -d ' :\r\n' | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$certificate_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::ANDROID_RELEASE_CERT_SHA256 must be a 64-character SHA-256 certificate fingerprint."
+            exit 1
+          fi
+          store_file="$RUNNER_TEMP/espana-outdoor-release.jks"
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$store_file"
+          chmod 600 "$store_file"
+          test -s "$store_file"
+          {
+            echo "ANDROID_RELEASE_STORE_FILE=$store_file"
+            echo "ANDROID_RELEASE_STORE_PASSWORD=$ANDROID_RELEASE_STORE_PASSWORD"
+            echo "ANDROID_RELEASE_KEY_ALIAS=$ANDROID_RELEASE_KEY_ALIAS"
+            echo "ANDROID_RELEASE_KEY_PASSWORD=$ANDROID_RELEASE_KEY_PASSWORD"
+            echo "ANDROID_RELEASE_CERT_SHA256=$certificate_sha256"
+          } >> "$GITHUB_ENV"
+
       - name: Generate Android project
         shell: bash
         run: |
@@ -89,7 +122,7 @@ jobs:
           flutter analyze --no-fatal-infos
           flutter test --coverage
 
-      - name: Build signed-by-platform-ready Android artifacts
+      - name: Build Android release artifacts with upload key
         run: |
           DART_DEFINES=(
             --dart-define=APP_ENV="$APP_ENV"
@@ -109,7 +142,8 @@ jobs:
           aab="$(find build/app/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
           test -n "$apk"
           test -n "$aab"
-          python3 tool/verify_android_release.py --apk "$apk" --aab "$aab"
+          python3 tool/verify_android_release.py --apk "$apk" --aab "$aab" \
+            --expected-cert-sha256 "$ANDROID_RELEASE_CERT_SHA256"
 
       - name: Generate Android release manifest
         shell: bash
@@ -135,6 +169,7 @@ jobs:
             echo "aab_file=$(basename "$aab")"
             echo "aab_size_bytes=$(stat -c '%s' "$aab")"
             echo "aab_sha256=$(sha256sum "$aab" | cut -d ' ' -f1)"
+            echo "signing_cert_sha256=$ANDROID_RELEASE_CERT_SHA256"
           } > build/android-release-manifest.txt
 
       - name: Upload Android candidate
