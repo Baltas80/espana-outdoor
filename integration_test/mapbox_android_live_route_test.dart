@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -179,8 +181,67 @@ Future<void> _expectOfflineMapRendered(
   );
   final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
   expect(screenshot, isNotEmpty);
+  final metrics = await _inspectRenderedPixels(screenshot);
+  expect(
+    metrics.$1,
+    greaterThan(8),
+    reason: 'The offline map screenshot must contain varied map pixels, not a blank canvas.',
+  );
+  expect(
+    metrics.$2,
+    greaterThan(0.95),
+    reason: 'The offline map screenshot must be predominantly opaque.',
+  );
   // ignore: avoid_print
-  print('MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length}');
+  print(
+    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length} '
+    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
+  );
+}
+
+Future<(int, double)> _inspectRenderedPixels(Uint8List screenshot) async {
+  final codec = await ui.instantiateImageCodec(screenshot);
+  try {
+    final frame = await codec.getNextFrame();
+    try {
+      final data = await frame.image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (data == null) {
+        throw const FormatException('Could not decode the offline map screenshot.');
+      }
+      final pixels = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      const bytesPerSample = 4 * 16;
+      final colors = <int>{};
+      var sampledPixels = 0;
+      var opaquePixels = 0;
+      for (var offset = 0; offset + 3 < pixels.length; offset += bytesPerSample) {
+        final red = pixels[offset];
+        final green = pixels[offset + 1];
+        final blue = pixels[offset + 2];
+        final alpha = pixels[offset + 3];
+        sampledPixels++;
+        if (alpha >= 240) opaquePixels++;
+        colors.add(
+          ((red >> 4) << 12) |
+              ((green >> 4) << 8) |
+              ((blue >> 4) << 4) |
+              (alpha >> 4),
+        );
+      }
+      if (sampledPixels == 0) {
+        throw const FormatException('Offline map screenshot contains no pixels.');
+      }
+      return (colors.length, opaquePixels / sampledPixels);
+    } finally {
+      frame.image.dispose();
+    }
+  } finally {
+    codec.dispose();
+  }
 }
 
 void _expectUsableRoute(RouteResult route) {
