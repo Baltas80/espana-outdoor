@@ -46,7 +46,7 @@ jobs:
       ANDROID_APPLICATION_ID: com.espanaoutdoors.espana_outdoors.iconspreview
       ANDROID_APP_AUTH_REDIRECT_SCHEME: com.espanaoutdoors
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Check staging endpoints
         shell: bash
         run: |

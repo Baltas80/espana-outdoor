@@ -13,7 +13,7 @@ jobs:
     env:
       SOURCE_GATEWAY_BASE_URL: ${{ vars.SOURCE_GATEWAY_BASE_URL }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Validate Source Gateway endpoint
         run: |
           set -euo pipefail
@@ -31,7 +31,7 @@ jobs:
     env:
       RESCUE_LINK_BASE_URL: ${{ vars.RESCUE_LINK_BASE_URL }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Validate Rescue Link endpoint
         run: |
           set -euo pipefail
