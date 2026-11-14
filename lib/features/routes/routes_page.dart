@@ -152,7 +152,7 @@ class _RoutesPageState extends State<RoutesPage> {
                           ? null
                           : OutdoorAssetIcon(
                               asset:
-                                  'assets/visuals/icons/library/premium/\${item.$2}.webp',
+                                  'assets/visuals/icons/library/premium/${item.$2}.webp',
                               size: 24,
                             ),
                       label: Text(item.$1),
@@ -430,10 +430,10 @@ class _ImportedTrackCard extends StatelessWidget {
               spacing: 18,
               runSpacing: 8,
               children: [
-                Text('\${(track.distanceMeters / 1000).toStringAsFixed(1)} km'),
-                Text('+\${track.ascentMeters.toStringAsFixed(0)} m'),
-                Text('-\${track.descentMeters.toStringAsFixed(0)} m'),
-                Text('\${track.points.length} puntos'),
+                Text('${(track.distanceMeters / 1000).toStringAsFixed(1)} km'),
+                Text('+${track.ascentMeters.toStringAsFixed(0)} m'),
+                Text('-${track.descentMeters.toStringAsFixed(0)} m'),
+                Text('${track.points.length} puntos'),
               ],
             ),
           ],
