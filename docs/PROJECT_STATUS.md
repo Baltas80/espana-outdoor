@@ -88,3 +88,7 @@ No incluir secretos en código, Git, artefactos públicos ni logs. Los APK/AAB d
 ## Identidad compartida web/Android
 
 La PR #56 ya eliminó las cifras ficticias del perfil y está integrada. El issue [#55](https://github.com/Baltas80/espana-outdoor/issues/55) continúa abierto: falta implementar el endpoint canónico autenticado `/v1/me`, la persistencia de perfiles y el flujo OIDC web con PKCE. La eliminación de estadísticas de muestra evita datos engañosos, pero no completa la identidad compartida.
+
+
+- The CI-generated Android Gradle project can omit `applicationId` or express it as a generated variable. `tool/configure_mobile_native.py` now inserts/replaces the application ID in both Groovy and Kotlin DSL and has regression tests for both formats.
+
