@@ -157,6 +157,6 @@ La rama `main` incorpora Mapbox y la descarga de una región de prueba de Córdo
 
 La firma de producción Android ahora falla de forma segura si no se configura una clave release dedicada. El workflow Release candidate comprueba la huella SHA-256 del APK y del AAB; requiere los secretos documentados en `docs/ANDROID_RELEASE_SIGNING.md`. Los artefactos CI/staging firmados con debug son exclusivamente de prueba y no deben distribuirse.
 
-Las PR #43, #44 y #45 están integradas, junto con las actualizaciones de seguridad de pgx, CodeQL y las imágenes builder Go. Los checks de CI, Android staging y seguridad pasaron en las ramas de las PR #44 y #45 antes de fusionarlas. La PR #47 añade perfiles de Senderismo, BTT y Cicloturismo y está pendiente de validación.
+Las PR #43, #44 y #45 están integradas, junto con las actualizaciones de seguridad de pgx, CodeQL y las imágenes builder Go. Los checks de CI, Android staging y seguridad pasaron en las ramas de las PR #44 y #45 antes de fusionarlas. La PR #47, integrada en `c7b73ba`, añade perfiles de Senderismo, BTT y Cicloturismo. CI, Android staging y Security baseline pasaron en su rama antes de la fusión; la validación contra un endpoint Valhalla real sigue pendiente.
 
 La revisión detallada, los límites de evidencia y los siguientes criterios de aceptación están en `docs/PROJECT_STATUS.md` y `docs/MAP_OFFLINE.md`. El inventario de la carpeta cartográfica del ordenador es independiente del inventario Git; no se deben deducir faltantes locales a partir de los archivos versionados.
