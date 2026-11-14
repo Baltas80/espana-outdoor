@@ -62,10 +62,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
+          for name in VALHALLA_BASE_URL SOURCE_GATEWAY_BASE_URL COMMUNITY_API_BASE_URL RESCUE_LINK_BASE_URL OIDC_ISSUER; do
             value="${!name:-}"; test -n "$value"
             case "$value" in https://*) ;; *) echo "$name must use HTTPS"; exit 1;; esac
           done
+          test -n "${OIDC_CLIENT_ID:-}"
+          test -n "${OIDC_REDIRECT_URI:-}"
       - name: Verify staging build profile
         run: python3 tool/verify_build_profile.py --profile staging
       - name: Setup Java 21
