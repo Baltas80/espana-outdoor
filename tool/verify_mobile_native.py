@@ -135,11 +135,11 @@ def verify_android() -> None:
 
     main_dart = (ROOT / "lib" / "main.dart").read_text(encoding="utf-8")
     configure_match = re.search(
-        r"_navigationChannel\\s*\\.\\s*invokeMethod<void>\\(\\s*['\"]configure['\"]",
+        r"_navigationChannel\s*\.\s*invokeMethod<void>\(\s*['\"]configure['\"]",
         main_dart,
         re.DOTALL,
     )
-    run_app_match = re.search(r"\\brunApp\\s*\\(", main_dart)
+    run_app_match = re.search(r"\brunApp\s*\(", main_dart)
     if (
         configure_match is None
         or run_app_match is None
