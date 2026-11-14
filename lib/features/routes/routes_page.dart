@@ -1,10 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/outdoor_visuals.dart';
 import '../../app/design_system/eo_icon_library.dart';
+import '../../app/outdoor_visuals.dart';
 import '../../core/gpx/gpx_import_service.dart';
 import '../../core/storage/local_route_store.dart';
+import 'route_discovery_item.dart';
+
+const _routeDiscoveryItems = <RouteDiscoveryItem>[
+  RouteDiscoveryItem(
+    asset: 'assets/images/routes/lagos_covadonga.jpg',
+    icon: 'assets/visuals/icons/library/premium/route.webp',
+    title: 'Lagos de Covadonga',
+    subtitle: 'Picos de Europa · Asturias',
+    meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
+    activity: 'Senderismo',
+  ),
+  RouteDiscoveryItem(
+    asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
+    icon: 'assets/visuals/icons/library/premium/nature.webp',
+    title: 'Mulhacén · Sierra Nevada',
+    subtitle: 'Sierra Nevada · Granada',
+    meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
+    activity: 'Senderismo',
+  ),
+  RouteDiscoveryItem(
+    asset: 'assets/images/routes/caminito_del_rey.jpg',
+    icon: 'assets/visuals/icons/library/premium/map.webp',
+    title: 'Caminito del Rey',
+    subtitle: 'Málaga · Andalucía',
+    meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
+    activity: 'Senderismo',
+  ),
+];
 
 class RoutesPage extends StatefulWidget {
   const RoutesPage({super.key});
@@ -16,15 +44,32 @@ class RoutesPage extends StatefulWidget {
 class _RoutesPageState extends State<RoutesPage> {
   final _gpx = const GpxImportService();
   final _store = LocalRouteStore();
+  final _searchController = TextEditingController();
 
   ImportedTrack? _imported;
   String? _error;
   String _filter = 'Todas';
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _imported = _store.loadLatestImportedTrack();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    if (query == _query) return;
+    setState(() => _query = query);
   }
 
   Future<void> _importGpx() async {
@@ -43,19 +88,36 @@ class _RoutesPageState extends State<RoutesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleRoutes = _routeDiscoveryItems
+        .where(
+          (route) => route.matches(
+            query: _query,
+            selectedActivity: _filter,
+          ),
+        )
+        .toList(growable: false);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutas'),
         actions: [
           IconButton(
-            tooltip: 'Filtrar',
-            onPressed: () {},
-            icon: const Icon(Icons.tune),
+            tooltip: 'Limpiar búsqueda y filtros',
+            onPressed: _query.isEmpty && _filter == 'Todas'
+                ? null
+                : () {
+                    _searchController.clear();
+                    setState(() => _filter = 'Todas');
+                  },
+            icon: const Icon(Icons.filter_alt_off_outlined),
           ),
           IconButton(
             tooltip: 'Importar GPX',
             onPressed: _importGpx,
-            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/gpx.webp', size: 28),
+            icon: const OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/gpx.webp',
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -68,7 +130,10 @@ class _RoutesPageState extends State<RoutesPage> {
             subtitle: 'Rutas con contexto y preparación offline.',
           ),
           const SizedBox(height: 14),
-          const _SearchField(),
+          _SearchField(
+            controller: _searchController,
+            query: _query,
+          ),
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -99,31 +164,44 @@ class _RoutesPageState extends State<RoutesPage> {
             ),
           ),
           const SizedBox(height: 16),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/lagos_covadonga.jpg',
-            icon: 'assets/visuals/icons/library/premium/route.webp',
-            title: 'Lagos de Covadonga',
-            subtitle: 'Picos de Europa · Asturias',
-            meta: 'MODERADA · 12,4 km · ↑ 650 m · 4–5 h',
-            onTap: () => context.push('/routes/planner'),
-          ),
-          const SizedBox(height: 12),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/mulhacen_sierra_nevada.jpg',
-            icon: 'assets/visuals/icons/library/premium/nature.webp',
-            title: 'Mulhacén · Sierra Nevada',
-            subtitle: 'Sierra Nevada · Granada',
-            meta: 'DIFÍCIL · 18,7 km · ↑ 1.320 m · 7–8 h',
-            onTap: () => context.push('/routes/planner'),
-          ),
-          const SizedBox(height: 12),
-          _RouteVisualCard(
-            asset: 'assets/images/routes/caminito_del_rey.jpg',
-            icon: 'assets/visuals/icons/library/premium/map.webp',
-            title: 'Caminito del Rey',
-            subtitle: 'Málaga · Andalucía',
-            meta: 'FÁCIL · 8,3 km · ↑ 210 m · 2–3 h',
-            onTap: () => context.push('/routes/planner'),
+          if (visibleRoutes.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off_outlined, size: 32),
+                    SizedBox(height: 8),
+                    Text(
+                      'No hay rutas de descubrimiento que coincidan.',
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Prueba otra búsqueda o selecciona «Todas».',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            for (var index = 0; index < visibleRoutes.length; index++) ...[
+              if (index > 0) const SizedBox(height: 12),
+              _RouteVisualCard(
+                asset: visibleRoutes[index].asset,
+                icon: visibleRoutes[index].icon,
+                title: visibleRoutes[index].title,
+                subtitle: visibleRoutes[index].subtitle,
+                meta: visibleRoutes[index].meta,
+                onTap: () => context.push('/routes/planner'),
+              ),
+            ],
+          const SizedBox(height: 18),
+          const Text(
+            'Las fichas del catálogo son ejemplos editoriales. Para calcular '
+            'un itinerario, selecciona un destino en el planificador y '
+            'comprueba que el servicio de rutas esté disponible.',
           ),
           const SizedBox(height: 18),
           if (_error != null)
@@ -143,13 +221,19 @@ class _RoutesPageState extends State<RoutesPage> {
           ],
           FilledButton.icon(
             onPressed: () => context.push('/routes/planner'),
-            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/route.webp', size: 24),
+            icon: const OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/route.webp',
+              size: 24,
+            ),
             label: const Text('Planificar una ruta'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: _importGpx,
-            icon: const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/gpx.webp', size: 24),
+            icon: const OutdoorAssetIcon(
+              asset: 'assets/visuals/icons/library/premium/gpx.webp',
+              size: 24,
+            ),
             label: const Text('Importar GPX'),
           ),
         ],
@@ -159,15 +243,29 @@ class _RoutesPageState extends State<RoutesPage> {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField();
+  const _SearchField({
+    required this.controller,
+    required this.query,
+  });
+
+  final TextEditingController controller;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
-    return const TextField(
+    return TextField(
+      controller: controller,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Buscar rutas, refugios…',
+        prefixIcon: const Icon(Icons.search),
+        hintText: 'Buscar rutas, zonas, distancia…',
+        suffixIcon: query.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Borrar búsqueda',
+                onPressed: controller.clear,
+                icon: const Icon(Icons.close),
+              ),
       ),
     );
   }
