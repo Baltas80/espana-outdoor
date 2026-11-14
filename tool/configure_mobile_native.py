@@ -9,6 +9,129 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def configure_release_signing(gradle_path: Path, gradle: str) -> str:
+    """Configure release signing and forbid debug-signed production builds."""
+    marker = "// ESPANA_OUTDOOR_RELEASE_SIGNING"
+    if marker in gradle:
+        return gradle
+
+    if gradle_path.suffix == ".kts":
+        preamble = """// ESPANA_OUTDOOR_RELEASE_SIGNING
+val releaseStoreFilePath = System.getenv("ANDROID_RELEASE_STORE_FILE")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+val releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured =
+    releaseStoreFilePath != null &&
+    !releaseStorePassword.isNullOrBlank() &&
+    releaseKeyAlias != null &&
+    !releaseKeyPassword.isNullOrBlank() &&
+    file(releaseStoreFilePath).isFile
+
+if (System.getenv("APP_ENV") == "production" && !releaseSigningConfigured) {
+    throw GradleException(
+        "Production Android builds require ANDROID_RELEASE_STORE_FILE, " +
+            "ANDROID_RELEASE_STORE_PASSWORD, ANDROID_RELEASE_KEY_ALIAS, " +
+            "and ANDROID_RELEASE_KEY_PASSWORD with a valid keystore."
+    )
+}
+"""
+        signing_config = """    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+"""
+        pattern = re.compile(
+            r"""(?m)^(\s*)signingConfig\s*=\s*signingConfigs\.getByName\(["']debug["']\)\s*$"""
+        )
+        replacement = (
+            r"\1signingConfig = if (releaseSigningConfigured) {\n"
+            r"\1    signingConfigs.getByName(\"release\")\n"
+            r"\1} else {\n"
+            r"\1    signingConfigs.getByName(\"debug\")\n"
+            r"\1}"
+        )
+    else:
+        preamble = """// ESPANA_OUTDOOR_RELEASE_SIGNING
+def releaseStoreFilePath = System.getenv('ANDROID_RELEASE_STORE_FILE')
+def releaseStorePassword = System.getenv('ANDROID_RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_RELEASE_KEY_PASSWORD')
+def releaseSigningConfigured =
+    releaseStoreFilePath != null &&
+    !releaseStoreFilePath.trim().isEmpty() &&
+    releaseStorePassword != null &&
+    !releaseStorePassword.trim().isEmpty() &&
+    releaseKeyAlias != null &&
+    !releaseKeyAlias.trim().isEmpty() &&
+    releaseKeyPassword != null &&
+    !releaseKeyPassword.trim().isEmpty() &&
+    file(releaseStoreFilePath).isFile()
+
+if (System.getenv('APP_ENV') == 'production' && !releaseSigningConfigured) {
+    throw new GradleException(
+        'Production Android builds require ANDROID_RELEASE_STORE_FILE, ' +
+        'ANDROID_RELEASE_STORE_PASSWORD, ANDROID_RELEASE_KEY_ALIAS, ' +
+        'and ANDROID_RELEASE_KEY_PASSWORD with a valid keystore.'
+    )
+}
+"""
+        signing_config = """    signingConfigs {
+        if (releaseSigningConfigured) {
+            release {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+"""
+        pattern = re.compile(r"(?m)^(\s*)signingConfig\s+signingConfigs\.debug\s*$")
+        replacement = (
+            r"\1signingConfig releaseSigningConfigured ? "
+            r"signingConfigs.release : signingConfigs.debug"
+        )
+
+    gradle, replacements = pattern.subn(replacement, gradle)
+    if replacements != 1:
+        raise SystemExit(
+            "Expected exactly one default debug release signing declaration; "
+            f"found {replacements}."
+        )
+
+    android_match = re.search(r"(?m)^android\s*\{", gradle)
+    if android_match is None:
+        raise SystemExit("Android Gradle file has no android block.")
+
+    gradle = (
+        gradle[: android_match.start()]
+        + preamble
+        + "\n"
+        + gradle[android_match.start() :]
+    )
+    android_match = re.search(r"(?m)^android\s*\{", gradle)
+    assert android_match is not None
+    insert_at = android_match.end()
+    gradle = (
+        gradle[:insert_at]
+        + "\n"
+        + signing_config
+        + gradle[insert_at:]
+    )
+    return gradle
+
+
 def patch_android() -> None:
     manifest = ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.exists():
@@ -161,6 +284,7 @@ def patch_android() -> None:
             1,
         )
 
+    gradle = configure_release_signing(gradle_path, gradle)
     gradle_path.write_text(gradle, encoding="utf-8")
 
     # AGP 9 exposes the Kotlin DSL to plugins through built-in Kotlin.
