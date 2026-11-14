@@ -45,6 +45,7 @@ jobs:
     env:
       ANDROID_APPLICATION_ID: com.espanaoutdoors.espana_outdoors.iconspreview
       ANDROID_APP_AUTH_REDIRECT_SCHEME: com.espanaoutdoors
+      MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Check staging endpoints
@@ -95,13 +96,23 @@ jobs:
           flutter test --coverage
       - name: Build Android staging APK
         if: always()
-        env:
-          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+        shell: bash
         run: |
-          set -e
-          if [ -z "$MAPBOX_ACCESS_TOKEN" ]; then
-            echo "::error::Falta el secreto MAPBOX_ACCESS_TOKEN; no se puede inicializar el mapa."
-            exit 1
+          set -euo pipefail
+          mapbox_runtime="available"
+          if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then
+            if [[ "${GITHUB_ACTOR}" != "dependabot[bot]" ]]; then
+              echo "::error::Missing MAPBOX_ACCESS_TOKEN; runtime staging validation cannot run."
+              exit 1
+            fi
+            mapbox_runtime="unavailable"
+            echo "::warning::Dependabot cannot access MAPBOX_ACCESS_TOKEN. Building a compile-only APK; Mapbox rendering and runtime routing are NOT validated."
+            {
+              echo "### Android staging: compile-only"
+              echo "Dependabot has no MAPBOX_ACCESS_TOKEN. Flutter analysis, tests and APK compilation run, but map rendering and runtime routing are not validated by this artifact."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Android staging: runtime token available" >> "$GITHUB_STEP_SUMMARY"
           fi
           flutter pub get
           flutter build apk --release \
@@ -113,6 +124,17 @@ jobs:
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+          mkdir -p build
+          {
+            echo "profile=staging"
+            echo "mapbox_runtime_token=$mapbox_runtime"
+            if [[ "$mapbox_runtime" == "available" ]]; then
+              echo "validation_scope=runtime-capable-artifact"
+            else
+              echo "validation_scope=compile-only-no-mapbox-runtime"
+            fi
+            echo "commit=$GITHUB_SHA"
+          } > build/android-staging-validation.txt
       - name: Verify APK
         if: always()
         run: |
@@ -124,7 +146,9 @@ jobs:
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/android-staging-validation.txt
           if-no-files-found: error
       - name: Enable KVM for Android emulator
         id: kvm_setup
@@ -145,7 +169,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        if: success() && steps.kvm_setup.outcome == 'success'
+        if: success() && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
