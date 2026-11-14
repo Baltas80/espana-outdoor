@@ -58,7 +58,7 @@ Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la 
 | Mapa online en dispositivo físico con el HEAD actual | Pendiente de nueva evidencia |
 | Descarga y persistencia de región offline en el HEAD actual | Pendiente de validación reproducible |
 | Reapertura en frío y mapa renderizado en modo avión | Pendiente en dispositivo físico |
-| Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #25 pendiente |
+| Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #53 pendiente de CI y validación |
 | Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta para senderismo, BTT y cicloturismo |
 | Firma release y candidato de producción | Pendiente de secretos y ejecución manual del workflow |
 
