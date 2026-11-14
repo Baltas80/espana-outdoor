@@ -65,6 +65,13 @@ jobs:
         run: python3 tool/verify_build_profile.py --profile ci
       - name: Dependencies
         run: flutter pub get
+      - name: Export resolved Pub lockfile for dependency audit
+        if: success()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock-${{ github.run_id }}
+          path: pubspec.lock
+          if-no-files-found: error
       - name: Map provider guard
         run: dart run tool/check_map_provider_usage.dart
       - name: Live data provider guard
