@@ -103,14 +103,24 @@ class MapboxNavigationRoutingService implements RoutingService {
     int readValue() {
       var result = 0;
       var shift = 0;
+      var terminated = false;
       while (index < encoded.length) {
         final byte = encoded.codeUnitAt(index++) - 63;
+        if (byte < 0 || byte > 0x3f) {
+          throw const FormatException('Invalid Mapbox polyline6 geometry.');
+        }
         result |= (byte & 0x1f) << shift;
-        if (byte < 0x20) break;
+        if (byte < 0x20) {
+          terminated = true;
+          break;
+        }
         shift += 5;
         if (shift > 60) {
           throw const FormatException('Invalid Mapbox polyline6 geometry.');
         }
+      }
+      if (!terminated) {
+        throw const FormatException('Truncated Mapbox polyline6 geometry.');
       }
       return (result & 1) == 0 ? result >> 1 : ~(result >> 1);
     }
