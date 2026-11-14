@@ -1,52 +1,106 @@
 # Cartografía y modo offline
 
-## Motor cartográfico
+## Arquitectura cartográfica
 
-Mapbox Maps SDK (`mapbox_maps_flutter`) es el motor elegido para la aplicación. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado durante la compilación. No se debe mantener un catálogo cartográfico paralelo.
+Mapbox Maps es el motor de representación cartográfica de la app. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado en tiempo de compilación.
 
-## Dos capacidades distintas
+La integración nativa de routing descrita aquí está preparada en la rama `feat/mapbox-offline-routing-port-20261114`; todavía no está integrada ni validada por CI o en dispositivo físico.
 
-### Mapas y teselas offline
+## Almacén compartido
 
-En `main`, la pantalla `OfflinePage` usa `OfflineManager` y `TileStore.createDefault()` para guardar el estilo y una región de prueba de Córdoba. Esta descarga permite validar almacenamiento cartográfico; por sí sola no demuestra que la aplicación sobreviva a una reapertura en frío, que el mapa se renderice en modo avión o que exista cobertura nacional.
+En Android, el puente nativo:
 
-La prueba anterior de Córdoba fue reportada como funcional sin conexión en un OPPO. Debe tratarse como evidencia histórica de una prueba de concepto, no como certificación del APK actual.
+1. Configura `MapboxOptions.accessToken`.
+2. Crea un `TileStore` persistente en `noBackupFilesDir/mapbox-tiles`.
+3. Asigna esa misma instancia a `MapboxMapsOptions.tileStore`.
+4. Configura `TileStoreUsageMode.READ_AND_UPDATE`.
+5. Inyecta la misma instancia en `RoutingTilesOptions` de Mapbox Navigation.
 
-### Cálculo de rutas offline
+El orden es obligatorio: el token debe configurarse antes de crear el TileStore y el TileStore debe quedar asignado antes de construir el primer `MapWidget`.
 
-El proveedor integrado actualmente en `main` utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`, por lo que el cálculo requiere conectividad con el endpoint configurado. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
+La metadata de finalización se escribe de forma síncrona en almacenamiento privado. La comprobación de una región exige que el ID exista en TileStore y que exista el marcador de finalización; el marcador por sí solo no basta.
 
-La integración nativa de Mapbox Navigation que añade un `TileStore` persistente compartido entre Maps y Navigation, junto con una solicitud de ruta cuyo origen debe ser explícitamente `OFFLINE`, está propuesta en la [PR #25](https://github.com/Baltas80/espana-outdoor/pull/25). Esa PR sigue sin integrar. Su rama está divergida de `main` (22 commits por delante y 9 por detrás a 14/11/2026), y debe portarse/rebasarse y volver a probarse antes de fusionar. La PR usa Mapbox Maps 3.34.1; `main` conserva 3.33.0.
+## Región de prueba
 
-## Reglas
+La primera descarga cubre una región delimitada de Córdoba, con estilo Mapbox Outdoors y zoom 8–15. Se descargan:
 
-- Mantener Mapbox como único motor de representación cartográfica.
-- Conservar GPS, grabación de recorridos, GPX, routing Valhalla y funciones de seguridad independientemente del proveedor del mapa.
-- Mantener los datos críticos de ruta disponibles offline y mostrar su antigüedad cuando corresponda.
-- No usar servidores públicos de teselas OSM para descargas masivas.
-- Mostrar progreso, errores, reintentos y estado de la descarga de Mapbox.
-- No declarar cobertura nacional ni producción completa por haber descargado la región de Córdoba.
-- No mostrar cálculo offline disponible hasta recibir y validar una respuesta de routing con origen nativo `OFFLINE`.
+- Style pack del mapa.
+- Teselas visuales de la región.
+- Descriptor de routing peatonal de Navigation SDK.
 
-## Protocolo de aceptación Android
+La descarga no representa cobertura nacional. No se deben anunciar mapas de toda España hasta definir, descargar y probar regiones y cuotas reales.
 
-La validación debe realizarse sobre el APK construido desde el commit exacto candidato a integrar:
+## Motores de routing
 
-1. Instalar el APK y abrir el mapa con conectividad.
-2. Descargar el estilo y la región de prueba de Córdoba; esperar a que el SDK confirme la finalización.
-3. Forzar el cierre de la aplicación y volver a abrirla para comprobar que la región sigue registrada.
-4. Activar modo avión y confirmar que Wi-Fi, datos móviles y VPN no proporcionan conectividad.
-5. Abrir el mapa, desplazarse y cambiar el zoom dentro de la región descargada; comprobar que las teselas se renderizan sin red.
-6. Solicitar una ruta nueva. La prueba de navegación offline solo pasa si el SDK devuelve una ruta calculada con origen explícito `OFFLINE`; una ruta guardada localmente o una respuesta de Valhalla no cuentan.
-7. Reiniciar el dispositivo y repetir la comprobación de persistencia, renderizado y routing offline.
-8. Restablecer la conectividad y comprobar recuperación sin duplicar ni corromper la región.
+| Perfil | Motor | Estado offline |
+|---|---|---|
+| Senderismo / walking | Mapbox Navigation en Android | Preparado para usar routing tiles peatonales; pendiente de prueba |
+| BTT | Valhalla | Online; offline no implementado |
+| Cicloturismo | Valhalla | Online; offline no implementado |
+| Ajuste de tracks GPX | Valhalla | Requiere endpoint online |
 
-Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba.
+El adaptador Mapbox solo acepta perfiles peatonales. El servicio compuesto evita enviar perfiles de bicicleta al grafo peatonal. Los resultados incluyen `source`: `online`, `offline` o `valhalla`. La UI debe mostrar ese origen real.
 
-## Estado y pendientes
+La implementación actual calcula rutas y devuelve geometría e instrucciones. No acredita todavía navegación guiada completa con progreso GPS, detección de desvíos o recálculo.
 
-- Mapa offline: descarga de una región de prueba presente en `main`; falta repetir la validación física sobre el HEAD actual.
-- Navegación offline nativa: propuesta en PR #25, no integrada.
+## Credenciales
+
+- `MAPBOX_ACCESS_TOKEN`: token público de runtime para el estilo y la API.
+- `MAPBOX_DOWNLOADS_TOKEN`: token con permiso de lectura de Mapbox Downloads, usado por Gradle para resolver los SDK nativos desde Maven.
+
+Ninguno debe incluirse en el repositorio. El token Maven no debe exponerse a PRs no confiables. Los builds de Dependabot sin ese secreto omiten Android nativo y se etiquetan como no validados; no son artefactos de prueba de mapas.
+
+## Pruebas automatizadas y de emulador
+
+La integración de Android ejecuta dos fases:
+
+1. Con conexión: inicializa el TileStore, calcula una ruta fuera de Córdoba para exigir origen `ONLINE`, descarga el style pack y la región, y confirma que TileStore conserva el ID.
+2. Sin conexión: fuerza el cierre, activa modo avión y desactiva Wi-Fi, comprueba que la región persiste, solicita una ruta nueva dentro de Córdoba y exige origen `OFFLINE`. Después monta un `MapWidget` y espera `onMapLoaded`, evento que confirma estilo y teselas visibles cargadas. También captura una imagen de evidencia.
+
+Script CI:
+
+```bash
+bash tool/staging_android_route_integration.sh
+```
+
+La CI distingue la prueba de ruta del evento de mapa cargado. Un resultado `OFFLINE` sin mapa renderizado no basta para aceptar cartografía offline.
+
+## Prueba física OPPO
+
+Desde Windows, con Flutter, ADB y las credenciales necesarias:
+
+```powershell
+$env:MAPBOX_ACCESS_TOKEN = "pk.…"
+$env:MAPBOX_DOWNLOADS_TOKEN = "…"
+$env:ANDROID_SERIAL = "da09ac8c"
+.	ool	est_mapbox_oppo_routes.ps1
+```
+
+El script valida el dispositivo OPPO esperado, registra el estado original de conectividad, prueba online y descarga, activa modo avión, desactiva Wi-Fi, fuerza el cierre y exige ruta nueva con origen `OFFLINE` y evidencia de mapa cargado. Al finalizar intenta restaurar el estado original de conectividad y guarda informe y logcat bajo `build/mapbox-oppo-validation/`.
+
+La prueba debe repetirse después de reiniciar el dispositivo para acreditar persistencia real. No ejecutar el script con un dispositivo distinto sin ajustar explícitamente `ANDROID_SERIAL` y `EXPECTED_ANDROID_MODEL`.
+
+## Protocolo de aceptación
+
+La funcionalidad no se considera aceptada hasta cumplir todo lo siguiente en el APK construido desde el commit candidato:
+
+1. Instalar y abrir la app con conectividad.
+2. Descargar Córdoba y esperar la confirmación del SDK.
+3. Forzar cierre y volver a abrir.
+4. Activar modo avión y confirmar que Wi-Fi está desactivado.
+5. Abrir el mapa, moverlo y cambiar zoom dentro de la región.
+6. Confirmar que Mapbox emite el evento de mapa cargado y que las teselas visibles se renderizan.
+7. Calcular una ruta nueva, no reutilizar una ruta guardada, y exigir origen nativo `OFFLINE`.
+8. Reiniciar el dispositivo y repetir la comprobación de región, mapa y routing.
+9. Restaurar conectividad y verificar recuperación sin duplicar ni corromper la región.
+
+Registrar por separado tests unitarios, emulador y dispositivo físico. CI verde no sustituye la prueba en OPPO.
+
+## Estado
+
+- Mapas offline: integración nativa preparada en rama; sin aceptación todavía.
+- Routing peatonal offline: integración nativa preparada en rama; sin aceptación todavía.
+- Routing BTT/cicloturismo offline: no implementado.
+- Navegación guiada completa: no acreditada.
 - Cobertura nacional: no acreditada.
-- Reapertura en frío y tras reinicio: pendiente para el APK candidato.
-- Las pantallas de planificación y detalle usan el viewport Mapbox compartido; la ruta Valhalla sigue dependiendo del endpoint online.
+- Prueba física tras reinicio: pendiente.
