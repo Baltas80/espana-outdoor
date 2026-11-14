@@ -95,7 +95,7 @@ jobs:
       - name: Dependencies
         run: flutter pub get
       - name: Commit resolved Pub lockfile for this integration branch
-        if: github.event_name == 'pull_request' && github.actor == 'Baltas80' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-port-20261114' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && github.actor == 'Baltas80' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-ci-20261114' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -121,10 +121,10 @@ jobs:
           git commit -m "chore(deps): update resolved Pub lockfile"
           git push origin "HEAD:${GITHUB_HEAD_REF}"
       - name: Verify resolved Pub lockfile is reproducible
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-port-20261114'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-ci-20261114'
         run: flutter pub get --enforce-lockfile
       - name: Verify Mapbox Flutter dependency lock
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-port-20261114'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-ci-20261114'
         run: python3 tool/verify_mapbox_lock.py
       - name: Export resolved Pub lockfile for dependency audit
         if: success()
