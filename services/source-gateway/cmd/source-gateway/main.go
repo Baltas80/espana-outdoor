@@ -104,7 +104,7 @@ func main() {
     if cfg.databaseURL != "" {
         profilePool, err = pgxpool.New(ctx, cfg.databaseURL)
         if err != nil {
-            log.Error("community profile database pool failed", "error", err)
+            log.Error("community profile database pool failed", "error_type", fmt.Sprintf("%T", err))
             os.Exit(1)
         }
         defer profilePool.Close()
@@ -113,20 +113,20 @@ func main() {
         err = profilePool.Ping(pingCtx)
         cancel()
         if err != nil {
-            log.Error("community profile database unavailable", "error", err)
+            log.Error("community profile database unavailable", "error_type", fmt.Sprintf("%T", err))
             os.Exit(1)
         }
 
         migration, err := os.ReadFile(cfg.profileMigrationPath)
         if err != nil {
-            log.Error("community profile migration file missing", "path", cfg.profileMigrationPath, "error", err)
+            log.Error("community profile migration file missing", "path", cfg.profileMigrationPath, "error_type", fmt.Sprintf("%T", err))
             os.Exit(1)
         }
         migrationCtx, migrationCancel := context.WithTimeout(ctx, 10*time.Second)
         _, err = profilePool.Exec(migrationCtx, string(migration))
         migrationCancel()
         if err != nil {
-            log.Error("community profile migration failed", "error", err)
+            log.Error("community profile migration failed", "error_type", fmt.Sprintf("%T", err))
             os.Exit(1)
         }
         profiles = &postgresProfileStore{db: profilePool}

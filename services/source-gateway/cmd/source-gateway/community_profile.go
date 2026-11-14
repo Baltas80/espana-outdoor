@@ -94,7 +94,7 @@ func (s *server) myProfile(w http.ResponseWriter, r *http.Request) {
 
     profile, err := s.profiles.upsert(r.Context(), subject, verifiedEmail(claims), identityDisplayName(claims))
     if err != nil {
-        s.log.Error("community profile read failed", "error", err)
+        s.log.Error("community profile read failed")
         s.writeError(w, http.StatusServiceUnavailable, "community profile service unavailable")
         return
     }
@@ -132,13 +132,13 @@ func (s *server) updateMyProfile(w http.ResponseWriter, r *http.Request) {
     }
 
     if _, err := s.profiles.upsert(r.Context(), subject, verifiedEmail(claims), identityDisplayName(claims)); err != nil {
-        s.log.Error("community profile provision failed", "error", err)
+        s.log.Error("community profile provision failed")
         s.writeError(w, http.StatusServiceUnavailable, "community profile service unavailable")
         return
     }
     profile, err := s.profiles.updateDisplayName(r.Context(), subject, displayName)
     if err != nil {
-        s.log.Error("community profile update failed", "error", err)
+        s.log.Error("community profile update failed")
         s.writeError(w, http.StatusServiceUnavailable, "community profile service unavailable")
         return
     }

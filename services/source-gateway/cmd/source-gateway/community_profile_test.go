@@ -230,3 +230,49 @@ func TestNormalizeDisplayName(t *testing.T) {
         t.Fatal("control characters must be rejected")
     }
 }
+
+func TestMyProfileReturnsUnavailableWithoutDatabase(t *testing.T) {
+    srv, token, _, cleanup := newCommunityProfileTestServer(t, map[string]any{"sub": "user-123"})
+    defer cleanup()
+    srv.profiles = nil
+
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+token)
+    response := httptest.NewRecorder()
+    srv.myProfile(response, request)
+
+    if response.Code != http.StatusServiceUnavailable {
+        t.Fatalf("expected 503 when DATABASE_URL is absent, got %d", response.Code)
+    }
+}
+
+func TestValidateDatabaseURLRequiresTLSOutsideLoopback(t *testing.T) {
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app"); err == nil {
+        t.Fatal("production PostgreSQL URL without TLS must be rejected")
+    }
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require"); err != nil {
+        t.Fatalf("TLS-enabled PostgreSQL URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable"); err != nil {
+        t.Fatalf("local loopback development URL rejected: %v", err)
+    }
+}
+
+func TestParseAllowedOriginsRejectsWildcardAndInsecureRemoteOrigins(t *testing.T) {
+    if _, err := parseAllowedOrigins("*"); err == nil {
+        t.Fatal("wildcard CORS origin must be rejected")
+    }
+    if _, err := parseAllowedOrigins("http://attacker.example"); err == nil {
+        t.Fatal("remote HTTP origin must be rejected")
+    }
+    allowed, err := parseAllowedOrigins("https://espanaoutdoor.es, http://localhost:5173")
+    if err != nil {
+        t.Fatalf("valid production and local origins rejected: %v", err)
+    }
+    if _, ok := allowed["https://espanaoutdoor.es"]; !ok {
+        t.Fatal("production origin missing from allowlist")
+    }
+    if _, ok := allowed["http://localhost:5173"]; !ok {
+        t.Fatal("local development origin missing from allowlist")
+    }
+}
