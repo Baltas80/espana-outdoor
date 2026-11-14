@@ -29,6 +29,8 @@ void main() {
   for (final profileCase in const [
     {'profile': 'mtb', 'bicycle_type': 'mountain'},
     {'profile': 'cycling', 'bicycle_type': 'hybrid'},
+    {'profile': 'mountain', 'bicycle_type': 'mountain'},
+    {'profile': 'road', 'bicycle_type': 'road'},
   ]) {
     test('maps ${profileCase['profile']} to the correct bicycle costing', () async {
       final client = _FakeClient({
