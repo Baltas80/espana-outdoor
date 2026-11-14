@@ -9,7 +9,7 @@ if (-not $AdbCommand) { throw 'ADB was not found. Add platform-tools to PATH or 
 $Adb = $AdbCommand
 $DeviceId = if ($env:ANDROID_SERIAL) { $env:ANDROID_SERIAL } else { 'da09ac8c' }
 $ExpectedModel = if ($env:EXPECTED_ANDROID_MODEL) { $env:EXPECTED_ANDROID_MODEL } else { 'CPH2009' }
-$PackageName = 'com.espanaoutdoors.espana_outdoors'
+$PackageName = if ($env:ANDROID_APPLICATION_ID) { $env:ANDROID_APPLICATION_ID } else { 'com.espanaoutdoors.espana_outdoors' }
 $ReportDir = Join-Path $RepoRoot 'build\mapbox-oppo-validation'
 $ReportPath = Join-Path $ReportDir 'validation-report.txt'
 $LogcatPath = Join-Path $ReportDir 'logcat.txt'
@@ -105,7 +105,7 @@ try {
     if ($RebootAfterOffline) {
         $Report.Add("Reboot persistence validation started at $(Get-Date -Format o)")
         Invoke-Adb @('-s', $DeviceId, 'reboot') | Out-Null
-        & $Adb -s $DeviceId wait-for-device | Out-Null
+        Invoke-Adb @('-s', $DeviceId, 'wait-for-device') | Out-Null
         $bootDeadline = (Get-Date).AddMinutes(3)
         $bootComplete = ''
         while ((Get-Date) -lt $bootDeadline) {
