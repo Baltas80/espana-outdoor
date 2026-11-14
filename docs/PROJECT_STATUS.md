@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión del repositorio remoto: **14/11/2026**. Rama de referencia: `main`, HEAD `e81a348a907c6c6f6f717828c257056f21f4d2f2`. Este documento separa cambios integrados, checks automatizados y validaciones que requieren un dispositivo o servicios reales.
+Última revisión del repositorio remoto: **15/11/2026**. Rama de referencia: `main`, HEAD `e81a348a907c6c6f6f717828c257056f21f4d2f2`. Este documento separa cambios integrados, checks automatizados y validaciones que requieren un dispositivo o servicios reales.
 
 ## Objetivo MVP
 
@@ -33,17 +33,17 @@ Las PR #4, #7, #13 y #16 se cerraron como supersedidas porque sus cambios ya est
 
 ## Estado de navegación offline
 
-La implementación nueva está en la [PR #61 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/61), rama `feat/mapbox-offline-routing-mainline-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52, #53, #57 y #59 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
+La implementación nueva está en la [PR #61 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/61), rama `feat/mapbox-offline-routing-final-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52, #53, #57 y #59 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
 
 La PR #61 propone:
-- Mapbox Navigation 3.34.1 con Maps SDK 11.34.1 y Flutter plugin 3.34.1.
+- Mapbox Navigation 3.35.0 / Navigation Native 324.35.0, Maps SDK 11.35.0 y Core Common 24.35.0; Flutter plugin 3.34.1.
 - Un `TileStore` persistente compartido por Maps y Navigation, configurado antes del primer `MapWidget`.
 - Descarga de prueba de Córdoba con style pack, teselas y descriptor de routing peatonal.
 - Routing compuesto: Android senderismo/peatonal con Mapbox; BTT, cicloturismo y map matching GPX con Valhalla. No se afirma routing offline de bicicleta.
 - Pruebas unitarias e integración Android para ruta online, descarga, cierre del proceso, modo avión, nueva ruta con origen explícito `OFFLINE` y evidencia de carga del mapa.
 - Staging con permisos de solo lectura, lockfile obligatorio y sin commits automáticos desde CI.
 
-La nueva PR #61 se creó desde el HEAD actual de `main` en un único commit (`6e741b7c544d3ade4899d758c3b8b8db924e5f08` antes de esta actualización documental), sin divergencia de base. La ejecución anterior de Android staging instaló el APK, pero falló el smoke de UI al no encontrar el destino `Mapa`; la jerarquía estaba vacía y el artefacto no incluía logcat. La PR #61 añade diagnóstico de arranque y captura de evidencias; la causa raíz sigue pendiente de la siguiente ejecución.
+La PR #61 parte del HEAD `e81a348a907c6c6f6f717828c257056f21f4d2f2` de `main` y conserva una base sin divergencia. En el primer staging del 14/11/2026 se compiló e instaló el APK y arrancó el emulador, pero la integración falló con `NAVIGATION_INIT_FAILED`. El logcat confirmó un `UnsatisfiedLinkError`: Navigation Native 324.34.1 solicitaba un símbolo que no exportaba Mapbox Common 24.35.0, empaquetado junto a Maps 11.35.0. La rama alinea Navigation 3.35.0 con Maps 11.35.0/Common 24.35.0 y actualiza el NDK de compilación a 28.2.13676358; CI debe verificar el arreglo antes de integrar.
 
 La PR #61 debe superar todos los checks y demostrar en emulador una ruta nueva con origen `OFFLINE`. Después debe instalarse el APK exacto en el OPPO y repetirse la prueba tras cierre forzado y reinicio. La región de Córdoba es una prueba de concepto, no cobertura nacional.
 
@@ -64,7 +64,7 @@ Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la 
 | Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta para senderismo, BTT y cicloturismo |
 | Firma release y candidato de producción | Pendiente de secretos y ejecución manual del workflow |
 
-La PR #39 (setup-java 6.2.0) conserva una ejecución antigua de Android staging fallida y su rama está 7 commits por detrás de `main`; se solicitó a Dependabot que la rebase para repetir CI sobre el estado actual. La PR #41 (background_downloader 9.6.6) pasó CI, Security baseline, CodeQL y Android staging; sus pasos incluyen compilación y verificación del APK. Su lockfile deberá reconciliarse con Mapbox 3.34.1 si se integra después de la PR #61.
+La PR #39 (setup-java 6.2.0) conserva una ejecución antigua de Android staging fallida y su rama está 7 commits por detrás de `main`; se solicitó a Dependabot que la rebase para repetir CI sobre el estado actual. La PR #41 (background_downloader 9.6.6) pasó CI, Security baseline, CodeQL y Android staging; sus pasos incluyen compilación y verificación del APK. Su lockfile deberá reconciliarse con la versión final de los paquetes nativos Mapbox si se integra después de la PR #61.
 
 Una prueba anterior de la región de Córdoba fue reportada como funcional sin conexión en un OPPO. Es evidencia histórica de una prueba de concepto; no acredita el APK actual, reapertura tras reinicio, cálculo offline de rutas ni cobertura nacional.
 
