@@ -103,11 +103,20 @@ jobs:
             echo "pubspec.lock is already current."
             exit 0
           fi
+          resolved_lock="$RUNNER_TEMP/pubspec.lock"
+          cp pubspec.lock "$resolved_lock"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch origin "+refs/heads/${GITHUB_HEAD_REF}:refs/remotes/origin/${GITHUB_HEAD_REF}"
+          git checkout -B "${GITHUB_HEAD_REF}" "refs/remotes/origin/${GITHUB_HEAD_REF}"
+          cp "$resolved_lock" pubspec.lock
+          if git diff --quiet -- pubspec.lock; then
+            echo "pubspec.lock is already current on the PR branch."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pubspec.lock
           git commit -m "chore(deps): update resolved Pub lockfile"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin "HEAD:${GITHUB_HEAD_REF}"
       - name: Export resolved Pub lockfile for dependency audit
         if: success()
