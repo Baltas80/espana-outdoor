@@ -1,12 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-const _regionId = 'espana-outdoor-cordoba-poc';
-const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
-const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+import '../../app/outdoor_visuals.dart';
+
 const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
+const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
+const _regionId = 'espana-outdoor-cordoba-poc';
+const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
 const _cordobaRing = <List<double>>[
   [-4.84, 37.85],
@@ -16,8 +17,8 @@ const _cordobaRing = <List<double>>[
   [-4.84, 37.85],
 ];
 
-/// Downloads Mapbox style resources, visual tiles, and walking routing tiles
-/// into the same native TileStore on Android.
+/// Downloads map and pedestrian routing resources through the native bridge.
+/// Maps and Navigation therefore use the same persistent Android TileStore.
 class OfflinePage extends StatefulWidget {
   const OfflinePage({super.key});
 
@@ -35,35 +36,42 @@ class _OfflinePageState extends State<OfflinePage> {
   @override
   void initState() {
     super.initState();
-    _initializeOfflineStore();
+    _refreshStatus();
   }
 
-  Future<void> _initializeOfflineStore() async {
+  Future<bool> _queryOfflineRegion() async {
+    final result = await _navigationChannel.invokeMethod<bool>(
+      'hasOfflineRegion',
+      {'regionId': _regionId},
+    );
+    return result == true;
+  }
+
+  Future<void> _refreshStatus() async {
+    if (!_initializing && mounted) {
+      setState(() => _initializing = true);
+    }
     try {
-      if (defaultTargetPlatform != TargetPlatform.android) {
-        throw UnsupportedError(
-          'El cálculo de rutas offline con Navigation SDK está integrado primero en Android.',
-        );
-      }
-      if (_accessToken.isEmpty) {
-        throw StateError('Falta MAPBOX_ACCESS_TOKEN en esta compilación.');
-      }
-      final available = await _navigationChannel.invokeMethod<bool>(
-        'hasOfflineRegion',
-        {'regionId': _regionId},
-      );
+      final exists = await _queryOfflineRegion();
       if (!mounted) return;
       setState(() {
-        _hasOfflineRegion = available ?? false;
-        _message = _hasOfflineRegion
-            ? 'Córdoba dispone de cartografía y datos de rutas a pie guardados.'
-            : 'Todavía no hay una descarga offline completa confirmada.';
+        _hasOfflineRegion = exists;
+        _message = exists
+            ? 'Mapbox confirma la región de Córdoba y sus datos de routing peatonal.'
+            : 'Todavía no hay una descarga confirmada en este dispositivo.';
+        _error = null;
       });
-    } catch (error) {
+    } on MissingPluginException {
       if (!mounted) return;
       setState(() {
         _hasOfflineRegion = false;
-        _error = 'No se pudo comprobar la descarga offline: $error';
+        _error = 'El motor nativo offline solo está disponible en Android.';
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _hasOfflineRegion = false;
+        _error = 'No se pudo consultar el almacén offline (' + error.code + ').';
       });
     } finally {
       if (mounted) setState(() => _initializing = false);
@@ -71,41 +79,59 @@ class _OfflinePageState extends State<OfflinePage> {
   }
 
   Future<void> _downloadRegion() async {
-    if (_downloading || _initializing) return;
-    if (defaultTargetPlatform != TargetPlatform.android) {
-      setState(() => _error = 'La descarga de routing offline está disponible primero en Android.');
-      return;
-    }
+    if (_downloading || _accessToken.isEmpty) return;
     setState(() {
       _downloading = true;
+      _message = 'Descargando estilo, teselas y routing peatonal de Córdoba…';
       _error = null;
-      _message = 'Descargando estilo, teselas del mapa y grafo peatonal de Córdoba…';
     });
 
     try {
-      await _navigationChannel.invokeMethod<void>('downloadOfflineRegion', {
-        'regionId': _regionId,
-        'styleUri': _styleUri,
-        'coordinates': _cordobaRing,
-        'minZoom': 8,
-        'maxZoom': 15,
-      });
-      if (!mounted) return;
-      await _initializeOfflineStore();
-      if (!mounted) return;
-      if (_hasOfflineRegion) {
-        setState(() {
-          _message = 'Descarga completa: mapas y routing peatonal disponibles para prueba offline.';
-        });
-      } else {
-        setState(() => _error = 'La descarga terminó, pero no se ha podido confirmar la región.');
+      final result = await _navigationChannel.invokeMapMethod<String, dynamic>(
+        'downloadOfflineRegion',
+        {
+          'regionId': _regionId,
+          'styleUri': _styleUri,
+          'coordinates': _cordobaRing,
+          'minZoom': 8,
+          'maxZoom': 15,
+        },
+      );
+      if (result == null ||
+          result['regionId'] != _regionId ||
+          result['mapTiles'] != true ||
+          result['routingProfile'] != 'walking') {
+        throw const FormatException(
+          'El motor nativo no confirmó los recursos de mapa y routing.',
+        );
       }
+
+      final exists = await _queryOfflineRegion();
+      if (!mounted) return;
+      setState(() {
+        _hasOfflineRegion = exists;
+        _message = exists
+            ? 'Descarga confirmada. Activa modo avión y valida mapa y ruta peatonal.'
+            : 'La descarga terminó, pero TileStore no confirmó la región.';
+      });
+    } on MissingPluginException {
+      if (!mounted) return;
+      setState(() {
+        _error = 'El puente nativo Mapbox Navigation no está disponible.';
+        _message = 'No se ha podido iniciar la descarga.';
+      });
     } on PlatformException catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'Mapbox no pudo descargar los datos: ${error.message ?? error.code}');
-    } catch (error) {
+      setState(() {
+        _error = 'Error del motor offline (' + error.code + ').';
+        _message = 'No se ha podido confirmar la descarga.';
+      });
+    } on Object catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'Error al descargar la región: $error');
+      setState(() {
+        _error = error.toString().replaceFirst('FormatException: ', '');
+        _message = 'No se ha podido confirmar la descarga.';
+      });
     } finally {
       if (mounted) setState(() => _downloading = false);
     }
@@ -114,11 +140,14 @@ class _OfflinePageState extends State<OfflinePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mapas y rutas offline')),
+      appBar: AppBar(title: const Text('Mapas offline')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Icon(Icons.map_outlined, size: 54),
+          const OutdoorAssetIcon(
+            asset: 'assets/visuals/icons/library/premium/offline.webp',
+            size: 64,
+          ),
           const SizedBox(height: 16),
           Text(
             'Descarga de prueba · Córdoba',
@@ -127,8 +156,8 @@ class _OfflinePageState extends State<OfflinePage> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Mapbox Outdoors y datos de routing peatonal · zoom 8–15. '
-            'Esta prueba descarga una zona delimitada de Córdoba, no toda España.',
+            'Mapbox Outdoors · zoom 8–15. La región incluye cartografía '
+            'y routing peatonal. No representa cobertura de toda España.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -137,18 +166,22 @@ class _OfflinePageState extends State<OfflinePage> {
               child: Padding(
                 padding: EdgeInsets.all(14),
                 child: Text(
-                  'Falta MAPBOX_ACCESS_TOKEN. Inyecta el token público de Mapbox en la compilación; no lo incluyas en Git.',
+                  'Falta MAPBOX_ACCESS_TOKEN. Inyecta el token público durante '
+                  'la compilación; nunca lo incluyas en Git.',
                 ),
               ),
             ),
-          if (_initializing || _downloading) const LinearProgressIndicator(),
-          const SizedBox(height: 12),
-          Text(_message ?? 'Preparado para comprobar las descargas.'),
+          if (_initializing || _downloading) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+          ],
+          Text(_message ?? 'Preparado para comprobar el almacenamiento.'),
           if (_hasOfflineRegion)
             const Padding(
               padding: EdgeInsets.only(top: 10),
               child: Text(
-                'Mapbox confirma la región guardada. Falta validar una ruta nueva con el teléfono sin conexión.',
+                'TileStore confirma la región y los datos peatonales. '
+                'Esto todavía no sustituye la prueba sin conectividad.',
               ),
             ),
           if (_error != null) ...[
@@ -170,13 +203,15 @@ class _OfflinePageState extends State<OfflinePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.download),
-            label: Text(_downloading ? 'Descargando…' : 'Descargar mapas y rutas de Córdoba'),
+            label: Text(
+              _downloading ? 'Descargando…' : 'Descargar mapa de Córdoba',
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: _initializing || _downloading ? null : _initializeOfflineStore,
+            onPressed: _initializing || _downloading ? null : _refreshStatus,
             icon: const Icon(Icons.refresh),
-            label: const Text('Comprobar descarga guardada'),
+            label: const Text('Comprobar descargas guardadas'),
           ),
           const SizedBox(height: 10),
           FilledButton.tonal(
@@ -185,7 +220,9 @@ class _OfflinePageState extends State<OfflinePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Prueba obligatoria: descarga la región, fuerza el cierre de España Outdoor, activa el modo avión, vuelve a abrir la app y calcula una ruta nueva entre dos puntos dentro de Córdoba.',
+            'Validación pendiente: activa modo avión, fuerza el cierre de '
+            'España Outdoor y vuelve a abrirla. Comprueba que el mapa se '
+            'renderiza y que una ruta peatonal nueva se calcula sin red.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
