@@ -50,7 +50,7 @@ No se deben incluir valores de estos secretos en Git, artefactos, informes ni lo
 | Área | Estado |
 |---|---|
 | CI, análisis y pruebas de la rama de integración | Pendiente de ejecución |
-| Resolución reproducible de dependencias y lockfile | Pendiente de actualizar desde `flutter pub get` |
+| Resolución reproducible de dependencias y lockfile | Workflow preparado para resolver, versionar y verificar el lockfile; resultado pendiente |
 | Compilación Android con Mapbox Maven | Pendiente de CI con `MAPBOX_DOWNLOADS_TOKEN` |
 | Routing online y origen `ONLINE` | Pendiente de prueba integrada |
 | Descarga y persistencia de Córdoba | Pendiente de prueba integrada |
