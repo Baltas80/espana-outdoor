@@ -180,7 +180,6 @@ jobs:
       - name: Enable KVM for Android emulator
         id: kvm_setup
         if: success() && steps.build_apk.outputs.built == 'true'
-        continue-on-error: true
         shell: bash
         run: |
           set -euxo pipefail
@@ -196,7 +195,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
