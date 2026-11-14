@@ -1,3 +1,5 @@
+param([switch]$RebootAfterOffline)
+
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -70,7 +72,8 @@ function Invoke-RouteIntegration([string] $Mode) {
 
 try {
     $deviceList = Invoke-Adb @('devices', '-l')
-    $authorized = $deviceList -split "`r?`n" | Where-Object { $_ -match '^da09ac8c\s+device\b' }
+    $devicePattern = '^' + [regex]::Escape($DeviceId) + '\s+device\b'
+    $authorized = $deviceList -split "`r?`n" | Where-Object { $_ -match $devicePattern }
     if (-not $authorized) { throw "Required OPPO $DeviceId is not authorized and online. No substitute device will be accepted.`n$deviceList" }
     $state = Invoke-Adb @('-s', $DeviceId, 'get-state')
     if ($state -ne 'device') { throw "Required device $DeviceId is not ready; state='$state'." }
@@ -98,6 +101,35 @@ try {
     $airplaneNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'airplane_mode_on')
     $wifiNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
     if ($airplaneNow -ne '1' -or $wifiNow -ne '0') { throw 'Connectivity changed during the offline route request.' }
+
+    if ($RebootAfterOffline) {
+        $Report.Add("Reboot persistence validation started at $(Get-Date -Format o)")
+        Invoke-Adb @('-s', $DeviceId, 'reboot') | Out-Null
+        & $Adb -s $DeviceId wait-for-device | Out-Null
+        $bootDeadline = (Get-Date).AddMinutes(3)
+        $bootComplete = ''
+        while ((Get-Date) -lt $bootDeadline) {
+            try {
+                $bootComplete = Invoke-Adb @('-s', $DeviceId, 'shell', 'getprop', 'sys.boot_completed')
+                if ($bootComplete -eq '1') { break }
+            } catch { }
+            Start-Sleep -Seconds 3
+        }
+        if ($bootComplete -ne '1') { throw 'OPPO did not finish booting within three minutes.' }
+
+        Set-AirplaneMode $true
+        Invoke-Adb @('-s', $DeviceId, 'shell', 'svc', 'wifi', 'disable') | Out-Null
+        Start-Sleep -Seconds 3
+        $airplaneAfterBoot = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'airplane_mode_on')
+        $wifiAfterBoot = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
+        if ($airplaneAfterBoot -ne '1' -or $wifiAfterBoot -ne '0') {
+            throw 'Could not re-establish and verify airplane mode after reboot.'
+        }
+        Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
+        Invoke-RouteIntegration 'offline'
+        $Report.Add("PASS: offline TileStore and routing persisted after device reboot at $(Get-Date -Format o)")
+    }
+
     $OfflineConfirmed = $true
     $Report.Add("PASS: fresh native offline route confirmed at $(Get-Date -Format o)")
 }
@@ -107,7 +139,12 @@ catch {
 }
 finally {
     if (Test-Path -LiteralPath $Adb) {
-        try { & $Adb -s $DeviceId logcat -d | Out-File -LiteralPath $LogcatPath -Encoding utf8 } catch { $Report.Add("Logcat collection failed: $($_.Exception.Message)") }
+        try {
+            $logcat = Invoke-Adb @('-s', $DeviceId, 'logcat', '-d')
+            if ($env:MAPBOX_ACCESS_TOKEN) { $logcat = $logcat.Replace($env:MAPBOX_ACCESS_TOKEN, '[REDACTED]') }
+            $logcat = [regex]::Replace($logcat, '(?i)(access_token=)[^&\s]+', '$1[REDACTED]')
+            $logcat | Out-File -LiteralPath $LogcatPath -Encoding utf8
+        } catch { $Report.Add("Logcat collection failed: $($_.Exception.Message)") }
     }
     if ($NetworkStateCaptured) {
         try { Set-AirplaneMode ($OriginalAirplane -eq '1') } catch { $Report.Add("Airplane mode restore failed: $($_.Exception.Message)") }
@@ -123,6 +160,6 @@ finally {
 }
 
 if (-not $OfflineConfirmed) { throw 'Validation cannot pass without explicit native OFFLINE route confirmation.' }
-Write-Host "PASS: online route and fresh native offline route validated on OPPO CPH2009 ($DeviceId)."
+Write-Host "PASS: online route and fresh native offline route validated on OPPO $ExpectedModel ($DeviceId)."
 Write-Host "Report: $ReportPath"
 Write-Host "Logcat: $LogcatPath"
