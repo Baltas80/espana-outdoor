@@ -132,6 +132,40 @@ if (System.getenv('APP_ENV') == 'production' && !releaseSigningConfigured) {
     return gradle
 
 
+def configure_application_id(gradle_path: Path, gradle: str, application_id: str) -> str:
+    """Set the application ID in either Groovy or Kotlin DSL, including fresh templates."""
+    if gradle_path.suffix == ".kts":
+        declaration = f'applicationId = "{application_id}"'
+    else:
+        declaration = f'applicationId "{application_id}"'
+
+    pattern = re.compile(r"(?m)^(?P<indent>[ \t]*)applicationId\b.*$")
+    gradle, replacements = pattern.subn(
+        lambda match: f"{match.group('indent')}{declaration}",
+        gradle,
+    )
+    if replacements == 1:
+        return gradle
+    if replacements > 1:
+        raise SystemExit(
+            "Expected at most one Android applicationId declaration; "
+            f"found {replacements}."
+        )
+
+    default_config = re.search(
+        r"(?m)^(?P<indent>[ \t]*)defaultConfig\s*\{",
+        gradle,
+    )
+    if default_config is None:
+        raise SystemExit("Android Gradle file has no defaultConfig block.")
+    line_end = gradle.find("\n", default_config.end())
+    if line_end < 0:
+        raise SystemExit("Android defaultConfig block is malformed.")
+    indent = default_config.group("indent") + "    "
+    insertion = f"{indent}{declaration}\n"
+    return gradle[: line_end + 1] + insertion + gradle[line_end + 1 :]
+
+
 def patch_android() -> None:
     manifest = ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     if not manifest.exists():
@@ -226,20 +260,7 @@ def patch_android() -> None:
     ):
         raise SystemExit("ANDROID_APPLICATION_ID is not a valid Android package name.")
 
-    app_id_pattern = re.compile(
-        r"""(?m)^(\s*applicationId(?:\s*=\s*|\s+))(["'])([^"']+)(["'])\s*$"""
-    )
-    gradle, app_id_count = app_id_pattern.subn(
-        lambda match: (
-            f"{match.group(1)}{match.group(2)}{application_id}{match.group(4)}"
-        ),
-        gradle,
-    )
-    if app_id_count != 1:
-        raise SystemExit(
-            "Expected exactly one Android applicationId declaration; "
-            f"found {app_id_count}."
-        )
+    gradle = configure_application_id(gradle_path, gradle, application_id)
 
     redirect_scheme = os.environ.get(
         "ANDROID_APP_AUTH_REDIRECT_SCHEME", "com.espanaoutdoors"
