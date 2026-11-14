@@ -4,7 +4,7 @@
 
 Mapbox Maps es el motor de representación cartográfica de la app. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado en tiempo de compilación.
 
-La integración nativa de routing descrita aquí está preparada en la rama `feat/mapbox-offline-routing-port-20261114`; todavía no está integrada ni validada por CI o en dispositivo físico.
+La integración nativa de routing descrita aquí está preparada en la rama `feat/mapbox-offline-routing-ci-20261114`; todavía no está integrada ni validada por CI o en dispositivo físico.
 
 ## Almacén compartido
 
