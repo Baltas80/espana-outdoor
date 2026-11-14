@@ -56,9 +56,9 @@ if (System.getenv("APP_ENV") == "production" && !releaseSigningConfigured) {
         )
         replacement = (
             r"\1signingConfig = if (releaseSigningConfigured) {\n"
-            r"\1    signingConfigs.getByName(\"release\")\n"
+            r'\1    signingConfigs.getByName("release")\n'
             r"\1} else {\n"
-            r"\1    signingConfigs.getByName(\"debug\")\n"
+            r'\1    signingConfigs.getByName("debug")\n'
             r"\1}"
         )
     else:
