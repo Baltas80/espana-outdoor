@@ -149,7 +149,7 @@ def verify_android() -> None:
     composite = (ROOT / "lib" / "infrastructure" / "routing" / "composite_routing_service.dart").read_text(encoding="utf-8")
     if "CompositeRoutingService" not in routing_provider or "MapboxNavigationRoutingService" not in routing_provider:
         raise SystemExit("Android routing provider must use the composite Mapbox/Valhalla selector.")
-    if "'mtb'" not in composite or "'cycling'" not in composite or "valhalla.match" in composite:
+    if "walking ? (mapbox ?? valhalla) : valhalla" not in composite or "final service = valhalla" not in composite:
         raise SystemExit("Composite routing must preserve Valhalla for bicycle profiles and GPX matching.")
 
     integration_test = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
