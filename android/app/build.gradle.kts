@@ -8,7 +8,7 @@ val applicationIdValue = System.getenv("ANDROID_APPLICATION_ID")
     ?.trim()
     ?.takeIf { it.isNotEmpty() }
     ?: "com.espanaoutdoors.espana_outdoors"
-if (!applicationIdValue.matches(Regex("[A-Za-z][A-Za-z0-9_]*(?:\\\\.[A-Za-z][A-Za-z0-9_]*)+"))) {
+if (!applicationIdValue.matches(Regex("[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+"))) {
     throw GradleException("ANDROID_APPLICATION_ID is not a valid Android package name.")
 }
 val authRedirectScheme = System.getenv("ANDROID_APP_AUTH_REDIRECT_SCHEME")
