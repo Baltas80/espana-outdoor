@@ -104,6 +104,31 @@ def verify_android() -> None:
             "configured as com.espanaoutdoors."
         )
 
+    release_signing_markers = (
+        "ANDROID_RELEASE_STORE_FILE",
+        "ANDROID_RELEASE_STORE_PASSWORD",
+        "ANDROID_RELEASE_KEY_ALIAS",
+        "ANDROID_RELEASE_KEY_PASSWORD",
+        "releaseSigningConfigured",
+        'System.getenv("APP_ENV") == "production"'
+        if gradle.suffix == ".kts"
+        else "System.getenv('APP_ENV') == 'production'",
+    )
+    missing_release_signing = [
+        marker for marker in release_signing_markers if marker not in content
+    ]
+    expected_release_selector = (
+        "signingConfig = if (releaseSigningConfigured)"
+        if gradle.suffix == ".kts"
+        else "signingConfig releaseSigningConfigured ?"
+    )
+    if missing_release_signing or expected_release_selector not in content:
+        raise SystemExit(
+            "Android Gradle must configure a dedicated release keystore and "
+            "fail closed for APP_ENV=production. Missing markers: "
+            + ", ".join(missing_release_signing or [expected_release_selector])
+        )
+
     print("android_manifest=verified")
     print("android_permissions=verified")
     print(f"android_application_id={EXPECTED_ANDROID_APPLICATION_ID}")
