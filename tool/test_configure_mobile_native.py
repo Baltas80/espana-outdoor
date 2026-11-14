@@ -83,6 +83,14 @@ class ConfigureReleaseSigningTests(unittest.TestCase):
             result,
         )
 
+    def test_missing_default_config_fails_closed(self) -> None:
+        with self.assertRaises(SystemExit):
+            configure_application_id(
+                Path("build.gradle.kts"),
+                "android { }",
+                "com.espanaoutdoors.espana_outdoors",
+            )
+
     def test_duplicate_application_id_declarations_fail_closed(self) -> None:
         source = """android {
     defaultConfig {
