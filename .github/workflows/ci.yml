@@ -1,12 +1,11 @@
 name: CI
 
 concurrency:
-  group: espana-outdoors-ci-${{ github.ref }}
+  group: espana-outdoors-ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
