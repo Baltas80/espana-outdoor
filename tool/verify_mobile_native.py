@@ -43,7 +43,7 @@ def verify_android() -> None:
         "Mapbox Navigation 3.34.2 / NDK27": 'com.mapbox.navigationcore:android-ndk27:3.34.2',
         "Mapbox Maps 11.34.2 / NDK27": 'com.mapbox.maps:android-ndk27:11.34.2',
         "Pinned Android NDK r27d": 'ndkVersion = "27.3.13750724"',
-        "Application ID": 'applicationId = "com.espanaoutdoors.espana_outdoors"',
+        "Application ID default": '?: "com.espanaoutdoors.espana_outdoors"',
         "Android minSdk 24": "minSdk = 24",
     }
     for label, fragment in required_gradle.items():
