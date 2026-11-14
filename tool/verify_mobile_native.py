@@ -40,12 +40,13 @@ def verify_android() -> None:
         raise SystemExit(f"Missing committed Android Gradle file: {gradle_path}")
     gradle = gradle_path.read_text(encoding="utf-8")
     required_gradle = {
-        "Mapbox Navigation 3.34.1 / NDK27": 'com.mapbox.navigationcore:android-ndk27:3.34.1',
-        "Mapbox Maps 11.34.1 / NDK27": 'com.mapbox.maps:android-ndk27:11.34.1',
-        "Pinned Android NDK r27d": 'ndkVersion = "27.3.13750724"',
+        "Mapbox Navigation 3.35.0 / NDK27": 'com.mapbox.navigationcore:android-ndk27:3.35.0',
+        "Mapbox Maps 11.35.0 / NDK27": 'com.mapbox.maps:android-ndk27:11.35.0',
+        "Pinned Android NDK 28.2": 'ndkVersion = "28.2.13676358"',
         "Application ID default": '?: "com.espanaoutdoors.espana_outdoors"',
         "Android minSdk 24": "minSdk = 24",
     }
+    required_gradle["Mapbox Common 24.35.0"] = 'com.mapbox.common:common:24.35.0'
     for label, fragment in required_gradle.items():
         if fragment not in gradle:
             raise SystemExit(f"Android Gradle configuration is missing: {label}")
@@ -201,9 +202,10 @@ def verify_android() -> None:
     print("android_main_activity=verified")
     print("android_application_id=com.espanaoutdoors.espana_outdoors")
     print("mapbox_flutter_sdk=3.34.1")
-    print("mapbox_maps_android=11.34.1-ndk27")
-    print("mapbox_navigation_android=3.34.1-ndk27")
-    print("android_ndk=27.3.13750724")
+    print("mapbox_maps_android=11.35.0-ndk27")
+    print("mapbox_navigation_android=3.35.0-ndk27")
+    print("mapbox_common=24.35.0")
+    print("android_ndk=28.2.13676358")
     print("shared_persistent_tilestore=verified")
     print("android_ci_uses_committed_sources=verified")
 
