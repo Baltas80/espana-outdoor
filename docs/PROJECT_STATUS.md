@@ -33,7 +33,7 @@ Las PR #4, #7, #13 y #16 se cerraron como supersedidas porque sus cambios ya est
 
 ## Estado de navegación offline
 
-La implementación nueva está en la [PR #57 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/53), rama `feat/mapbox-offline-routing-mainline-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52 y #53 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
+La implementación nueva está en la [PR #57 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/57), rama `feat/mapbox-offline-routing-mainline-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52 y #53 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
 
 La PR #57 propone:
 - Mapbox Navigation 3.34.1 con Maps SDK 11.34.1 y Flutter plugin 3.34.1.
