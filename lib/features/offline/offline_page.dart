@@ -1,27 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../app/outdoor_visuals.dart';
 
+const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
 const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
-final _cordobaRegion = Polygon(
-  coordinates: [
-    [
-      Position(-4.84, 37.85),
-      Position(-4.72, 37.85),
-      Position(-4.72, 37.93),
-      Position(-4.84, 37.93),
-      Position(-4.84, 37.85),
-    ],
-  ],
-);
+const _cordobaRing = <List<double>>[
+  [-4.84, 37.85],
+  [-4.72, 37.85],
+  [-4.72, 37.93],
+  [-4.84, 37.93],
+  [-4.84, 37.85],
+];
 
-/// Downloads a deliberately small Córdoba region to validate Mapbox offline
-/// rendering on Android before expanding coverage or promising all-Spain maps.
+/// Downloads map and pedestrian routing resources through the native bridge.
+/// Maps and Navigation therefore use the same persistent Android TileStore.
 class OfflinePage extends StatefulWidget {
   const OfflinePage({super.key});
 
@@ -30,112 +27,109 @@ class OfflinePage extends StatefulWidget {
 }
 
 class _OfflinePageState extends State<OfflinePage> {
-  OfflineManager? _offlineManager;
-  TileStore? _tileStore;
   bool _initializing = true;
   bool _downloading = false;
   bool _hasOfflineRegion = false;
-  double _styleProgress = 0;
-  double _tileProgress = 0;
   String? _message;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _initializeOfflineStore();
+    _refreshStatus();
   }
 
-  Future<void> _initializeOfflineStore() async {
+  Future<bool> _queryOfflineRegion() async {
+    final result = await _navigationChannel.invokeMethod<bool>(
+      'hasOfflineRegion',
+      {'regionId': _regionId},
+    );
+    return result == true;
+  }
+
+  Future<void> _refreshStatus() async {
+    if (!_initializing && mounted) {
+      setState(() => _initializing = true);
+    }
     try {
-      _offlineManager ??= await OfflineManager.create();
-      _tileStore ??= await TileStore.createDefault();
-      final regions = await _tileStore!.allTileRegions();
-      final stylePacks = await _offlineManager!.allStylePacks();
+      final exists = await _queryOfflineRegion();
       if (!mounted) return;
       setState(() {
-        _hasOfflineRegion =
-            regions.any((region) => region.id == _regionId) &&
-            stylePacks.any((pack) => pack.styleURI == _styleUri);
-        _message = _hasOfflineRegion
-            ? 'Mapbox detecta la región de Córdoba y el estilo guardados.'
+        _hasOfflineRegion = exists;
+        _message = exists
+            ? 'Mapbox confirma la región de Córdoba y sus datos de routing peatonal.'
             : 'Todavía no hay una descarga confirmada en este dispositivo.';
+        _error = null;
       });
-    } catch (error) {
+    } on MissingPluginException {
       if (!mounted) return;
-      setState(() => _error = 'No se pudo revisar el almacenamiento offline: $error');
+      setState(() {
+        _hasOfflineRegion = false;
+        _error = 'El motor nativo offline solo está disponible en Android.';
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _hasOfflineRegion = false;
+        _error = 'No se pudo consultar el almacén offline (' + error.code + ').';
+      });
     } finally {
       if (mounted) setState(() => _initializing = false);
     }
   }
 
   Future<void> _downloadRegion() async {
-    if (_downloading || _offlineManager == null || _tileStore == null) return;
+    if (_downloading || _accessToken.isEmpty) return;
     setState(() {
       _downloading = true;
-      _styleProgress = 0;
-      _tileProgress = 0;
-      _message = 'Descargando estilo y mapa de Córdoba…';
+      _message = 'Descargando estilo, teselas y routing peatonal de Córdoba…';
       _error = null;
     });
 
     try {
-      final styleFuture = _offlineManager!.loadStylePack(
-        _styleUri,
-        StylePackLoadOptions(
-          glyphsRasterizationMode:
-              GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
-          metadata: const {'purpose': 'offline-validation', 'region': 'cordoba'},
-          acceptExpired: false,
-        ),
-        (progress) {
-          final required = progress.requiredResourceCount;
-          final value = required == 0
-              ? 0.0
-              : progress.completedResourceCount / required;
-          if (mounted) {
-            setState(() => _styleProgress = value.clamp(0.0, 1.0).toDouble());
-          }
+      final result = await _navigationChannel.invokeMapMethod<String, dynamic>(
+        'downloadOfflineRegion',
+        {
+          'regionId': _regionId,
+          'styleUri': _styleUri,
+          'coordinates': _cordobaRing,
+          'minZoom': 8,
+          'maxZoom': 15,
         },
       );
+      if (result == null ||
+          result['regionId'] != _regionId ||
+          result['mapTiles'] != true ||
+          result['routingProfile'] != 'walking') {
+        throw const FormatException(
+          'El motor nativo no confirmó los recursos de mapa y routing.',
+        );
+      }
 
-      final regionFuture = _tileStore!.loadTileRegion(
-        _regionId,
-        TileRegionLoadOptions(
-          geometry: _cordobaRegion.toJson(),
-          descriptorsOptions: [
-            TilesetDescriptorOptions(
-              styleURI: _styleUri,
-              minZoom: 8,
-              maxZoom: 15,
-            ),
-          ],
-          acceptExpired: true,
-          networkRestriction: NetworkRestriction.NONE,
-        ),
-        (progress) {
-          final required = progress.requiredResourceCount;
-          final value = required == 0
-              ? 0.0
-              : progress.completedResourceCount / required;
-          if (mounted) {
-            setState(() => _tileProgress = value.clamp(0.0, 1.0).toDouble());
-          }
-        },
-      );
-
-      await Future.wait([styleFuture, regionFuture]);
-      await _initializeOfflineStore();
+      final exists = await _queryOfflineRegion();
       if (!mounted) return;
       setState(() {
-        _message = _hasOfflineRegion
-            ? 'Descarga terminada. Activa modo avión y abre el mapa para validar.'
-            : 'La descarga acabó, pero no se ha confirmado el estilo y la región.';
+        _hasOfflineRegion = exists;
+        _message = exists
+            ? 'Descarga confirmada. Activa modo avión y valida mapa y ruta peatonal.'
+            : 'La descarga terminó, pero TileStore no confirmó la región.';
       });
-    } catch (error) {
+    } on MissingPluginException {
       if (!mounted) return;
       setState(() {
-        _error = 'Error durante la descarga: $error';
+        _error = 'El puente nativo Mapbox Navigation no está disponible.';
+        _message = 'No se ha podido iniciar la descarga.';
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Error del motor offline (' + error.code + ').';
+        _message = 'No se ha podido confirmar la descarga.';
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString().replaceFirst('FormatException: ', '');
         _message = 'No se ha podido confirmar la descarga.';
       });
     } finally {
@@ -150,7 +144,10 @@ class _OfflinePageState extends State<OfflinePage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const OutdoorAssetIcon(asset: 'assets/visuals/icons/library/premium/offline.webp', size: 64),
+          const OutdoorAssetIcon(
+            asset: 'assets/visuals/icons/library/premium/offline.webp',
+            size: 64,
+          ),
           const SizedBox(height: 16),
           Text(
             'Descarga de prueba · Córdoba',
@@ -159,8 +156,8 @@ class _OfflinePageState extends State<OfflinePage> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Mapbox Outdoors · zoom 8–15. Esta primera integración descarga '
-            'una zona delimitada alrededor de Córdoba, no toda España.',
+            'Mapbox Outdoors · zoom 8–15. La región incluye cartografía '
+            'y routing peatonal. No representa cobertura de toda España.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -169,30 +166,30 @@ class _OfflinePageState extends State<OfflinePage> {
               child: Padding(
                 padding: EdgeInsets.all(14),
                 child: Text(
-                  'Falta MAPBOX_ACCESS_TOKEN. La compilación Android debe '
-                  'inyectar el token público de Mapbox; no lo incluyas en Git.',
+                  'Falta MAPBOX_ACCESS_TOKEN. Inyecta el token público durante '
+                  'la compilación; nunca lo incluyas en Git.',
                 ),
               ),
             ),
-          _ProgressRow(label: 'Estilo', value: _styleProgress),
-          const SizedBox(height: 8),
-          _ProgressRow(label: 'Teselas', value: _tileProgress),
-          const SizedBox(height: 12),
-          if (_initializing)
-            const LinearProgressIndicator()
-          else
-            Text(_message ?? 'Preparado para comprobar el almacenamiento.'),
+          if (_initializing || _downloading) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+          ],
+          Text(_message ?? 'Preparado para comprobar el almacenamiento.'),
           if (_hasOfflineRegion)
             const Padding(
               padding: EdgeInsets.only(top: 10),
               child: Text(
-                'El SDK detecta los recursos guardados. Esto no sustituye '
-                'la prueba real con el teléfono sin conexión.',
+                'TileStore confirma la región y los datos peatonales. '
+                'Esto todavía no sustituye la prueba sin conectividad.',
               ),
             ),
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
           const SizedBox(height: 18),
           FilledButton.icon(
@@ -206,11 +203,13 @@ class _OfflinePageState extends State<OfflinePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.download),
-            label: Text(_downloading ? 'Descargando…' : 'Descargar mapa de Córdoba'),
+            label: Text(
+              _downloading ? 'Descargando…' : 'Descargar mapa de Córdoba',
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: _initializing ? null : _initializeOfflineStore,
+            onPressed: _initializing || _downloading ? null : _refreshStatus,
             icon: const Icon(Icons.refresh),
             label: const Text('Comprobar descargas guardadas'),
           ),
@@ -221,35 +220,13 @@ class _OfflinePageState extends State<OfflinePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Validación pendiente: activa el modo avión, fuerza el cierre de '
+            'Validación pendiente: activa modo avión, fuerza el cierre de '
             'España Outdoor y vuelve a abrirla. Comprueba que el mapa se '
-            'renderiza y permite moverse dentro de la zona descargada.',
+            'renderiza y que una ruta peatonal nueva se calcula sin red.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ProgressRow extends StatelessWidget {
-  const _ProgressRow({required this.label, required this.value});
-
-  final String label;
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(width: 64, child: Text(label)),
-        Expanded(child: LinearProgressIndicator(value: value)),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 42,
-          child: Text('${(value * 100).round()}%', textAlign: TextAlign.end),
-        ),
-      ],
     );
   }
 }

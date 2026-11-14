@@ -8,6 +8,8 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'android/**'
+      - 'integration_test/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -17,6 +19,8 @@ on:
       - 'lib/**'
       - 'tool/**'
       - 'test/**'
+      - 'android/**'
+      - 'integration_test/**'
       - 'assets/**'
       - 'pubspec.yaml'
       - '.github/workflows/staging-android.yml'
@@ -40,14 +44,19 @@ env:
 jobs:
   android-staging:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     # Install staging previews side-by-side with the production package.
     # Never overwrite the user's installed app with a runner-specific debug signature.
     env:
       ANDROID_APPLICATION_ID: com.espanaoutdoors.espana_outdoors.iconspreview
       ANDROID_APP_AUTH_REDIRECT_SCHEME: com.espanaoutdoors
       MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+      MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Check staging endpoints
         shell: bash
         run: |
@@ -69,36 +78,59 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate Android project
+      - name: Check Mapbox Navigation Maven token
+        if: github.actor != 'dependabot[bot]'
+        run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
+      - name: Verify committed Android native project
+        run: python3 tool/verify_mobile_native.py --platform android
+      - name: Install pinned Android NDK r27d
         shell: bash
         run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-      - name: Verify Android native configuration
-        run: python3 tool/verify_mobile_native.py --platform android
-      - name: Dependencies
-        run: flutter pub get
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?ANDROID_HOME is not set}}"
+          sdkmanager_path="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$sdkmanager_path"
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install "ndk;27.3.13750724"
+          test -f "$sdk_root/ndk/27.3.13750724/source.properties"
+      - name: Dependencies (enforce committed lockfile)
+        run: flutter pub get --enforce-lockfile
+      - name: Verify Mapbox Flutter dependency lock
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-ci-20261114'
+        run: python3 tool/verify_mapbox_lock.py
+      - name: Export resolved Pub lockfile for dependency audit
+        if: success()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock-staging-${{ github.run_id }}
+          path: pubspec.lock
+          if-no-files-found: error
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
           flutter test --coverage
       - name: Build Android staging APK
-        if: always()
+        id: build_apk
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p build
+          if [[ -z "${MAPBOX_DOWNLOADS_TOKEN:-}" ]]; then
+            if [[ "${GITHUB_ACTOR}" != "dependabot[bot]" ]]; then
+              echo "::error::Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."
+              exit 1
+            fi
+            {
+              echo "profile=staging"
+              echo "validation_scope=analysis-tests-only-no-mapbox-maven"
+              echo "mapbox_runtime_token=unavailable"
+              echo "commit=$GITHUB_SHA"
+            } > build/android-staging-validation.txt
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            echo "Android APK build skipped: Dependabot cannot access MAPBOX_DOWNLOADS_TOKEN. Analysis and tests ran; no Android artifact was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           mapbox_runtime="available"
           if [[ -z "${MAPBOX_ACCESS_TOKEN:-}" ]]; then
             if [[ "${GITHUB_ACTOR}" != "dependabot[bot]" ]]; then
@@ -106,15 +138,9 @@ jobs:
               exit 1
             fi
             mapbox_runtime="unavailable"
-            echo "::warning::Dependabot cannot access MAPBOX_ACCESS_TOKEN. Building a compile-only APK; Mapbox rendering and runtime routing are NOT validated."
-            {
-              echo "### Android staging: compile-only"
-              echo "Dependabot has no MAPBOX_ACCESS_TOKEN. Flutter analysis, tests and APK compilation run, but map rendering and runtime routing are not validated by this artifact."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Android staging: runtime token available" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Dependabot cannot access MAPBOX_ACCESS_TOKEN. Building a compile-only APK; map rendering and runtime routing are NOT validated."
           fi
-          flutter pub get
+
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
@@ -124,7 +150,6 @@ jobs:
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
-          mkdir -p build
           {
             echo "profile=staging"
             echo "mapbox_runtime_token=$mapbox_runtime"
@@ -133,15 +158,17 @@ jobs:
             else
               echo "validation_scope=compile-only-no-mapbox-runtime"
             fi
+            echo "mapbox_downloads_token=available"
             echo "commit=$GITHUB_SHA"
           } > build/android-staging-validation.txt
+          echo "built=true" >> "$GITHUB_OUTPUT"
       - name: Verify APK
-        if: always()
+        if: steps.build_apk.outputs.built == 'true'
         run: |
           apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           test -n "$apk"
           python3 tool/verify_android_release.py --apk "$apk"
-      - name: Upload Android staging APK
+      - name: Upload Android staging artifact and validation scope
         if: always()
         uses: actions/upload-artifact@v7.0.0
         with:
@@ -149,10 +176,10 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/*.apk
             build/android-staging-validation.txt
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Enable KVM for Android emulator
         id: kvm_setup
-        if: always()
+        if: success() && steps.build_apk.outputs.built == 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -169,7 +196,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        if: success() && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != ''
+        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
@@ -184,6 +211,32 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+      - name: Android online and offline route integration
+        id: android_route_integration
+        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          heap-size: 512M
+          disk-size: 6000M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: bash tool/staging_android_route_integration.sh
+      - name: Upload Android route validation evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: android-route-validation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/espana-outdoor-route-logcat.txt
+            ${{ runner.temp }}/espana-outdoor-route-test-output.txt
+          if-no-files-found: ignore
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
@@ -194,4 +247,5 @@ jobs:
             ${{ runner.temp }}/espana-window.xml
             ${{ runner.temp }}/espana-window-post-map.xml
             ${{ runner.temp }}/espana-outdoor-map.png
+            ${{ runner.temp }}/espana-outdoor-activity.txt
           if-no-files-found: ignore

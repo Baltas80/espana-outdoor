@@ -222,6 +222,7 @@ class ValhallaRoutingService implements RoutingService {
           ? null
           : descentMeters,
       steps: List.unmodifiable(steps),
+      source: 'valhalla',
     );
   }
 
