@@ -12,6 +12,10 @@ env:
   MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
   VALHALLA_BASE_URL: ${{ secrets.VALHALLA_BASE_URL }}
   SOURCE_GATEWAY_BASE_URL: ${{ secrets.SOURCE_GATEWAY_BASE_URL }}
+  COMMUNITY_API_BASE_URL: ${{ secrets.SOURCE_GATEWAY_BASE_URL }}
+  OIDC_ISSUER: https://auth.espanaoutdoor.es/realms/espana-outdoor
+  OIDC_CLIENT_ID: espana-outdoors-mobile
+  OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
   RESCUE_LINK_BASE_URL: ${{ secrets.RESCUE_LINK_BASE_URL }}
 
 jobs:
@@ -122,6 +126,10 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL"
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL"
+            --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL"
+            --dart-define=OIDC_ISSUER="$OIDC_ISSUER"
+            --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
+            --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
           )
           flutter build apk --release "${DART_DEFINES[@]}"
@@ -237,5 +245,9 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
+            --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
+            --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
+            --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
+            --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI" \
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
 
