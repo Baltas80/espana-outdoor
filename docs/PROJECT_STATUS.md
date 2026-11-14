@@ -11,6 +11,7 @@ Android primero. El criterio de aceptación es un APK instalable que abra el map
 - PR #43, iconos premium: integrada en `935d1e85a203c2f79ce169834a2ff0e4b5d6aaa3`.
 - PR #44, firma de producción Android: integrada en `b3a2756d9dcad64389cd0d225d87849a233c0393`. Los builds con `APP_ENV=production` exigen una clave de release dedicada; el workflow comprueba la huella SHA-256 del APK y del AAB.
 - PR #45, búsqueda y filtros del catálogo de rutas: integrada en `bbcb3daa706e86f4e3d7e581d58cea7119a4a52d`.
+- PR #47, perfiles de Senderismo, BTT y Cicloturismo: integrada en `c7b73ba60a1a0dd312e1752598cd2bd8c2598203`; CI, Android staging y Security baseline pasaron en el HEAD de la PR antes de la fusión. La validación funcional contra un endpoint Valhalla real sigue pendiente.
 - PR #28, actualización de pgx a 5.12.0: integrada en `f91e69cc5c14be824a104dd60b0bda4115a307a3` para incorporar correcciones de seguridad del protocolo simple y de autenticación/channel binding.
 - PR #38, CodeQL Action 4.39.3: integrada en `2202afc064c69da088643ff883298df98e420bca`.
 - PR #26 y #27, imágenes builder Go 1.27.3-alpine para Rescue Link y Source Gateway: integradas en `4a25fb5ceae310a078f908c39ef405251e9a5ef8` y `7d5c95cd9339329ada7f133892e4fc3cd00087c0`.
@@ -33,7 +34,7 @@ La PR [#25 — Android: Mapbox Navigation offline routing](https://github.com/Ba
 
 El HEAD anterior de la PR #25 (`cf10f143d13a1fc98aae39120402c06e8493d8d7`) tuvo CI, Android staging y Security baseline correctos en su contexto anterior. Esos checks no validan una integración con el `main` vigente. La PR no debe fusionarse tal como está: hay que portar/rebasar la integración nativa, resolver los solapamientos de Gradle, workflows, configuración Android y pantallas, y repetir CI.
 
-La PR [#47 — perfiles Senderismo, BTT y Cicloturismo](https://github.com/Baltas80/espana-outdoor/pull/47) está abierta y pendiente de CI. Añade el selector de modo y el payload Valhalla adecuado, pero no se considera integrado hasta superar los checks.
+Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la PR #47. La implementación añade el selector y el payload de Valhalla; falta validar la respuesta de un endpoint real para cada perfil.
 
 ## Validación disponible y límites
 
@@ -47,7 +48,7 @@ La PR [#47 — perfiles Senderismo, BTT y Cicloturismo](https://github.com/Balta
 | Descarga y persistencia de región offline en el HEAD actual | Pendiente de validación reproducible |
 | Reapertura en frío y mapa renderizado en modo avión | Pendiente en dispositivo físico |
 | Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #25 pendiente |
-| Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta |
+| Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta para senderismo, BTT y cicloturismo |
 | Firma release y candidato de producción | Pendiente de secretos y ejecución manual del workflow |
 
 Las PR de Dependabot #39 y #41 tienen bloqueado Android staging porque el runner no recibe `MAPBOX_ACCESS_TOKEN`; los logs muestran el error explícito de secreto ausente. En #41 CI y Security baseline pasan, pero no se fusiona con staging fallido. La solución requiere validar desde un contexto de confianza con el secreto disponible o configurar un Dependabot secret según la política del repositorio, sin exponer el token.
@@ -60,7 +61,7 @@ Una prueba anterior de la región de Córdoba fue reportada como funcional sin c
 2. Ejecutar los tests y Android staging sobre la rama resultante; corregir cualquier regresión antes de fusionar.
 3. Instalar el APK exacto en el OPPO y registrar mapa online, permisos, GPS y descarga de Córdoba.
 4. Con la región descargada, forzar cierre, activar modo avión y comprobar renderizado, persistencia y cálculo de una ruta nueva con origen explícito `OFFLINE`; repetir tras reiniciar el dispositivo.
-5. Validar la PR #47 y comprobar perfiles de bicicleta contra un endpoint Valhalla real.
+5. Comprobar los perfiles Senderismo, BTT y Cicloturismo contra un endpoint Valhalla real y verificar sus respuestas.
 6. Verificar Valhalla y los servicios backend con endpoints HTTPS reales.
 7. Configurar de forma segura los cinco secretos de firma Android y ejecutar manualmente el workflow Release candidate. No crear una clave nueva si ya existe una clave de subida registrada en Google Play.
 8. Auditar autenticación móvil/web, perfil, backend Go, PostgreSQL y permisos antes de ampliar funcionalidades de comunidad.
