@@ -247,12 +247,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 18),
                   const Divider(),
                   const SizedBox(height: 12),
-                  const Row(
-                    children: [
-                      Expanded(child: _Stat(value: '24', label: 'Rutas')),
-                      Expanded(child: _Stat(value: '6', label: 'Parques')),
-                      Expanded(child: _Stat(value: '12', label: 'Favoritos')),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Las estadísticas de rutas, espacios y favoritos aparecerán '
+                      'cuando se conecte el perfil compartido.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                 ],
               ),
@@ -303,28 +304,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 3),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
 }
 
 class _ProfileItem extends StatelessWidget {
