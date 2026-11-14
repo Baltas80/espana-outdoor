@@ -115,6 +115,35 @@ void main() {
     );
   });
 
+  test('rejects truncated Mapbox polyline6 geometry', () async {
+    const points = [
+      LatLng(37.8882, -4.7794),
+      LatLng(37.8900, -4.7700),
+    ];
+    final encoded = _encodePolyline6(points);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'requestRoute') {
+        return <String, Object?>{
+          'geometry': encoded.substring(0, encoded.length - 1),
+          'distanceMeters': 1200.0,
+          'durationSeconds': 900.0,
+          'source': 'offline',
+          'steps': [
+            {'instruction': 'Continúa', 'distanceMeters': 1200.0, 'durationSeconds': 900.0},
+          ],
+        };
+      }
+      throw MissingPluginException(call.method);
+    });
+
+    final service = MapboxNavigationRoutingService(accessToken: 'pk.test');
+    await expectLater(
+      service.route(const RouteRequest(points: points)),
+      throwsFormatException,
+    );
+  });
+
   test('rejects a route request with fewer than two coordinates', () async {
     final service = MapboxNavigationRoutingService(accessToken: 'pk.test');
     await expectLater(
