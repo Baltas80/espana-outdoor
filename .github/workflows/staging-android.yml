@@ -90,6 +90,13 @@ jobs:
           test -f "$sdk_root/ndk/27.3.13750724/source.properties"
       - name: Dependencies
         run: flutter pub get
+      - name: Export resolved Pub lockfile for dependency audit
+        if: success()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock-staging-${{ github.run_id }}
+          path: pubspec.lock
+          if-no-files-found: error
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
