@@ -24,7 +24,7 @@ class CompositeRoutingService implements RoutingService {
   }
 
   @override
-  Future<RouteResult> route(RouteRequest request) {
+  Future<RouteResult> route(RouteRequest request) async {
     final walking = _isWalking(request.profile);
     final selected = walking ? (mapbox ?? valhalla) : valhalla;
     if (selected == null) {
@@ -43,7 +43,7 @@ class CompositeRoutingService implements RoutingService {
   }
 
   @override
-  Future<RouteResult> match(List<LatLng> track) {
+  Future<RouteResult> match(List<LatLng> track) async {
     final service = valhalla;
     if (service == null) {
       throw StateError(
