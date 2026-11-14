@@ -134,9 +134,17 @@ def verify_android() -> None:
         raise SystemExit("Native Mapbox failure messages must not expose request URLs or tokens.")
 
     main_dart = (ROOT / "lib" / "main.dart").read_text(encoding="utf-8")
-    configure_index = main_dart.find("_navigationChannel.invokeMethod<void>('configure'")
-    run_app_index = main_dart.find("runApp(")
-    if configure_index < 0 or run_app_index < 0 or configure_index > run_app_index:
+    configure_match = re.search(
+        r"_navigationChannel\\s*\\.\\s*invokeMethod<void>\\(\\s*['\"]configure['\"]",
+        main_dart,
+        re.DOTALL,
+    )
+    run_app_match = re.search(r"\\brunApp\\s*\\(", main_dart)
+    if (
+        configure_match is None
+        or run_app_match is None
+        or configure_match.start() > run_app_match.start()
+    ):
         raise SystemExit("The shared native TileStore must be configured before runApp().")
 
     offline_page = (ROOT / "lib" / "features" / "offline" / "offline_page.dart").read_text(encoding="utf-8")
