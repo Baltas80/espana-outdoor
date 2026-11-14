@@ -57,11 +57,14 @@ La integración de Android ejecuta dos fases:
 1. Con conexión: inicializa el TileStore, calcula una ruta fuera de Córdoba para exigir origen `ONLINE`, descarga el style pack y la región, y confirma que TileStore conserva el ID.
 2. Sin conexión: fuerza el cierre, activa modo avión y desactiva Wi-Fi, comprueba que la región persiste, solicita una ruta nueva dentro de Córdoba y exige origen `OFFLINE`. Después monta un `MapWidget` y espera `onMapLoaded`, evento que confirma estilo y teselas visibles cargadas. También captura una imagen de evidencia.
 
-Script CI:
+Verificación de dependencias y script CI:
 
 ```bash
+python3 tool/verify_mapbox_lock.py
 bash tool/staging_android_route_integration.sh
 ```
+
+El workflow de staging resuelve `pubspec.lock`, lo versiona en la rama de integración y después ejecuta `flutter pub get --enforce-lockfile`. Esta secuencia debe completarse correctamente antes de integrar el cambio.
 
 La CI distingue la prueba de ruta del evento de mapa cargado. Un resultado `OFFLINE` sin mapa renderizado no basta para aceptar cartografía offline.
 
