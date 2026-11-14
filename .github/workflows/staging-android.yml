@@ -247,4 +247,5 @@ jobs:
             ${{ runner.temp }}/espana-window.xml
             ${{ runner.temp }}/espana-window-post-map.xml
             ${{ runner.temp }}/espana-outdoor-map.png
+            ${{ runner.temp }}/espana-outdoor-activity.txt
           if-no-files-found: ignore
