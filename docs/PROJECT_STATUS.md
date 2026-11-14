@@ -2,7 +2,7 @@
 
 Última revisión: **14/11/2026**. Rama base: `main`. Último commit integrado confirmado antes de esta rama: `c878af97e12faf19e45cfa80335310a60ab70783` (PR #50).
 
-Este documento diferencia el estado integrado de los cambios preparados en `feat/mapbox-offline-routing-port-20261114`. Los cambios de esa rama todavía no están integrados ni aceptados por CI.
+Este documento diferencia el estado integrado de los cambios preparados en `feat/mapbox-offline-routing-ci-20261114`. Los cambios de esa rama todavía no están integrados ni aceptados por CI.
 
 ## Estado integrado en main
 
