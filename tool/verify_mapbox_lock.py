@@ -44,8 +44,23 @@ for package in federated:
 if "  integration_test:\n" not in lock or "    source: sdk\n" not in lock:
     raise SystemExit("pubspec.lock must contain integration_test from the Flutter SDK.")
 
+android_gradle = (ROOT / "android" / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+required_native = {
+    "Maps SDK 11.35.0 / NDK27": 'com.mapbox.maps:android-ndk27:11.35.0',
+    "Navigation SDK 3.35.0 / NDK27": 'com.mapbox.navigationcore:android-ndk27:3.35.0',
+    "Core Common 24.35.0": 'com.mapbox.common:common:24.35.0',
+    "Android NDK 28.2.13676358": 'ndkVersion = "28.2.13676358"',
+}
+for label, fragment in required_native.items():
+    if fragment not in android_gradle:
+        raise SystemExit(f"Android Mapbox native dependency alignment is missing: {label}.")
+
 print(f"mapbox_maps_flutter={main_version}")
 for package in federated:
     print(f"{package}={package_version(package)}")
+print("maps_android=11.35.0-ndk27")
+print("navigation_android=3.35.0-ndk27")
+print("mapbox_common=24.35.0")
+print("android_ndk=28.2.13676358")
 print("premium_assets=declared")
 print("integration_test=sdk")
