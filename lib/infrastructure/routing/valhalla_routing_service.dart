@@ -315,7 +315,9 @@ class ValhallaRoutingService implements RoutingService {
       case 'bike':
       case 'mtb':
       case 'btt':
+      case 'mountain':
       case 'mountain_bike':
+      case 'road':
         return 'bicycle';
       case 'driving':
       case 'car':
