@@ -151,10 +151,12 @@ lib/
 La carpeta `site/` contiene la web pública de España Outdoor, independiente de la aplicación Flutter. Está preparada para hosting estático y para `espanaoutdoor.es`. El sitio reutiliza la identidad visual del proyecto, mantiene sus recursos dentro de `site/assets` y puede desplegarse con Cloudflare Pages u otro proveedor estático.
 
 
-## Estado verificable de Android y cartografía (29/10/2026)
+## Estado verificable de Android y cartografía (14/11/2026)
 
-La migración sustituye el motor cartográfico anterior por Mapbox en las vistas cartográficas y contiene la descarga offline de una región de prueba de Córdoba. La validación previa registrada cubre esa región en un OPPO; no demuestra cobertura de toda España ni sustituye la verificación documentada de reapertura en frío del APK integrado.
+La rama `main` incorpora Mapbox y la descarga de una región de prueba de Córdoba. La descarga de teselas y el cálculo de rutas offline son capacidades distintas: el proveedor de routing actualmente integrado usa Valhalla mediante un endpoint online. La integración nativa de Mapbox Navigation offline sigue pendiente de portar desde la PR #25, cuya rama está divergida de `main` y no debe fusionarse sin actualizar y validar sus cambios.
 
-La revisión técnica está registrada en `docs/PROJECT_STATUS.md`, `docs/MAP_OFFLINE.md` y `docs/OFFLINE_STRATEGY.md`. El identificador Android provisional y la firma de release debug deben resolverse antes de un release; los permisos de ubicación y los triggers de CI también necesitan corrección y comprobación.
+La firma de producción Android ahora falla de forma segura si no se configura una clave release dedicada. El workflow Release candidate comprueba la huella SHA-256 del APK y del AAB; requiere los secretos documentados en `docs/ANDROID_RELEASE_SIGNING.md`. Los artefactos CI/staging firmados con debug son exclusivamente de prueba y no deben distribuirse.
 
-El inventario de la carpeta cartográfica del ordenador es independiente del inventario Git. No se deben deducir faltantes locales a partir de los archivos versionados.
+Las PR #43 (iconos), #44 (firma de producción) y #45 (búsqueda/filtros de rutas) están integradas. Los checks de CI, Android staging y seguridad pasaron en las ramas de las PR #44 y #45 antes de fusionarlas. Esto no sustituye la validación del APK actual en un OPPO ni la ejecución del workflow de producción.
+
+La revisión detallada, los límites de evidencia y los siguientes criterios de aceptación están en `docs/PROJECT_STATUS.md` y `docs/MAP_OFFLINE.md`. El inventario de la carpeta cartográfica del ordenador es independiente del inventario Git; no se deben deducir faltantes locales a partir de los archivos versionados.
