@@ -37,6 +37,25 @@ android {
 
 
 class ConfigureReleaseSigningTests(unittest.TestCase):
+    def test_existing_dynamic_application_id_is_preserved(self) -> None:
+        source = """val applicationIdValue = System.getenv("ANDROID_APPLICATION_ID")
+android {
+    defaultConfig {
+        applicationId = applicationIdValue
+    }
+}
+"""
+        result = configure_application_id(
+            Path("build.gradle.kts"),
+            source,
+            "com.espanaoutdoors.espana_outdoors.staging",
+        )
+        self.assertIn("applicationId = applicationIdValue", result)
+        self.assertNotIn(
+            'applicationId = "com.espanaoutdoors.espana_outdoors.staging"',
+            result,
+        )
+
     def test_kotlin_dsl_inserts_missing_application_id(self) -> None:
         source = """android {
     defaultConfig {

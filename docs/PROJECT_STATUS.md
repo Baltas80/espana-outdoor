@@ -33,9 +33,9 @@ Las PR #4, #7, #13 y #16 se cerraron como supersedidas porque sus cambios ya est
 
 ## Estado de navegación offline
 
-La implementación nueva está en la [PR #57 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/57), rama `feat/mapbox-offline-routing-mainline-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52 y #53 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
+La implementación nueva está en la [PR #61 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/61), rama `feat/mapbox-offline-routing-mainline-20261114`, basada en el `main` vigente a 14/11/2026. Las PR históricas #25, #52, #53, #57 y #59 se cerraron como supersedidas; sus ramas se conservan, pero no se deben fusionar.
 
-La PR #57 propone:
+La PR #61 propone:
 - Mapbox Navigation 3.34.1 con Maps SDK 11.34.1 y Flutter plugin 3.34.1.
 - Un `TileStore` persistente compartido por Maps y Navigation, configurado antes del primer `MapWidget`.
 - Descarga de prueba de Córdoba con style pack, teselas y descriptor de routing peatonal.
@@ -43,9 +43,9 @@ La PR #57 propone:
 - Pruebas unitarias e integración Android para ruta online, descarga, cierre del proceso, modo avión, nueva ruta con origen explícito `OFFLINE` y evidencia de carga del mapa.
 - Staging con permisos de solo lectura, lockfile obligatorio y sin commits automáticos desde CI.
 
-La nueva PR #57 se creó desde el HEAD actual de `main` en un único commit (`6e741b7c544d3ade4899d758c3b8b8db924e5f08` antes de esta actualización documental), sin divergencia de base. La ejecución anterior de Android staging instaló el APK, pero falló el smoke de UI al no encontrar el destino `Mapa`; la jerarquía estaba vacía y el artefacto no incluía logcat. La PR #57 añade diagnóstico de arranque y captura de evidencias; la causa raíz sigue pendiente de la siguiente ejecución.
+La nueva PR #61 se creó desde el HEAD actual de `main` en un único commit (`6e741b7c544d3ade4899d758c3b8b8db924e5f08` antes de esta actualización documental), sin divergencia de base. La ejecución anterior de Android staging instaló el APK, pero falló el smoke de UI al no encontrar el destino `Mapa`; la jerarquía estaba vacía y el artefacto no incluía logcat. La PR #61 añade diagnóstico de arranque y captura de evidencias; la causa raíz sigue pendiente de la siguiente ejecución.
 
-La PR #57 debe superar todos los checks y demostrar en emulador una ruta nueva con origen `OFFLINE`. Después debe instalarse el APK exacto en el OPPO y repetirse la prueba tras cierre forzado y reinicio. La región de Córdoba es una prueba de concepto, no cobertura nacional.
+La PR #61 debe superar todos los checks y demostrar en emulador una ruta nueva con origen `OFFLINE`. Después debe instalarse el APK exacto en el OPPO y repetirse la prueba tras cierre forzado y reinicio. La región de Córdoba es una prueba de concepto, no cobertura nacional.
 
 Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la PR #47. Falta validar sus respuestas contra el endpoint Valhalla real.
 
@@ -60,17 +60,17 @@ Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la 
 | Mapa online en dispositivo físico con el HEAD actual | Pendiente de nueva evidencia |
 | Descarga y persistencia de región offline en el HEAD actual | Pendiente de validación reproducible |
 | Reapertura en frío y mapa renderizado en modo avión | Pendiente en dispositivo físico |
-| Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #57 pendiente de CI y validación |
+| Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #61 pendiente de CI y validación |
 | Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta para senderismo, BTT y cicloturismo |
 | Firma release y candidato de producción | Pendiente de secretos y ejecución manual del workflow |
 
-La PR #39 (setup-java 6.2.0) conserva una ejecución antigua de Android staging fallida y su rama está 7 commits por detrás de `main`; se solicitó a Dependabot que la rebase para repetir CI sobre el estado actual. La PR #41 (background_downloader 9.6.6) pasó CI, Security baseline, CodeQL y Android staging; sus pasos incluyen compilación y verificación del APK. Su lockfile deberá reconciliarse con Mapbox 3.34.1 si se integra después de la PR #57.
+La PR #39 (setup-java 6.2.0) conserva una ejecución antigua de Android staging fallida y su rama está 7 commits por detrás de `main`; se solicitó a Dependabot que la rebase para repetir CI sobre el estado actual. La PR #41 (background_downloader 9.6.6) pasó CI, Security baseline, CodeQL y Android staging; sus pasos incluyen compilación y verificación del APK. Su lockfile deberá reconciliarse con Mapbox 3.34.1 si se integra después de la PR #61.
 
 Una prueba anterior de la región de Córdoba fue reportada como funcional sin conexión en un OPPO. Es evidencia histórica de una prueba de concepto; no acredita el APK actual, reapertura tras reinicio, cálculo offline de rutas ni cobertura nacional.
 
 ## Pendientes prioritarios
 
-1. Completar CI de la PR #57 y corregir cualquier fallo de compilación, análisis o integración.
+1. Completar CI de la PR #61 y corregir cualquier fallo de compilación, análisis o integración.
 2. Inspeccionar los artefactos de emulador: ruta nueva con origen `OFFLINE`, mapa cargado y evidencia visual; no aceptar solo el código de salida.
 3. Instalar el APK exacto en el OPPO y registrar mapa online, permisos, GPS y descarga de Córdoba.
 4. Con la región descargada, forzar cierre, activar modo avión y comprobar renderizado, persistencia y cálculo de una ruta nueva con origen explícito `OFFLINE`; repetir tras reiniciar el dispositivo.
@@ -90,5 +90,5 @@ No incluir secretos en código, Git, artefactos públicos ni logs. Los APK/AAB d
 La PR #56 ya eliminó las cifras ficticias del perfil y está integrada. El issue [#55](https://github.com/Baltas80/espana-outdoor/issues/55) continúa abierto: falta implementar el endpoint canónico autenticado `/v1/me`, la persistencia de perfiles y el flujo OIDC web con PKCE. La eliminación de estadísticas de muestra evita datos engañosos, pero no completa la identidad compartida.
 
 
-- The CI-generated Android Gradle project can omit `applicationId` or express it as a generated variable. `tool/configure_mobile_native.py` now inserts/replaces the application ID in both Groovy and Kotlin DSL and has regression tests for both formats.
+- The configurator supports fresh Groovy/Kotlin Gradle templates that omit `applicationId`, while preserving the committed dynamic `applicationIdValue` expression. CI and Android staging now verify the committed native project and must not regenerate or mutate it.
 
