@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -199,8 +198,8 @@ Future<void> _expectOfflineMapRendered(
   );
 }
 
-Future<(int, double)> _inspectRenderedPixels(Uint8List screenshot) async {
-  final codec = await ui.instantiateImageCodec(screenshot);
+Future<(int, double)> _inspectRenderedPixels(List<int> screenshot) async {
+  final codec = await ui.instantiateImageCodec(Uint8List.fromList(screenshot));
   try {
     final frame = await codec.getNextFrame();
     try {
