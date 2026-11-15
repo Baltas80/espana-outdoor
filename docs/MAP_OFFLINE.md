@@ -26,17 +26,27 @@ La implementación propuesta no habilita routing offline de bicicleta, cobertura
 
 ## Preparación de red del emulador CI
 
-Las fases online del smoke visual y de integración llaman a
-`tool/ensure_android_emulator_online.sh` antes de abrir la aplicación. El
-preflight es exclusivo de `ANDROID_EMULATOR_CI=true`: desactiva el modo avión,
-habilita Wi-Fi/datos cuando están disponibles y espera a que Android publique
-una red predeterminada con capacidades `INTERNET` y `VALIDATED`. Si no aparece
-en 90 segundos, falla antes de atribuir el problema a Mapbox y adjunta un
-diagnóstico acotado de ConnectivityService. La fase offline activa después el
-modo avión de forma explícita. El script no se ejecuta sobre el OPPO físico.
+Las fases online llaman a `tool/ensure_android_emulator_online.sh` antes
+de descargar recursos o solicitar rutas. El preflight es exclusivo de
+`ANDROID_EMULATOR_CI=true`: desactiva el modo avión, habilita Wi-Fi/datos y,
+si la radio está activa pero no asociada, intenta conectar a las redes virtuales
+conocidas `VirtWifi` y `AndroidWifi`. No considera conectada la red porque
+`wifi_on=1`: exige que `cmd wifi status` indique conexión y que ConnectivityService
+publique una red predeterminada validada con capacidades `INTERNET` y `VALIDATED`.
+Si no aparece en 90 segundos, adjunta estado Wi-Fi, resultados de escaneo, rutas
+IP y diagnóstico de ConnectivityService.
+
+El workflow ejecuta el smoke visual y la integración online/offline en una
+única instancia de emulador para evitar dos arranques en frío consecutivos.
+El orquestador conserva ambos resultados: un fallo visual no omite la prueba
+independiente de routing. El diálogo ANR del launcher puede ser clasificado por
+el smoke UI y cerrado de forma acotada; un ANR de la aplicación bajo prueba sigue
+siendo un fallo. La fase offline activa modo avión y deshabilita Wi-Fi. Ninguno
+de estos scripts se ejecuta sobre el OPPO físico.
 
 La prueba determinista `tool/test_android_emulator_network_guard.py` cubre el
-modo no-CI, la recuperación de radios y el rechazo de una red no validada.
+modo no-CI, la asociación Wi-Fi virtual, el rechazo de una red no conectada y
+el rechazo de una red predeterminada no validada.
 
 ## Reglas
 
