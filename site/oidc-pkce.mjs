@@ -83,7 +83,7 @@ export function buildAuthorizationUrl({
   authorizationEndpoint,
   clientId,
   redirectUri,
-  scope = "openid profile email",
+  scope = "profile email",
   state,
   codeChallenge,
 }) {
