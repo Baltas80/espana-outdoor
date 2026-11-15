@@ -249,6 +249,7 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             sourceAddedCount++;
             if (sourceAddedCount <= 16) {
               // Source IDs are style identifiers; never log request URLs or tokens.
+              // ignore: avoid_print
               print('MAPBOX_SOURCE_ADDED id=${event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_')}');
             }
           },
@@ -258,6 +259,7 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             final key = '${safeId}:${event.type.name}:${event.loaded ?? false}';
             sourceDataCounts[key] = (sourceDataCounts[key] ?? 0) + 1;
             if (sourceDataEventCount <= 40) {
+              // ignore: avoid_print
               print(
                 'MAPBOX_SOURCE_DATA id=$safeId type=${event.type.name} '
                 'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
