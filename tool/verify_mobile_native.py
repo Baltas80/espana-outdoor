@@ -255,6 +255,8 @@ def verify_android() -> None:
                 raise SystemExit("Android staging must reuse one emulator boot for map and routing validation.")
             if "espana-outdoor-offline-map.png" not in workflow:
                 raise SystemExit("Android staging must retain the offline native map screenshot artifact.")
+            if "bash -n tool/staging_android_route_integration.sh" not in workflow:
+                raise SystemExit("Android staging must syntax-check its shell validation harness.")
             if "script: bash tool/staging_android_emulator_validation.sh" not in workflow:
                 raise SystemExit("Android staging must run the independent map/routing validation orchestrator.")
             validation_script = ROOT / "tool" / "staging_android_emulator_validation.sh"
