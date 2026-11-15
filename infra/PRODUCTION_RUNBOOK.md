@@ -16,11 +16,13 @@ This document is the deployment gate for the external services. It intentionally
 ## Pre-deployment
 
 1. Provision a dedicated production host/network and TLS termination.
-2. Create production secrets outside Git (`POSTGRES_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `LOCATION_ENCRYPTION_KEY`, provider credentials).
+2. Create production secrets outside Git (`POSTGRES_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `DATABASE_URL` with `sslmode=require` or `verify-full`, `LOCATION_ENCRYPTION_KEY`, provider credentials).
 3. Configure a real `PUBLIC_SHARE_BASE_URL` using HTTPS.
 4. Configure the licensed offline map provider and populate `MAP_PMTILES_URL`/tile storage as required.
 5. Provision Valhalla Spain/required-region tiles from a licensed source and verify the dataset version.
 6. Configure the AEMET API credential and expiry metadata.
+7. Configure a dedicated Keycloak resource-server audience for Source Gateway (for example `espana-outdoors-api`) and map it into access tokens. Set `OIDC_REQUIRED_ROLE` under that API client. Configure the separate Rescue Link audience.
+8. Set `ALLOW_HTTP_DEV=false` in production; the local Compose exception must never be carried into production.
 7. Restrict database, Keycloak, Martin, Valhalla, NATS and monitoring ports to the private network. Only intended public HTTPS endpoints may be exposed.
 
 ## Bring-up order
