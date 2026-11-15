@@ -68,6 +68,21 @@ if "TileStoreUsageMode.READ_AND_UPDATE" in source:
         "regions without online individual-tile fallback."
     )
 
+NATIVE_VERIFIER = ROOT / "tool" / "verify_mobile_native.py"
+native_verifier = NATIVE_VERIFIER.read_text(encoding="utf-8")
+for fragment in (
+    ".descriptors(listOf(mapsDescriptor))",
+    ".descriptors(listOf(navigationDescriptor))",
+    'val mapRegionId = "$regionId-maps"',
+    'val routingRegionId = "$regionId-routing-walking"',
+):
+    if fragment not in native_verifier:
+        raise SystemExit(
+            f"Native Android verifier must accept the separate Maps/Navigation regions: {fragment}"
+        )
+if "descriptors(listOf(mapsDescriptor, navigationDescriptor))" in native_verifier:
+    raise SystemExit("Native Android verifier still expects the obsolete combined TileRegion.")
+
 INTEGRATION_TEST = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
 integration_test = INTEGRATION_TEST.read_text(encoding="utf-8")
 for fragment in (
