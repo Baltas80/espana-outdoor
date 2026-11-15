@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -228,7 +229,9 @@ Future<void> _expectOfflineMapRendered(
     'load_errors=${loadErrors.length} '
     'screenshot_bytes=${screenshot.length} '
     'unique_colors=${metrics.$1} '
-    'opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
+    'opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
+    'entropy_bits=${metrics.$3.toStringAsFixed(3)} '
+    'dominant_ratio=${metrics.$4.toStringAsFixed(3)}',
   );
 
   expect(
@@ -248,22 +251,34 @@ Future<void> _expectOfflineMapRendered(
   );
   expect(
     metrics.$1,
-    greaterThan(8),
-    reason: 'The offline map screenshot must contain varied map pixels, not a blank canvas.',
+    greaterThan(24),
+    reason: 'The offline map screenshot must contain a diverse map viewport, not a nearly uniform canvas.',
   );
   expect(
     metrics.$2,
     greaterThan(0.95),
     reason: 'The offline map screenshot must be predominantly opaque.',
   );
+  expect(
+    metrics.$3,
+    greaterThan(1.2),
+    reason: 'The offline map must contain enough visual information to distinguish streets/labels from a flat background.',
+  );
+  expect(
+    metrics.$4,
+    lessThan(0.85),
+    reason: 'No single background color may dominate the offline map viewport.',
+  );
   // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length} '
-    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
+    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
+    'entropy_bits=${metrics.$3.toStringAsFixed(3)} '
+    'dominant_ratio=${metrics.$4.toStringAsFixed(3)}',
   );
 }
 
-Future<(int, double)> _inspectRenderedPixels(List<int> screenshot) async {
+Future<(int, double, double, double)> _inspectRenderedPixels(List<int> screenshot) async {
   final codec = await ui.instantiateImageCodec(Uint8List.fromList(screenshot));
   try {
     final frame = await codec.getNextFrame();
@@ -284,7 +299,7 @@ Future<(int, double)> _inspectRenderedPixels(List<int> screenshot) async {
       final maxX = (width * 0.92).round();
       final minY = (height * 0.12).round();
       final maxY = (height * 0.88).round();
-      final colors = <int>{};
+      final colorCounts = <int, int>{};
       var sampledPixels = 0;
       var opaquePixels = 0;
 
@@ -299,18 +314,29 @@ Future<(int, double)> _inspectRenderedPixels(List<int> screenshot) async {
           final alpha = pixels[offset + 3];
           sampledPixels++;
           if (alpha >= 240) opaquePixels++;
-          colors.add(
-            ((red >> 4) << 12) |
-                ((green >> 4) << 8) |
-                ((blue >> 4) << 4) |
-                (alpha >> 4),
-          );
+          final color = ((red >> 4) << 12) |
+              ((green >> 4) << 8) |
+              ((blue >> 4) << 4) |
+              (alpha >> 4);
+          colorCounts.update(color, (count) => count + 1, ifAbsent: () => 1);
         }
       }
       if (sampledPixels == 0) {
         throw const FormatException('Offline map screenshot contains no map viewport pixels.');
       }
-      return (colors.length, opaquePixels / sampledPixels);
+      var entropyBits = 0.0;
+      var dominantPixels = 0;
+      for (final count in colorCounts.values) {
+        final probability = count / sampledPixels;
+        entropyBits -= probability * (math.log(probability) / math.ln2);
+        dominantPixels = math.max(dominantPixels, count);
+      }
+      return (
+        colorCounts.length,
+        opaquePixels / sampledPixels,
+        entropyBits,
+        dominantPixels / sampledPixels,
+      );
     } finally {
       frame.image.dispose();
     }
