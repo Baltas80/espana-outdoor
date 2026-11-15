@@ -173,6 +173,50 @@ func TestMyProfileRequiresBearerToken(t *testing.T) {
     }
 }
 
+func TestMyProfileRejectsIDAndRefreshTokens(t *testing.T) {
+    for _, tokenType := range []string{"ID", "Refresh"} {
+        t.Run(tokenType, func(t *testing.T) {
+            srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+                "sub": "user-oidc-token-type",
+                "typ": tokenType,
+            })
+            defer cleanup()
+
+            request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+            request.Header.Set("Authorization", "Bearer "+token)
+            response := httptest.NewRecorder()
+            srv.myProfile(response, request)
+
+            if response.Code != http.StatusUnauthorized {
+                t.Fatalf("expected 401 for %s token, got %d", tokenType, response.Code)
+            }
+            if store.lastSubject != "" {
+                t.Fatal("non-access token must not provision a profile")
+            }
+        })
+    }
+}
+
+func TestMyProfileRejectsMissingTokenType(t *testing.T) {
+    srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+        "sub": "user-missing-token-type",
+        "typ": nil,
+    })
+    defer cleanup()
+
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+token)
+    response := httptest.NewRecorder()
+    srv.myProfile(response, request)
+
+    if response.Code != http.StatusUnauthorized {
+        t.Fatalf("expected 401 for token without typ, got %d", response.Code)
+    }
+    if store.lastSubject != "" {
+        t.Fatal("token without typ must not provision a profile")
+    }
+}
+
 func TestMyProfileRejectsWrongAudience(t *testing.T) {
     verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-mobile")
     defer cleanup()
