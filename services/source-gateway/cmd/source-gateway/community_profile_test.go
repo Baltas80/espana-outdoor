@@ -313,14 +313,20 @@ func TestMyProfileReturnsUnavailableWithoutDatabase(t *testing.T) {
 }
 
 func TestValidateDatabaseURLRequiresTLSOutsideLoopback(t *testing.T) {
-    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app"); err == nil {
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app", false); err == nil {
         t.Fatal("production PostgreSQL URL without TLS must be rejected")
     }
-    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require"); err != nil {
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require", false); err != nil {
         t.Fatalf("TLS-enabled PostgreSQL URL rejected: %v", err)
     }
-    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable"); err != nil {
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", false); err != nil {
         t.Fatalf("local loopback development URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@postgres/app?sslmode=disable", true); err != nil {
+        t.Fatalf("explicit local Docker PostgreSQL URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@postgres/app?sslmode=disable", false); err == nil {
+        t.Fatal("Docker service hostname without explicit dev mode must be rejected")
     }
 }
 
