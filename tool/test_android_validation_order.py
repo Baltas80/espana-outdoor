@@ -43,6 +43,19 @@ if "| sed -u -E " not in (ROOT / "tool" / "staging_android_route_integration.sh"
         "the host capture must run while the integration app is foregrounded."
     )
 
+route_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
+integration_test = (ROOT / "integration_test" / "mapbox_android_live_route_test.dart").read_text(encoding="utf-8")
+if "adb -s \"$DEVICE_SERIAL\" logcat -c" not in route_script:
+    raise SystemExit("Clear stale Android logcat before waiting for the offline screenshot marker.")
+if "logcat -d -s flutter:I" not in route_script or "offline_logcat" not in route_script:
+    raise SystemExit("Capture synchronization must poll the app process logcat, not buffered host stdout.")
+if 'grep -q \'MAPBOX_OFFLINE_SCREENSHOT_READY\' "$TEST_LOG_PATH"' in route_script:
+    raise SystemExit("Do not use flutter test stdout as the screenshot trigger; it may be buffered until exit.")
+if "debugPrint('MAPBOX_OFFLINE_SCREENSHOT_READY')" not in integration_test:
+    raise SystemExit("The integration app must emit its screenshot-ready marker to Android logcat.")
+if '*"$TEST_PACKAGE_NAME/"*' not in route_script:
+    raise SystemExit("Offline screenshot capture must verify the integration-test package is foregrounded.")
+
 if "if: always()" not in workflow:
     raise SystemExit("Android staging must retain unconditional evidence-upload steps.")
 
