@@ -342,6 +342,7 @@ func signTestIDTokenWithClaims(t *testing.T, key *rsa.PrivateKey, issuer, audien
         "iss": issuer,
         "sub": "test-user",
         "aud": audience,
+        "typ": "Bearer",
         "iat": time.Now().Unix(),
         "exp": time.Now().Add(5 * time.Minute).Unix(),
     }
