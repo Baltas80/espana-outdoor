@@ -206,6 +206,9 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   final resourceFailures = <String>[];
   var idleSeen = false;
   var renderedFrames = 0;
+  var sourceAddedCount = 0;
+  var sourceDataEventCount = 0;
+  final sourceDataCounts = <String, int>{};
 
   await tester.pumpWidget(
     MaterialApp(
@@ -241,6 +244,25 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             loadErrors.add(
               '${event.type.name}/${event.sourceId ?? 'unknown'}/${_safeMapboxFailureClass(event.message)}',
             );
+          },
+          onSourceAddedListener: (event) {
+            sourceAddedCount++;
+            if (sourceAddedCount <= 16) {
+              // Source IDs are style identifiers; never log request URLs or tokens.
+              print('MAPBOX_SOURCE_ADDED id=${event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_')}');
+            }
+          },
+          onSourceDataLoadedListener: (event) {
+            sourceDataEventCount++;
+            final safeId = event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_');
+            final key = '${safeId}:${event.type.name}:${event.loaded ?? false}';
+            sourceDataCounts[key] = (sourceDataCounts[key] ?? 0) + 1;
+            if (sourceDataEventCount <= 40) {
+              print(
+                'MAPBOX_SOURCE_DATA id=$safeId type=${event.type.name} '
+                'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
+              );
+            }
           },
           onResourceRequestListener: (event) {
             if (event.cancelled) return;
@@ -302,6 +324,8 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
     'rendered_frames=$renderedFrames idle=$idleSeen '
     'load_errors=${loadErrors.length} '
     'resource_failures=${resourceFailures.length} '
+    'source_added=$sourceAddedCount source_data_events=$sourceDataEventCount '
+    'source_summary=${sourceDataCounts.entries.take(8).map((entry) => '${entry.key}:${entry.value}').join(',')} '
     'resource_failure_details=${resourceFailures.join(',')} '
     'screenshot_source=adb',
   );
