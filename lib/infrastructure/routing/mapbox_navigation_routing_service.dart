@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -8,13 +10,17 @@ import '../../core/contracts/routing_service.dart';
 /// Navigation SDK v3 has no official Flutter plugin. Android integration is
 /// isolated behind this MethodChannel so application/domain code remains Dart.
 class MapboxNavigationRoutingService implements RoutingService {
-  MapboxNavigationRoutingService({required String accessToken})
-      : _accessToken = accessToken;
+  MapboxNavigationRoutingService({
+    required String accessToken,
+    Duration routeTimeout = const Duration(seconds: 45),
+  })  : _accessToken = accessToken,
+        _routeTimeout = routeTimeout;
 
   static const MethodChannel _channel =
       MethodChannel('com.espanaoutdoors/navigation');
 
   final String _accessToken;
+  final Duration _routeTimeout;
 
   @override
   Future<RouteResult> route(RouteRequest request) async {
@@ -31,15 +37,24 @@ class MapboxNavigationRoutingService implements RoutingService {
       );
     }
 
-    final response = await _channel.invokeMapMethod<String, dynamic>(
-      'requestRoute',
-      {
-        'points': [
-          for (final point in request.points)
-            [point.longitude, point.latitude],
-        ],
-      },
-    );
+    final response = await _channel
+        .invokeMapMethod<String, dynamic>(
+          'requestRoute',
+          {
+            'points': [
+              for (final point in request.points)
+                [point.longitude, point.latitude],
+            ],
+          },
+        )
+        .timeout(
+          _routeTimeout,
+          onTimeout: () => throw TimeoutException(
+            'Mapbox Navigation route request exceeded '
+            '${_routeTimeout.inSeconds}s.',
+            _routeTimeout,
+          ),
+        );
     if (response == null) {
       throw const FormatException('Mapbox Navigation returned no route.');
     }
