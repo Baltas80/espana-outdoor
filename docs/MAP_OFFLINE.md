@@ -51,6 +51,19 @@ La validación debe realizarse sobre el APK construido desde el commit exacto ca
 
 Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba.
 
+## Validación del APK exacto en OPPO
+
+El workflow Android staging publica el APK y `android-staging-validation.txt` dentro del artefacto `android-staging-apk`. El manifiesto contiene SHA-256, application ID, versionCode, commit fuente y confirma que los dos tokens Mapbox estaban disponibles. No uses un APK sin `validation_scope=runtime-capable-artifact`.
+
+1. Descarga ambos archivos del mismo run de Android staging.
+2. Haz checkout del valor `source_commit` del manifiesto.
+3. Define `MAPBOX_ACCESS_TOKEN`, `MAPBOX_DOWNLOADS_TOKEN`, `ANDROID_SERIAL` y `ANDROID_APPLICATION_ID` con los valores del dispositivo/artefacto.
+4. Ejecuta `.	ool\test_mapbox_oppo_routes.ps1 -RebootAfterOffline`. Este script prepara dependencias con lockfile obligatorio, aplica el parche Mapbox y ejecuta la prueba de integración online/descarga y después offline. La ruta se ejecuta en el test app de integración (debug), no en el APK release.
+5. Ejecuta `.	ool\verify_install_android_apk.ps1 -ReleaseApkPath .\app-release.apk -ValidationManifestPath .\android-staging-validation.txt -OfflineSmoke -RebootAfterInstall`. Verifica SHA-256, application ID, versionCode y commit; instala el APK exacto con `adb install -r` sin desinstalar ni borrar datos, abre Mapa sin conectividad y repite tras reiniciar. Guarda capturas e informe en `build\mapbox-oppo-validation`.
+6. Si la actualización falla por incompatibilidad de firma, no desinstales la aplicación para forzarla: conserva los datos y registra el bloqueo.
+
+**Alcance de la evidencia:** la prueba de routing nativo offline la ejecuta el integration test; el segundo script demuestra que el APK release exacto puede instalarse/reabrirse con el mismo TileStore y mostrar el mapa offline. El APK staging se firma con la configuración de staging; esto no sustituye la prueba del APK de producción firmado con la clave definitiva. No se afirma que el APK release calcule una ruta nueva desde su propia UI hasta que exista una prueba UI/instrumentation firmada con la misma clave.
+
 ## Estado y pendientes
 
 - Mapa offline: descarga de una región de prueba presente en `main`; falta repetir la validación física sobre el HEAD actual.
