@@ -480,14 +480,24 @@ class MapboxNavigationBridge(context: Context) {
                 }
                 return@getAllTileRegions
             }
-            val region = expected.value.orEmpty().firstOrNull { it.id == regionId }
-            val hasStoredResources = region != null &&
-                region.completedResourceCount > 0 &&
-                region.completedResourceSize > 0
-            val hasCompletionMarker = appContext
+            val mapRegionId = "$regionId-maps"
+            val routingRegionId = "$regionId-routing-walking"
+            val regions = expected.value.orEmpty()
+            val mapRegion = regions.firstOrNull { it.id == mapRegionId }
+            val routingRegion = regions.firstOrNull { it.id == routingRegionId }
+            val preferences = appContext
                 .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
-                .getBoolean("offline:$regionId", false)
-            mainHandler.post { result.success(hasStoredResources && hasCompletionMarker) }
+            val mapReady = mapRegion != null &&
+                mapRegion.completedResourceCount > 0 &&
+                mapRegion.completedResourceSize > 0 &&
+                preferences.getBoolean("offline:$regionId:maps", false)
+            val routingReady = routingRegion != null &&
+                routingRegion.completedResourceCount > 0 &&
+                routingRegion.completedResourceSize > 0 &&
+                preferences.getBoolean("offline:$regionId:routing-walking", false)
+            // Legacy combined regions are intentionally not treated as verified:
+            // their aggregate progress could be satisfied by routing alone.
+            mainHandler.post { result.success(mapReady && routingReady) }
         }
     }
 
