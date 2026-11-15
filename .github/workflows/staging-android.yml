@@ -222,9 +222,10 @@ jobs:
             echo 'ERROR: /dev/kvm is not available on this runner.'
             exit 1
           fi
-      - name: Android map native smoke
-        id: android_map_smoke
+      - name: Android map and routing validation
+        id: android_emulator_validation
         if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@v2.38.0
         env:
           ANDROID_EMULATOR_CI: "true"
@@ -237,31 +238,10 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disk-size: 6000M
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -netdelay none -netspeed full
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
-      - name: Android online and offline route integration
-        id: android_route_integration
-        # Keep route evidence independent from the visual smoke; both diagnose different failure modes.
-        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
-        timeout-minutes: 30
-        uses: reactivecircus/android-emulator-runner@v2.38.0
-        env:
-          ANDROID_EMULATOR_CI: "true"
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          cores: 4
-          ram-size: 4096M
-          heap-size: 512M
-          disk-size: 6000M
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: bash tool/staging_android_route_integration.sh
+          script: bash tool/staging_android_emulator_validation.sh build/app/outputs/flutter-apk/app-release.apk
       - name: Upload Android route validation evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
