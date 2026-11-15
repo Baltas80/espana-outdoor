@@ -36,8 +36,11 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
   bool _styleLoadedLogged = false;
+  bool _mapLoadedLogged = false;
   bool _fullFrameLogged = false;
   bool _mapIdleLogged = false;
+  int _partialFrameCount = 0;
+  int _resourceFailureCount = 0;
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
     if (first.length != second.length) return false;
@@ -182,18 +185,63 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         _styleLoadedLogged = true;
         debugPrint('MAPBOX_MAP_STYLE_LOADED');
       },
+      onMapLoadedListener: (_) {
+        if (_mapLoadedLogged) return;
+        _mapLoadedLogged = true;
+        debugPrint(
+          'MAPBOX_MAP_LOADED partial_frames=$_partialFrameCount '
+          'resource_failures=$_resourceFailureCount',
+        );
+      },
       onRenderFrameFinishedListener: (event) {
-        if (_fullFrameLogged || event.renderMode != RenderMode.FULL) return;
-        _fullFrameLogged = true;
-        debugPrint('MAPBOX_MAP_FULL_FRAME');
+        if (event.renderMode == RenderMode.FULL) {
+          if (_fullFrameLogged) return;
+          _fullFrameLogged = true;
+          debugPrint('MAPBOX_MAP_FULL_FRAME');
+          return;
+        }
+        _partialFrameCount++;
+        // Keep diagnostics bounded: partial frames can be emitted continuously
+        // while network resources are missing or the camera is still changing.
+        if (_partialFrameCount <= 3) {
+          debugPrint(
+            'MAPBOX_MAP_PARTIAL_FRAME count=$_partialFrameCount '
+            'needs_repaint=${event.needsRepaint} '
+            'placement_changed=${event.placementChanged}',
+          );
+        }
       },
       onMapIdleListener: (_) {
         if (_mapIdleLogged) return;
         _mapIdleLogged = true;
-        debugPrint('MAPBOX_MAP_IDLE');
+        debugPrint(
+          'MAPBOX_MAP_IDLE partial_frames=$_partialFrameCount '
+          'resource_failures=$_resourceFailureCount',
+        );
+      },
+      onResourceRequestListener: (event) {
+        final response = event.response;
+        final error = response?.error;
+        if (error == null && !event.cancelled) return;
+        _resourceFailureCount++;
+        // Never log request URLs or response messages: Mapbox URLs can contain
+        // the public access token. Type/reason/source are sufficient to
+        // distinguish connectivity, server, rate-limit and cancellation cases.
+        if (_resourceFailureCount <= 20) {
+          debugPrint(
+            'MAPBOX_RESOURCE_FAILURE kind=${event.request.kind} '
+            'data_source=${event.dataSource} '
+            'reason=${error?.reason ?? 'cancelled'} '
+            'response_source=${response?.source ?? 'unknown'} '
+            'size=${response?.size ?? 0} cancelled=${event.cancelled}',
+          );
+        }
       },
       onMapLoadErrorListener: (event) {
-        debugPrint('MAPBOX_MAP_LOAD_ERROR type=${event.runtimeType}');
+        debugPrint(
+          'MAPBOX_MAP_LOAD_ERROR type=${event.type} '
+          'source=${event.sourceId ?? 'unknown'}',
+        );
       },
     );
   }
