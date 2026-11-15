@@ -180,6 +180,7 @@ Future<void> _expectOfflineMapRendered(
   IntegrationTestWidgetsFlutterBinding binding,
 ) async {
   final styleLoaded = Completer<void>();
+  final mapLoaded = Completer<void>();
   final fullFrameRendered = Completer<void>();
   final loadErrors = <String>[];
   final resourceFailures = <String>[];
@@ -199,6 +200,9 @@ Future<void> _expectOfflineMapRendered(
           ),
           onStyleLoadedListener: (_) {
             if (!styleLoaded.isCompleted) styleLoaded.complete();
+          },
+          onMapLoadedListener: (_) {
+            if (!mapLoaded.isCompleted) mapLoaded.complete();
           },
           onRenderFrameFinishedListener: (event) {
             renderedFrames++;
@@ -251,7 +255,7 @@ Future<void> _expectOfflineMapRendered(
 
   final frameDeadline = DateTime.now().add(const Duration(seconds: 20));
   while (styleLoaded.isCompleted &&
-      !fullFrameRendered.isCompleted &&
+      (!mapLoaded.isCompleted || !fullFrameRendered.isCompleted || !idleSeen) &&
       DateTime.now().isBefore(frameDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
@@ -276,6 +280,7 @@ Future<void> _expectOfflineMapRendered(
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
     'style_loaded=${styleLoaded.isCompleted} '
+    'map_loaded=${mapLoaded.isCompleted} '
     'full_frame=${fullFrameRendered.isCompleted} '
     'rendered_frames=$renderedFrames idle=$idleSeen '
     'load_errors=${loadErrors.length} '
@@ -296,6 +301,11 @@ Future<void> _expectOfflineMapRendered(
     fullFrameRendered.isCompleted,
     isTrue,
     reason: 'Mapbox must finish at least one full render frame with offline resources.',
+  );
+  expect(
+    mapLoaded.isCompleted,
+    isTrue,
+    reason: 'Mapbox must report that all visible map resources have loaded.',
   );
   expect(
     loadErrors,
