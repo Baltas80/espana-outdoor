@@ -1,14 +1,43 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 16:21 CET**.
+Última revisión: **15/11/2026 17:18 CET**.
 
 - Rama de producción: main
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de la rama PR #61 en esta revisión: `7462e07aeba1b942ca5494e082db88e9d422a973`.
-- Últimos cambios: `d744e3c` añade pixelRatio de pantalla al descriptor de teselas y registra/comprueba recursos completados; `7a4c544` conserva captura/diagnóstico antes de fallar el test visual; `33a4fe1` añade guard estático; `7462e07` documenta el cambio.
+- HEAD de la rama PR #61 en esta revisión: `6469d1c32e9757f62f8cff9384e04e0f39ac6a81`.
+- Últimos cambios: `7cca9e1` mueve la captura del viewport offline a ADB host-side para evitar el canal screenshot no registrado de integration_test; `8421e58` separa los misses CACHE/TILE_STORE de errores reales; `10fe733` captura PNG antes de cerrar el test; `a3a653d` añade validador PNG sin dependencias; `0f1b795` incorpora self-test y artefacto; `6469d1c` documenta el procedimiento.
 - La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
+
+## Actualización de validación — 15/11/2026 17:18 CET
+
+### Evidencia real inspeccionada: Android staging 43729815996 (HEAD 6f8df39)
+
+- APK runtime-capable generado; artefacto `android-staging-apk` ID `14168162393`.
+- Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5.
+- SHA-256: `2fb9b04a14553fe80650ca78e2e79142bc7d891760e8916a468919f8a4aa6c4d`.
+- Ruta online nueva: 767,757 m y 55 puntos.
+- Región Córdoba: 33/33 recursos, 0 errores, 42.847.606 bytes; TileStore confirmó la región.
+- Con modo avión y Wi-Fi deshabilitado, Navigation calculó una ruta nueva `source=offline`: 1.109,662 m y 66 puntos.
+- El test falló después por `MissingPluginException` en `convertFlutterSurfaceToImage`; la ruta offline ya había sido devuelta correctamente. El fallo es del canal de captura de integration_test.
+- La captura de la fase smoke correspondía a la UI release online, no al mapa offline. El viewport era incompleto (entropía 0,886 bits, color dominante 0,876) y no recibió map-loaded/full-frame/idle. No existe captura offline válida de esa ejecución.
+- Los eventos `NOT_FOUND` desde DATABASE/CACHE/TILE_STORE eran misses de consulta local; no prueban por sí solos un fallo HTTP ni de teselas.
+
+### Cambios para la siguiente ejecución
+
+- El integration test emite `MAPBOX_OFFLINE_SCREENSHOT_READY`; el host captura la plataforma nativa con `adb exec-out screencap -p` antes de que terminen las aserciones.
+- El nuevo `tool/verify_android_map_screenshot.py` valida PNG sin librerías externas y conserva métricas de viewport.
+- La instrumentación distingue lookup misses de errores reales.
+- El workflow ejecuta el self-test del decodificador y adjunta el PNG al artefacto de routing.
+
+### CI del HEAD 6469d1
+
+- [Android staging 43735239658](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239658): en ejecución.
+- [CI 43735239624](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239624): en ejecución.
+- [Security baseline 43735239630](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239630): en ejecución.
+
+La corrección del harness todavía no está validada en runtime. La PR #61 sigue abierta; el mapa offline no está aceptado y no se ha probado el APK candidato en OPPO en este ciclo.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
