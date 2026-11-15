@@ -20,6 +20,8 @@ La integración nativa está en la [PR #61](https://github.com/Baltas80/espana-o
 
 Las PR #25, #52, #53, #57 y #59 se cerraron como supersedidas. La PR #61 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
 
+La solicitud nativa de ruta tiene un timeout explícito de 45 segundos; el test puede reducirlo mediante el parámetro `routeTimeout` para probar que una respuesta nativa que no llega falla de forma acotada. Android staging limita el paso de integración del emulador a 30 minutos y el job completo a 60 minutos, evitando runners bloqueados indefinidamente.
+
 La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
 ## Reglas
