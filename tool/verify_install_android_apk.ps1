@@ -63,6 +63,7 @@ if ($OfflineSmoke) {
         "MAPBOX_ROUTE_VALIDATION source=online",
         "MAPBOX_OFFLINE_REGION_READY id=espana-outdoor-cordoba-poc",
         "MAPBOX_ROUTE_VALIDATION source=offline",
+        "MAPBOX_TILESTORE_FILES_PRESENT region=espana-outdoor-cordoba-poc marker=true",
         "PASS: fresh native offline route confirmed"
     )
     foreach ($marker in $requiredRouteEvidence) {
@@ -215,6 +216,17 @@ try {
     $Report.Add("Artifact commit: $SourceCommit")
     $Report.Add("APK SHA-256: $ActualHash")
     $Report.Add("Package/versionCode: $PackageName/$ExpectedVersionCode")
+    $firstInstallTimeBefore = $null
+    if ($OfflineSmoke) {
+        $preInstallPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
+        if (-not $preInstallPath.StartsWith('package:')) {
+            throw 'OfflineSmoke requires the integration-test app to remain installed; refusing a fresh install without TileStore data.'
+        }
+        $preInstallDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
+        $preInstallTimeMatch = [regex]::Match($preInstallDump, 'firstInstallTime=(\S+)')
+        if (-not $preInstallTimeMatch.Success) { throw 'Could not read the pre-update firstInstallTime for the integration-test app.' }
+        $firstInstallTimeBefore = $preInstallTimeMatch.Groups[1].Value
+    }
     Invoke-Adb @('-s', $DeviceSerial, 'install', '-r', $ReleaseApkPath) | Out-Null
     $installedPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
     $basePathLine = ($installedPath -split "`r?`n" | Where-Object { $_ -match '^package:' } | Select-Object -First 1)
@@ -222,6 +234,13 @@ try {
     $remoteBaseApk = $basePathLine -replace '^package:', ''
     $installedDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
     if ($installedDump -notmatch "versionCode=$ExpectedVersionCode\b") { throw 'Installed versionCode does not match the artifact manifest.' }
+    if ($OfflineSmoke) {
+        $afterInstallTimeMatch = [regex]::Match($installedDump, 'firstInstallTime=(\S+)')
+        if (-not $afterInstallTimeMatch.Success -or $afterInstallTimeMatch.Groups[1].Value -ne $firstInstallTimeBefore) {
+            throw 'The release APK update did not preserve the existing app installation/data; offline TileStore continuity cannot be claimed.'
+        }
+        $Report.Add("PASS: install -r preserved firstInstallTime=$firstInstallTimeBefore and the prevalidated offline app data.")
+    }
     $installedBaseApk = Join-Path $ReportDir 'installed-base.apk'
     Invoke-Adb @('-s', $DeviceSerial, 'pull', $remoteBaseApk, $installedBaseApk) | Out-Null
     $installedBaseHash = (Get-FileHash -LiteralPath $installedBaseApk -Algorithm SHA256).Hash.ToLowerInvariant()

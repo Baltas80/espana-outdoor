@@ -10,6 +10,7 @@ $Adb = $AdbCommand
 $DeviceId = if ($env:ANDROID_SERIAL) { $env:ANDROID_SERIAL } else { 'da09ac8c' }
 $ExpectedModel = if ($env:EXPECTED_ANDROID_MODEL) { $env:EXPECTED_ANDROID_MODEL } else { 'CPH2009' }
 $PackageName = if ($env:ANDROID_APPLICATION_ID) { $env:ANDROID_APPLICATION_ID } else { 'com.espanaoutdoors.espana_outdoors' }
+$OfflineRegionId = 'espana-outdoor-cordoba-poc'
 $GradleFile = Join-Path $RepoRoot 'android\app\build.gradle.kts'
 $GradleText = Get-Content -LiteralPath $GradleFile -Raw
 if ($GradleText -notmatch '(?m)^\s*namespace\s*=\s*"([^"]+)"') {
@@ -102,6 +103,18 @@ function Invoke-RouteIntegration([string] $Mode) {
     }
     $Report.Add("Phase passed: $Mode; explicit route origin=$source")
 }
+function Assert-OfflineRegionPersisted {
+    $preferences = Invoke-Adb @('-s', $DeviceId, 'shell', 'run-as', $PackageName, 'cat', 'shared_prefs/espana_outdoor_offline.xml')
+    $markerName = 'offline:' + $OfflineRegionId
+    if ($preferences -notmatch [regex]::Escape($markerName) -or $preferences -notmatch 'value="true"') {
+        throw "Offline region completion marker is missing from app-private SharedPreferences: $OfflineRegionId."
+    }
+    $tileStoreFile = Invoke-Adb @('-s', $DeviceId, 'shell', 'run-as', $PackageName, 'sh', '-c', 'find no_backup/mapbox-tiles -type f | head -n 1')
+    if ([string]::IsNullOrWhiteSpace($tileStoreFile)) {
+        throw "No persisted Mapbox TileStore file was found for region $OfflineRegionId."
+    }
+    $Report.Add("MAPBOX_TILESTORE_FILES_PRESENT region=$OfflineRegionId marker=true")
+}
 
 try {
     $deviceList = Invoke-Adb @('devices', '-l')
@@ -167,6 +180,7 @@ try {
     $airplaneNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'airplane_mode_on')
     $wifiNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
     if ($airplaneNow -ne '1' -or $wifiNow -ne '0') { throw 'Connectivity changed during the offline route request.' }
+    Assert-OfflineRegionPersisted
 
     if ($RebootAfterOffline) {
         $Report.Add("Reboot persistence validation started at $(Get-Date -Format o)")
@@ -193,6 +207,7 @@ try {
         }
         Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
         Invoke-RouteIntegration 'offline'
+        Assert-OfflineRegionPersisted
         $Report.Add("PASS: offline TileStore and routing persisted after device reboot at $(Get-Date -Format o)")
     }
 

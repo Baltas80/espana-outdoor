@@ -311,6 +311,8 @@ def verify_android() -> None:
         "resource_failures=0",
         "Source commit:",
         "Application ID:",
+        "Assert-OfflineRegionPersisted",
+        "MAPBOX_TILESTORE_FILES_PRESENT",
     ):
         if marker not in oppo_script:
             raise SystemExit(f"The physical integration script is missing CI parity marker: {marker}")
@@ -327,6 +329,7 @@ def verify_android() -> None:
         "install",
         "validation-report.txt",
         "installed-base.apk",
+        "firstInstallTime",
         "MAPBOX_MAP_LOADED",
         "MAPBOX_MAP_FULL_FRAME",
         "MAPBOX_MAP_IDLE",
