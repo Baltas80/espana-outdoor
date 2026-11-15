@@ -143,10 +143,36 @@ func TestGetJSONWithRetryDoesNotRetryPermanentClientErrors(t *testing.T) {
 
 func TestLoadConfigRejectsHTTPOIDCIssuer(t *testing.T) {
     setRequiredConfigEnv(t)
+    t.Setenv("ALLOW_HTTP_DEV", "false")
     t.Setenv("OIDC_ISSUER", "http://auth.example.com/realms/espana-outdoor")
 
     if _, err := loadConfig(time.Now().UTC()); err == nil {
-        t.Fatal("expected HTTP OIDC issuer to be rejected")
+        t.Fatal("expected public HTTP OIDC issuer to be rejected")
+    }
+}
+
+func TestLoadConfigAllowsInternalDockerHTTPOnlyInDevelopment(t *testing.T) {
+    setRequiredConfigEnv(t)
+    t.Setenv("ALLOW_HTTP_DEV", "true")
+    t.Setenv("OIDC_ISSUER", "http://keycloak:8080/realms/espana-outdoor")
+    t.Setenv("DATABASE_URL", "postgresql://espana:password@postgres:5432/espana_outdoor?sslmode=disable")
+
+    cfg, err := loadConfig(time.Now().UTC())
+    if err != nil {
+        t.Fatalf("expected explicitly enabled local Docker configuration to load: %v", err)
+    }
+    if cfg.databaseURL == "" {
+        t.Fatal("expected local profile DATABASE_URL to be retained")
+    }
+}
+
+func TestLoadConfigRejectsExternalInsecureDatabaseEvenInDevelopment(t *testing.T) {
+    setRequiredConfigEnv(t)
+    t.Setenv("ALLOW_HTTP_DEV", "true")
+    t.Setenv("DATABASE_URL", "postgresql://espana:password@db.example.com:5432/espana_outdoor?sslmode=disable")
+
+    if _, err := loadConfig(time.Now().UTC()); err == nil {
+        t.Fatal("expected external PostgreSQL without TLS to be rejected")
     }
 }
 
@@ -370,6 +396,7 @@ func signTestAccessTokenWithClaims(t *testing.T, key *rsa.PrivateKey, issuer, au
 func setRequiredConfigEnv(t *testing.T) {
     t.Helper()
     t.Setenv("OIDC_ISSUER", "https://auth.example.com/realms/espana-outdoor")
+    t.Setenv("ALLOW_HTTP_DEV", "false")
     t.Setenv("OIDC_AUDIENCE", "espana-outdoor")
     t.Setenv("OIDC_REQUIRED_ROLE", "source.read")
     t.Setenv("AEMET_API_KEY", "fixture")
