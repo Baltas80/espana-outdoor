@@ -77,7 +77,7 @@ services:
     environment:
       # Share the configurable TLS-aware database DSN with Source Gateway.
       DATABASE_URL: ${DATABASE_URL:?set in .env}
-      OIDC_ISSUER: ${OIDC_ISSUER:-http://keycloak:8080/realms/espana-outdoor}
+      OIDC_ISSUER: ${OIDC_ISSUER:?set in .env}
       RESCUE_LINK_OIDC_AUDIENCE: ${RESCUE_LINK_OIDC_AUDIENCE:?set in .env}
       PUBLIC_SHARE_BASE_URL: ${PUBLIC_SHARE_BASE_URL:?set in .env}
       LOCATION_ENCRYPTION_KEY: ${LOCATION_ENCRYPTION_KEY:?set in .env}
