@@ -221,6 +221,8 @@ def verify_android() -> None:
     required_screenshot_evidence = (
         "MAPBOX_OFFLINE_MAP_RENDERED",
         "MAPBOX_OFFLINE_SCREENSHOT_METRICS",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
         "MAPBOX_OFFLINE_RENDER_GATE version=3",
         "unique_colors",
         "opaque_ratio",
@@ -234,7 +236,13 @@ def verify_android() -> None:
             )
 
     route_harness = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
-    for marker in ("screencap -p", "tool/verify_android_map_screenshot.py"):
+    for marker in (
+        "screencap -p",
+        "tool/verify_android_map_screenshot.py",
+        "dumpsys activity activities",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
+    ):
         if marker not in route_harness:
             raise SystemExit(f"Android route harness is missing host screenshot capture: {marker}")
 
@@ -282,6 +290,9 @@ def verify_android() -> None:
     staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
     for marker in (
         "MAPBOX_OFFLINE_MAP_RENDERED",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "dumpsys activity activities",
+        "--foreground-package",
         "TEST_PACKAGE_NAME",
         "namespace[[:space:]]*=",
         "am force-stop",
@@ -335,6 +346,9 @@ def verify_android() -> None:
         "MAPBOX_MAP_IDLE",
         "mapDeadline",
         "verify_android_map_screenshot.py",
+        "dumpsys activity",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
     ):
         if marker not in release_device_text:
             raise SystemExit(f"The release APK device validation script is missing: {marker}")

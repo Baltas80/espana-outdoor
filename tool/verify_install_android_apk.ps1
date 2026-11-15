@@ -174,6 +174,14 @@ function Launch-And-Capture([string]$Phase) {
     }
     $pidAfterMap = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pidof', $PackageName)
     if (-not $pidAfterMap) { throw "Release APK exited after opening Mapa ($Phase)." }
+    $activityDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'activity', 'activities')
+    $foregroundLine = [regex]::Split($activityDump, '\r?\n') |
+        Where-Object { $_ -match 'mResumedActivity|topResumedActivity' } |
+        Select-Object -Last 1
+    if (-not $foregroundLine -or $foregroundLine -notmatch [regex]::Escape($PackageName + '/')) {
+        throw "The expected release application is not the resumed Android activity ($Phase)."
+    }
+    $Report.Add("MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND package=$PackageName verified=true phase=$Phase")
     $logcat = Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-d')
     if ($logcat -match 'FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:') { throw "Release APK crashed ($Phase)." }
     foreach ($marker in @('MAPBOX_MAP_STYLE_LOADED','MAPBOX_MAP_LOADED','MAPBOX_MAP_FULL_FRAME','MAPBOX_MAP_IDLE')) {
@@ -192,7 +200,7 @@ function Launch-And-Capture([string]$Phase) {
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'screencap', '-p', $remotePng) | Out-Null
     Invoke-Adb @('-s', $DeviceSerial, 'pull', $remotePng, $localPng) | Out-Null
     if (-not (Test-Path -LiteralPath $localPng) -or (Get-Item -LiteralPath $localPng).Length -lt 1024) { throw 'Release map screenshot is missing or too small.' }
-    $gateOutput = & $PythonCommand @PythonLauncherArgs (Join-Path $RepoRoot 'tool\verify_android_map_screenshot.py') $localPng 2>&1
+    $gateOutput = & $PythonCommand @PythonLauncherArgs (Join-Path $RepoRoot 'tool\verify_android_map_screenshot.py') --foreground-package $PackageName $localPng 2>&1
     $gateExitCode = $LASTEXITCODE
     $gateOutput | ForEach-Object { $Report.Add([string]$_) }
     if ($gateExitCode -ne 0) { throw "Release map screenshot failed the visual acceptance gate ($Phase)." }

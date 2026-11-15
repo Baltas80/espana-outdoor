@@ -292,7 +292,7 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   // ignore: avoid_print
   print('MAPBOX_OFFLINE_SCREENSHOT_READY');
   // Keep the native view alive long enough for the host-side ADB capture.
-  await Future<void>.delayed(const Duration(seconds: 3));
+  await Future<void>.delayed(const Duration(seconds: 8));
   // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
