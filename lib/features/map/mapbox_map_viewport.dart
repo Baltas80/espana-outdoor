@@ -253,7 +253,6 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         final response = event.response;
         final error = response?.error;
         final kind = event.request.kind;
-        final dataSource = event.dataSource;
         final responseSource = response?.source.name ?? 'unknown';
         final dataSource = event.dataSource.name;
 
