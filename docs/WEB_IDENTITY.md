@@ -9,7 +9,7 @@ La página estática `/cuenta.html` utiliza OAuth 2.0 Authorization Code + PKCE 
 - Callback web: `https://espanaoutdoor.es/cuenta.html` y `https://www.espanaoutdoor.es/cuenta.html`
 - API de perfiles: `https://api.espanaoutdoor.es/v1/me`
 - Sesión del navegador: `sessionStorage`, nunca `localStorage`; no se solicita ni almacena refresh token.
-- El backend valida firma, issuer, audiencia API y el claim `typ=Bearer` del access token. Los ID tokens (`typ=ID`) y refresh tokens no son credenciales válidas para la API; la exigencia de tipo se implementa en la PR #65. La web no envía un identificador de usuario.
+- El backend valida firma, issuer, audiencia API y el claim `typ=Bearer` del access token. Los ID tokens (`typ=ID`) y refresh tokens no son credenciales válidas para la API; la exigencia de tipo y audiencia API se integra en la PR #68 (que sustituye a #65). La web no envía un identificador de usuario.
 
 El cliente elimina el código de autorización de la URL antes del intercambio, comprueba `state`, usa un verificador PKCE de alta entropía y restringe el discovery y el token endpoint al mismo origen HTTPS del issuer. Al no solicitar `openid`, no recibe ni ignora un ID token que tendría que validar como relying party; el API recibe exclusivamente el access token. El perfil se obtiene y actualiza exclusivamente a través de `GET/PATCH /v1/me`.
 
