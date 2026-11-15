@@ -177,6 +177,10 @@ def verify_android() -> None:
         "opaque_ratio",
         "entropy_bits",
         "dominant_ratio",
+        "MAPBOX_OFFLINE_RENDER_GATE version=2",
+        "greaterThan(24)",
+        "greaterThan(1.2)",
+        "lessThan(0.85)",
     )
     for marker in required_integration_evidence:
         if marker not in integration_text:
@@ -205,13 +209,25 @@ def verify_android() -> None:
         if name in ("staging-android.yml", "release-candidate.yml"):
             if "MAPBOX_DOWNLOADS_TOKEN" not in workflow or "VALHALLA_BASE_URL" not in workflow:
                 raise SystemExit(f"{name} must preserve Mapbox Maven credentials and Valhalla routing configuration.")
+        if name == "staging-android.yml":
+            for marker in ("timeout-minutes: 60", "timeout-minutes: 30", "apk_sha256=", "application_id=", "version_code=", "source_commit="):
+                if marker not in workflow:
+                    raise SystemExit(f"Android staging is missing bounded/reproducible artifact validation: {marker}")
 
     staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
     if "MAPBOX_OFFLINE_MAP_RENDERED" not in staging_script:
         raise SystemExit("Android staging must require visible offline map rendering evidence.")
     oppo_script = (ROOT / "tool" / "test_mapbox_oppo_routes.ps1").read_text(encoding="utf-8")
-    if "RebootAfterOffline" not in oppo_script:
-        raise SystemExit("The physical-device validation script must support post-reboot offline checks.")
+    for marker in ("RebootAfterOffline", "--enforce-lockfile", "patch_mapbox_resource_expiry.py", "verify_mapbox_lock.py"):
+        if marker not in oppo_script:
+            raise SystemExit(f"The physical integration script is missing CI parity marker: {marker}")
+    release_device_script = ROOT / "tool" / "verify_install_android_apk.ps1"
+    if not release_device_script.is_file():
+        raise SystemExit("The exact release APK device validation script is missing.")
+    release_device_text = release_device_script.read_text(encoding="utf-8")
+    for marker in ("apk_sha256", "application_id", "version_code", "OfflineSmoke", "RebootAfterInstall", "install"):
+        if marker not in release_device_text:
+            raise SystemExit(f"The release APK device validation script is missing: {marker}")
 
     print("android_manifest=verified")
     print("android_main_activity=verified")
