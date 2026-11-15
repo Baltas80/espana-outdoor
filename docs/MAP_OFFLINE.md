@@ -228,3 +228,17 @@ válida.
 
 La modificación está protegida por `tool/test_android_validation_order.py`.
 No cambia los criterios de aceptación del mapa offline descritos arriba.
+
+
+## Diagnóstico de fuentes Mapbox — 15/11/2026
+
+La ejecución [43752643079](https://github.com/Baltas80/espana-outdoor/actions/runs/43752643079) aporta evidencia nueva:
+
+- Ruta peatonal online: 767,757 m / 55 puntos.
+- Descarga de Córdoba: 33/33 recursos, cero errores, 42.847.606 bytes.
+- Ruta peatonal nueva en modo avión: origen nativo `offline`, 1.109,662 m / 66 puntos.
+- El mapa offline no completó el renderizado: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`; 14 fallos de recursos `IN_OFFLINE_MODE/NETWORK/TILE`.
+- La captura del test offline no se aceptó porque el paquete bajo prueba ya no estaba en primer plano. El artefacto de smoke online sí contiene una captura de la pantalla real de Mapa: muestra el fondo del estilo y elementos de agua, pero faltan carreteras/etiquetas; por tanto, tampoco es una prueba de mapa completo.
+- En el smoke online se recibieron respuestas de red para estilo, sprites, glyphs y teselas, pero solo dos frames parciales y ningún evento de mapa cargado/completo/inactivo. No se observaron `MAPBOX_RESOURCE_FAILURE` ni errores de carga de estilo en ese logcat.
+
+Se añade instrumentación acotada de `sourceAdded` y `sourceDataLoaded` (ID de fuente, tipo, estado y presencia de tile; nunca URL ni token) tanto al viewport de producción como al integration test. La siguiente ejecución debe mostrar qué fuentes vectoriales notifican metadata/tiles y cuáles no llegan a cargar. No se cambia el modo TileStore ni se amplía la región a ciegas: primero se identifica si el problema es cobertura geométrica, descriptor/TileStore o carga de una fuente del estilo.
