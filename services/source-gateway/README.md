@@ -58,7 +58,7 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 - `GET /v1/me` — provisions/returns the authenticated user's canonical profile.
 - `PATCH /v1/me` — updates only the authenticated user's display name.
 
-The community profile endpoints require a valid OIDC bearer token with the configured audience. They derive the subject from the verified token and never accept a user ID from the request. Email is imported only when the issuer sets email_verified=true. PostgreSQL generates the canonical profile UUID.
+The community profile endpoints require a cryptographically verified Keycloak access token with the configured resource-server audience and the JWT payload claim `typ=Bearer`. ID tokens (`typ=ID`), refresh tokens, and tokens without an explicit bearer type are rejected even if they share the issuer, signing key, or frontend-client audience. Configure an audience mapper for this API and set `OIDC_AUDIENCE` to that API audience; do not rely only on the public web/mobile client ID. The service derives the subject from the verified token and never accepts a user ID from the request. Email is imported only when the issuer sets email_verified=true. PostgreSQL generates the canonical profile UUID.
 
 The source-data endpoints continue to require the configured client-scoped role.
 
