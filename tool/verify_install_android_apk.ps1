@@ -70,7 +70,7 @@ if ($OfflineSmoke) {
             throw "OfflineSmoke route evidence is missing or belongs to another device/build: $marker"
         }
     }
-    $routeDiagnostics = ($routeEvidence -split "`r?`n") |
+    $routeDiagnostics = [regex]::Split($routeEvidence, '\r?\n') |
         Where-Object { $_ -match 'MAPBOX_OFFLINE_MAP_DIAGNOSTICS' } |
         Select-Object -Last 1
     if (-not $routeDiagnostics) { throw 'OfflineSmoke route report has no Mapbox render diagnostics.' }
@@ -145,7 +145,25 @@ function Launch-And-Capture([string]$Phase) {
     $tapX = [int](($x1 + $x2) / 2)
     $tapY = [int](($y1 + $y2) / 2)
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'input', 'tap', "$tapX", "$tapY") | Out-Null
-    Start-Sleep -Seconds 15
+    $requiredMapMarkers = @('MAPBOX_MAP_STYLE_LOADED','MAPBOX_MAP_LOADED','MAPBOX_MAP_FULL_FRAME','MAPBOX_MAP_IDLE')
+    $mapDeadline = (Get-Date).AddSeconds(90)
+    $missingMapMarkers = @($requiredMapMarkers)
+    $logcat = ''
+    while ((Get-Date) -lt $mapDeadline) {
+        $logcat = Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-d')
+        if ($logcat -match 'FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:') {
+            throw "Release APK crashed while loading Mapa ($Phase)."
+        }
+        if ($logcat -match 'MAPBOX_MAP_LOAD_ERROR') {
+            throw "Release map reported a Mapbox load error ($Phase)."
+        }
+        $missingMapMarkers = @($requiredMapMarkers | Where-Object { -not $logcat.Contains($_) })
+        if ($missingMapMarkers.Count -eq 0) { break }
+        Start-Sleep -Seconds 2
+    }
+    if ($missingMapMarkers.Count -gt 0) {
+        throw "Release map did not finish rendering within 90 seconds ($Phase): $($missingMapMarkers -join ', ')."
+    }
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'uiautomator', 'dump', $remoteXml) | Out-Null
     $postText = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'cat', $remoteXml)
     if ($postText -match 'No se pudo cargar el mapa|Reintentar') { throw "Mapbox loader error appeared after opening Mapa ($Phase)." }
