@@ -138,7 +138,10 @@ func main() {
     s := &server{
         cfg: cfg,
         client: newProviderHTTPClient(cfg.clientTimeout),
-        verifier: provider.Verifier(&oidc.Config{ClientID: cfg.oidcAudience}),
+        // Access tokens target the resource server, not the public client.
+        // Validate their audience explicitly below; IDTokenVerifier's normal
+        // azp/client-ID coupling is not appropriate for API access tokens.
+        verifier: provider.Verifier(&oidc.Config{SkipClientIDCheck: true}),
         profiles: profiles,
         log: log,
         cache: make(map[string]cacheEntry),
@@ -688,6 +691,14 @@ func (s *server) allow(subject string) bool {
     return entry.limiter.Allow()
 }
 
+func containsAudience(audiences []string, expected string) bool {
+    if expected == "" { return false }
+    for _, audience := range audiences {
+        if audience == expected { return true }
+    }
+    return false
+}
+
 func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
     fields := strings.Fields(strings.TrimSpace(r.Header.Get("Authorization")))
     if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
@@ -696,6 +707,10 @@ func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[str
     }
     token, err := s.verifier.Verify(r.Context(), fields[1])
     if err != nil {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return nil, false
+    }
+    if !containsAudience(token.Audience, s.cfg.oidcAudience) {
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
         return nil, false
     }
