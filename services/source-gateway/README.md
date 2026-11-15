@@ -40,7 +40,7 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 | `AEMET_API_KEY` | yes | AEMET provider credential, runtime only |
 | `AEMET_API_KEY_EXPIRES_AT` | yes | RFC3339 expiry used for startup/health monitoring |
 | `DATABASE_URL` | for profiles | PostgreSQL URL; production must use sslmode=require or stronger |
-| `ALLOW_HTTP_DEV` | no | Defaults to false; true permits HTTP only to the internal `keycloak` service and `sslmode=disable` only to the internal `postgres` service for local Compose development |
+| `ALLOW_HTTP_DEV` | no | Defaults to false; true permits HTTP only to the internal `keycloak` service and `sslmode=disable` only for loopback or the internal `postgres` service during local development |
 | `PROFILE_MIGRATION_PATH` | no | Defaults to migrations/001_community_profiles.sql |
 | `COMMUNITY_ALLOWED_ORIGINS` | no | Comma-separated HTTPS origins; defaults to the production website domains |
 | `AEMET_BASE_URL` | no | Defaults to `https://opendata.aemet.es/opendata/api` |
