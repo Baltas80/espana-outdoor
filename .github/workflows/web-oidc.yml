@@ -31,6 +31,11 @@ jobs:
           persist-credentials: false
       - name: Verify Node runtime
         run: node --version
+      - name: Check browser script syntax
+        run: |
+          node --check site/app.js
+          node --check site/account.js
+          node --check site/oidc-pkce.mjs
       - name: Test OIDC PKCE client
         run: node --test site/oidc-pkce.test.mjs
       - name: Verify static account security contract
