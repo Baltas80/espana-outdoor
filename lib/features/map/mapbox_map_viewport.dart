@@ -4,6 +4,27 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+String _mapboxFailureClass(String? message) {
+  final value = (message ?? '').toLowerCase();
+  final status = RegExp(
+    r'\\bhttp(?:\\s+status\\s+code)?\\s*[:=]?\\s*(\\d{3})\\b',
+  ).firstMatch(value)?.group(1);
+  if (status != null) return 'http_$status';
+  if (RegExp(r'\\b401\\b|\\b403\\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
+    return 'authorization';
+  }
+  if (value.contains('certificate') || value.contains('ssl') || value.contains('tls')) {
+    return 'tls';
+  }
+  if (value.contains('timeout') || value.contains('timed out')) return 'timeout';
+  if (value.contains('unknownhost') || value.contains('dns') || value.contains('resolve host')) {
+    return 'dns';
+  }
+  if (value.contains('connection') || value.contains('network')) return 'network';
+  if (value.contains('not found')) return 'not_found';
+  return message == null || message.isEmpty ? 'unknown' : 'other';
+}
+
 /// Shared Mapbox surface for the main map, route planner and GPX detail.
 class MapboxMapViewport extends StatefulWidget {
   const MapboxMapViewport({
@@ -232,6 +253,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
             'MAPBOX_RESOURCE_FAILURE kind=${event.request.kind} '
             'data_source=${event.dataSource} '
             'reason=${error?.reason ?? 'cancelled'} '
+            'failure_class=${_mapboxFailureClass(error?.message)} '
             'response_source=${response?.source ?? 'unknown'} '
             'size=${response?.size ?? 0} cancelled=${event.cancelled}',
           );
@@ -240,7 +262,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       onMapLoadErrorListener: (event) {
         debugPrint(
           'MAPBOX_MAP_LOAD_ERROR type=${event.type} '
-          'source=${event.sourceId ?? 'unknown'}',
+          'source=${event.sourceId ?? 'unknown'} '
+          'failure_class=${_mapboxFailureClass(event.message)}',
         );
       },
     );
