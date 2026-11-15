@@ -44,6 +44,26 @@ La solicitud nativa de ruta tiene un timeout explícito de 45 segundos; el test 
 
 La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
+## Preflight de credenciales y recursos Mapbox en CI
+
+Antes de compilar y arrancar el emulador, Android staging ejecuta
+`tool/verify_mapbox_runtime_access.py` cuando dispone del token público. El
+preflight solicita el JSON del estilo Outdoors, el TileJSON del primer origen
+vectorial y una tesela vectorial real centrada en Córdoba. Así distingue un
+token que solo permite descargar dependencias Maven de otro que puede leer el
+estilo y los datos cartográficos usados por la aplicación.
+
+El resultado registra únicamente códigos HTTP, tamaño de la tesela y el
+identificador del tileset. Nunca imprime la URL de petición, el cuerpo de
+respuesta ni el token. Los tests `tool/test_mapbox_runtime_access.py` cubren
+éxito, token no público, HTTP 401 sin filtrar credenciales y respuesta de tesela
+vacía. Dependabot omite el preflight de runtime porque GitHub no entrega esos
+secretos a sus workflows.
+
+Este control comprueba permisos y disponibilidad HTTP desde el runner; no
+sustituye el renderizado nativo, el test de TileStore ni la validación offline
+en emulador/dispositivo físico.
+
 ## Preparación de red del emulador CI
 
 Las fases online llaman a `tool/ensure_android_emulator_online.sh` antes
@@ -93,7 +113,7 @@ La validación debe realizarse sobre el APK construido desde el commit exacto ca
 7. Reiniciar el dispositivo y repetir la comprobación de persistencia, renderizado y routing offline.
 8. Restablecer la conectividad y comprobar recuperación sin duplicar ni corromper la región.
 
-Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba. El harness de emulador resuelve el package de la app de integración desde `namespace` de Gradle (distinto del application ID de staging), detiene ambos procesos antes de la fase offline, reutiliza las dependencias ya resueltas con `--no-pub` y limita cada fase a 8 minutos. El smoke de la pantalla de mapa espera `MAPBOX_MAP_STYLE_LOADED`, `MAPBOX_MAP_FULL_FRAME` y `MAPBOX_MAP_IDLE`; la existencia de una vista nativa o del logo de Mapbox no basta para declarar que las teselas se han renderizado. Los logs de emulador y de Flutter se filtran antes de adjuntarse como artefactos: cualquier cadena con forma de token `pk.` o `sk.` se sustituye por `<REDACTED>`; no se deben volver a publicar volcados de logcat sin este saneamiento.
+Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba. El harness de emulador resuelve el package de la app de integración desde `namespace` de Gradle (distinto del application ID de staging), detiene ambos procesos antes de la fase offline, reutiliza las dependencias ya resueltas con `--no-pub` y limita cada fase a 8 minutos. El smoke de la pantalla de mapa y la integración offline exigen `MAPBOX_MAP_STYLE_LOADED`, `MAPBOX_MAP_LOADED`, `MAPBOX_MAP_FULL_FRAME` y `MAPBOX_MAP_IDLE`; la prueba offline también falla ante errores reales de recursos y ante una captura que no supere el gate de píxeles. Los errores Mapbox se clasifican por tipo (HTTP, autorización, TLS, DNS o red) sin imprimir mensajes ni URLs que puedan contener el token. La mera existencia de una vista nativa o del logo de Mapbox no basta para declarar que las teselas se han renderizado. Los logs de emulador y de Flutter se filtran antes de adjuntarse como artefactos: cualquier cadena con forma de token `pk.` o `sk.` se sustituye por `<REDACTED>`; no se deben volver a publicar volcados de logcat sin este saneamiento.
 
 ## Validación del APK exacto en OPPO
 
