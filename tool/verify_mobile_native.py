@@ -215,8 +215,17 @@ def verify_android() -> None:
                     raise SystemExit(f"Android staging is missing bounded/reproducible artifact validation: {marker}")
 
     staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
-    if "MAPBOX_OFFLINE_MAP_RENDERED" not in staging_script:
-        raise SystemExit("Android staging must require visible offline map rendering evidence.")
+    for marker in (
+        "MAPBOX_OFFLINE_MAP_RENDERED",
+        "TEST_PACKAGE_NAME",
+        "namespace =",
+        "am force-stop",
+        "--no-pub",
+        "timeout --signal=TERM",
+        "ROUTE_PHASE_START",
+    ):
+        if marker not in staging_script:
+            raise SystemExit(f"Android staging route harness is missing: {marker}")
     oppo_script = (ROOT / "tool" / "test_mapbox_oppo_routes.ps1").read_text(encoding="utf-8")
     for marker in ("RebootAfterOffline", "--enforce-lockfile", "patch_mapbox_resource_expiry.py", "verify_mapbox_lock.py"):
         if marker not in oppo_script:
