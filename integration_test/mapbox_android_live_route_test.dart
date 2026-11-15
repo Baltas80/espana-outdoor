@@ -106,11 +106,34 @@ void main() {
       );
       expect(download, isNotNull);
       expect(download?['mapTiles'], isTrue);
+      expect(download?['routingTiles'], isTrue);
       expect(download?['routingProfile'], 'walking');
+      expect(
+        download?['mapCompletedResourceCount'],
+        greaterThan(0),
+        reason: 'The Maps descriptor must store map tile resources independently.',
+      );
+      expect(
+        download?['mapCompletedResourceSize'],
+        greaterThan(0),
+        reason: 'The map tile region must persist non-empty bytes.',
+      );
+      expect(download?['mapErroredResourceCount'], 0);
+      expect(
+        download?['routingCompletedResourceCount'],
+        greaterThan(0),
+        reason: 'The Navigation descriptor must store walking routing resources independently.',
+      );
+      expect(
+        download?['routingCompletedResourceSize'],
+        greaterThan(0),
+        reason: 'The walking routing region must persist non-empty bytes.',
+      );
+      expect(download?['routingErroredResourceCount'], 0);
       expect(
         download?['completedResourceCount'],
         greaterThan(0),
-        reason: 'The downloaded region must contain completed Mapbox resources.',
+        reason: 'The combined download must contain completed Mapbox resources.',
       );
       expect(
         download?['completedResourceSize'],
@@ -125,6 +148,12 @@ void main() {
       // ignore: avoid_print
       print(
         'MAPBOX_OFFLINE_REGION_PROGRESS '
+        'map_completed=${download?['mapCompletedResourceCount']} '
+        'map_bytes=${download?['mapCompletedResourceSize']} '
+        'map_errors=${download?['mapErroredResourceCount']} '
+        'routing_completed=${download?['routingCompletedResourceCount']} '
+        'routing_bytes=${download?['routingCompletedResourceSize']} '
+        'routing_errors=${download?['routingErroredResourceCount']} '
         'completed=$completedResources required=$requiredResources '
         'errored=$erroredResources '
         'bytes=${download?['completedResourceSize']} '
@@ -139,7 +168,7 @@ void main() {
         expect(
           completedResources,
           greaterThanOrEqualTo(requiredResources),
-          reason: 'All required Mapbox map and routing resources must be downloaded.',
+          reason: 'All required map and routing resources across both regions must be downloaded.',
         );
       }
       // Native downloadOfflineRegion completes only after the TileStore
