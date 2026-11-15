@@ -87,7 +87,7 @@ services:
       RESCUE_RATE_LIMIT_RPS: ${RESCUE_RATE_LIMIT_RPS:-2}
       RESCUE_RATE_LIMIT_BURST: ${RESCUE_RATE_LIMIT_BURST:-10}
       ENABLE_HSTS: "true"
-      ALLOW_HTTP_DEV: "false"
+      ALLOW_HTTP_DEV: ${ALLOW_HTTP_DEV:-false}
     depends_on:
       postgres:
         condition: service_healthy

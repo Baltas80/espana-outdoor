@@ -108,6 +108,7 @@ func TestLoadConfigUsesDedicatedRescueAudience(t *testing.T) {
 func setRescueConfigEnvironment(t *testing.T) {
     t.Helper()
     t.Setenv("DATABASE_URL", "postgresql://espana:password@localhost:5432/espana_outdoor?sslmode=require")
+    t.Setenv("ALLOW_HTTP_DEV", "false")
     t.Setenv("OIDC_ISSUER", "https://auth.example.test/realms/espana-outdoor")
     t.Setenv("PUBLIC_SHARE_BASE_URL", "https://rescue.example.test")
     t.Setenv("LOCATION_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
@@ -258,4 +259,63 @@ func signRescueTestToken(t *testing.T, signingKey *rsa.PrivateKey, issuer string
         t.Fatalf("serialize access token: %v", err)
     }
     return rawToken
+}
+
+
+func TestLoadConfigRejectsExternalHTTPIssuerEvenInDevelopment(t *testing.T) {
+    setRescueConfigEnvironment(t)
+    t.Setenv("ALLOW_HTTP_DEV", "true")
+    t.Setenv("OIDC_ISSUER", "http://auth.example.test/realms/espana-outdoor")
+
+    if _, err := loadConfig(); err == nil {
+        t.Fatal("external OIDC issuer must use HTTPS even in local development mode")
+    }
+}
+
+func TestLoadConfigAllowsInternalDockerIssuerAndDatabaseOnlyInDevelopment(t *testing.T) {
+    setRescueConfigEnvironment(t)
+    t.Setenv("ALLOW_HTTP_DEV", "true")
+    t.Setenv("OIDC_ISSUER", "http://keycloak:8080/realms/espana-outdoor")
+    t.Setenv("DATABASE_URL", "postgresql://espana:password@postgres:5432/espana_outdoor?sslmode=disable")
+
+    cfg, err := loadConfig()
+    if err != nil {
+        t.Fatalf("expected explicitly enabled internal Docker configuration: %v", err)
+    }
+    if !cfg.allowHTTPDev {
+        t.Fatal("expected local development exception to be retained")
+    }
+}
+
+func TestValidateRescueDatabaseURLRequiresTLSOutsideDevelopment(t *testing.T) {
+    cases := []struct {
+        name string
+        raw string
+        allowHTTPDev bool
+        wantErr bool
+    }{
+        {"external plaintext", "postgres://user:pass@db.example.test/app?sslmode=disable", false, true},
+        {"external plaintext even in dev", "postgres://user:pass@db.example.test/app?sslmode=disable", true, true},
+        {"loopback plaintext without dev flag", "postgres://user:pass@localhost/app?sslmode=disable", false, true},
+        {"loopback plaintext in dev", "postgres://user:pass@localhost/app?sslmode=disable", true, false},
+        {"docker postgres plaintext in dev", "postgres://user:pass@postgres/app?sslmode=disable", true, false},
+        {"external TLS", "postgres://user:pass@db.example.test/app?sslmode=verify-full", false, false},
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            err := validateRescueDatabaseURL(tc.raw, tc.allowHTTPDev)
+            if (err != nil) != tc.wantErr {
+                t.Fatalf("validateRescueDatabaseURL error = %v, wantErr=%v", err, tc.wantErr)
+            }
+        })
+    }
+}
+
+func TestNormalizePublicShareURLRejectsExternalHTTPInDevelopment(t *testing.T) {
+    if _, err := normalizePublicShareURL("http://rescue.example.test", true); err == nil {
+        t.Fatal("external HTTP share URL must be rejected even in development mode")
+    }
+    if _, err := normalizePublicShareURL("http://localhost:8090", true); err != nil {
+        t.Fatalf("loopback HTTP share URL should be allowed in development: %v", err)
+    }
 }

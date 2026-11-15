@@ -20,7 +20,7 @@ Backend first-party para Rescue Link. La app móvil no confía en expiración lo
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| DATABASE_URL | Sí | PostgreSQL |
+| DATABASE_URL | Sí | PostgreSQL; producción exige `sslmode=require` o `verify-full` |
 | OIDC_ISSUER | Sí | Issuer OIDC accesible por el servicio |
 | RESCUE_LINK_OIDC_AUDIENCE | Sí | Audiencia dedicada del resource server Rescue Link, distinta de los clientes web y Android |
 | PUBLIC_SHARE_BASE_URL | Sí | URL pública HTTPS del enlace |
@@ -32,7 +32,7 @@ Backend first-party para Rescue Link. La app móvil no confía en expiración lo
 | RESCUE_RATE_LIMIT_RPS | No | Rate limit, por defecto 2 req/s |
 | RESCUE_RATE_LIMIT_BURST | No | Burst, por defecto 10 |
 | ENABLE_HSTS | No | Activa HSTS cuando el servicio está detrás de HTTPS |
-| ALLOW_HTTP_DEV | No | Solo desarrollo local |
+| ALLOW_HTTP_DEV | No | Por defecto false; solo permite HTTP al host interno `keycloak` y PostgreSQL sin TLS en loopback/host `postgres` durante desarrollo local explícito |
 | RESCUE_MIGRATION_PATH | No | Ruta del SQL, por defecto `migrations/001_rescue_links.sql` |
 
 ## Seguridad

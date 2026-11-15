@@ -274,36 +274,77 @@ func pingDatabaseWithRetry(ctx context.Context, db *pgxpool.Pool, timeout time.D
 }
 
 func loadConfig() (config, error) {
+    allowHTTPDev, err := parseBoolEnv("ALLOW_HTTP_DEV", false)
+    if err != nil {
+        return config{}, err
+    }
+
     databaseURL, err := requiredEnv("DATABASE_URL")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
+    if err := validateRescueDatabaseURL(databaseURL, allowHTTPDev); err != nil {
+        return config{}, err
+    }
+
     issuer, err := requiredEnv("OIDC_ISSUER")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
+    issuerURL, err := url.Parse(issuer)
+    if err != nil || issuerURL.Host == "" || issuerURL.User != nil || issuerURL.RawQuery != "" || issuerURL.Fragment != "" {
+        return config{}, errors.New("OIDC_ISSUER must be a valid issuer URL")
+    }
+    if issuerURL.Scheme != "https" && !(allowHTTPDev && issuerURL.Scheme == "http" && isDevelopmentIssuerHost(issuerURL.Hostname())) {
+        return config{}, errors.New("OIDC_ISSUER must use HTTPS outside explicitly enabled local development")
+    }
+
     audience, err := requiredEnv("RESCUE_LINK_OIDC_AUDIENCE")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     publicShareBaseURL, err := requiredEnv("PUBLIC_SHARE_BASE_URL")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     keyText, err := requiredEnv("LOCATION_ENCRYPTION_KEY")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     key, err := decodeEncryptionKey(keyText)
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
 
     port := envOrDefault("PORT", "8080")
     maxTTL, err := parseDuration("RESCUE_MAX_TTL", "15m")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     retention, err := parseDuration("RESCUE_RETENTION", "24h")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     capabilityTTL, err := parseDuration("RESCUE_CAPABILITY_TTL", "5m")
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     maxResponders, err := parseInt("RESCUE_MAX_RESPONDERS", 5)
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     rps, err := parseFloat("RESCUE_RATE_LIMIT_RPS", 2)
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
     burst, err := parseInt("RESCUE_RATE_LIMIT_BURST", 10)
-    if err != nil { return config{}, err }
+    if err != nil {
+        return config{}, err
+    }
 
     cfg := config{
         databaseURL: databaseURL,
-        oidcIssuer: strings.TrimRight(issuer, "/"),
+        oidcIssuer: strings.TrimRight(issuerURL.String(), "/"),
         oidcAudience: audience,
         publicShareBaseURL: publicShareBaseURL,
         locationKey: key,
@@ -315,7 +356,7 @@ func loadConfig() (config, error) {
         rateLimit: rate.Limit(rps),
         rateBurst: burst,
         hsts: envOrDefault("ENABLE_HSTS", "false") == "true",
-        allowHTTPDev: envOrDefault("ALLOW_HTTP_DEV", "false") == "true",
+        allowHTTPDev: allowHTTPDev,
     }
 
     if cfg.maxTTL <= 30*time.Second || cfg.retention <= cfg.maxTTL || cfg.capabilityTTL <= 0 || cfg.maxResponders <= 0 || cfg.rateLimit <= 0 || cfg.rateBurst <= 0 {
@@ -333,6 +374,47 @@ func requiredEnv(name string) (string, error) {
 func envOrDefault(name, fallback string) string {
     if value := strings.TrimSpace(os.Getenv(name)); value != "" { return value }
     return fallback
+}
+
+
+func parseBoolEnv(name string, fallback bool) (bool, error) {
+    value := strings.ToLower(envOrDefault(name, strconv.FormatBool(fallback)))
+    switch value {
+    case "true":
+        return true, nil
+    case "false":
+        return false, nil
+    default:
+        return false, fmt.Errorf("%s must be true or false", name)
+    }
+}
+
+func validateRescueDatabaseURL(raw string, allowHTTPDev bool) error {
+    parsed, err := url.Parse(raw)
+    if err != nil || parsed.Host == "" || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") {
+        return errors.New("DATABASE_URL must be a PostgreSQL URL")
+    }
+    switch strings.ToLower(parsed.Query().Get("sslmode")) {
+    case "require", "verify-ca", "verify-full":
+        return nil
+    case "", "disable":
+        if allowHTTPDev && (isLoopbackHost(parsed.Hostname()) || strings.EqualFold(parsed.Hostname(), "postgres")) {
+            return nil
+        }
+    }
+    return errors.New("DATABASE_URL must enable TLS (sslmode=require or verify-full), except for loopback or explicitly enabled local Docker development")
+}
+
+func isLoopbackHost(host string) bool {
+    if strings.EqualFold(host, "localhost") {
+        return true
+    }
+    ip := net.ParseIP(host)
+    return ip != nil && ip.IsLoopback()
+}
+
+func isDevelopmentIssuerHost(host string) bool {
+    return isLoopbackHost(host) || strings.EqualFold(host, "keycloak")
 }
 
 func parseDuration(name, fallback string) (time.Duration, error) {
@@ -373,9 +455,11 @@ func decodeEncryptionKey(value string) ([]byte, error) {
 
 func normalizePublicShareURL(raw string, allowHTTP bool) (*url.URL, error) {
     parsed, err := url.Parse(raw)
-    if err != nil { return nil, err }
-    if parsed.Host == "" || (parsed.Scheme != "https" && !(allowHTTP && parsed.Scheme == "http")) {
-        return nil, errors.New("PUBLIC_SHARE_BASE_URL must be an HTTPS URL")
+    if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+        return nil, errors.New("PUBLIC_SHARE_BASE_URL must be a valid URL")
+    }
+    if parsed.Scheme != "https" && !(allowHTTP && parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname())) {
+        return nil, errors.New("PUBLIC_SHARE_BASE_URL must use HTTPS except for loopback local development")
     }
     parsed.Path = strings.TrimRight(parsed.Path, "/")
     return parsed, nil
