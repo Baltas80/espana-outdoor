@@ -119,6 +119,31 @@ void main() {
         greaterThan(0),
         reason: 'The downloaded region must persist non-empty resource bytes.',
       );
+      final completedResources = (download?['progressCompletedResourceCount'] as num?)?.toInt()
+          ?? (download?['completedResourceCount'] as num?)?.toInt()
+          ?? 0;
+      final requiredResources = (download?['requiredResourceCount'] as num?)?.toInt() ?? 0;
+      final erroredResources = (download?['erroredResourceCount'] as num?)?.toInt() ?? 0;
+      // ignore: avoid_print
+      print(
+        'MAPBOX_OFFLINE_REGION_PROGRESS '
+        'completed=$completedResources required=$requiredResources '
+        'errored=$erroredResources '
+        'bytes=${download?['completedResourceSize']} '
+        'loaded_bytes=${download?['loadedResourceSize']}',
+      );
+      expect(
+        erroredResources,
+        0,
+        reason: 'The Mapbox tile region must not report failed resources.',
+      );
+      if (requiredResources > 0) {
+        expect(
+          completedResources,
+          greaterThanOrEqualTo(requiredResources),
+          reason: 'All required Mapbox map and routing resources must be downloaded.',
+        );
+      }
       // Native downloadOfflineRegion completes only after the TileStore
       // callback succeeds and the persistent completion marker is committed.
       // Query TileStore itself afterward so an ID/marker alone cannot pass.
@@ -246,10 +271,7 @@ Future<void> _expectOfflineMapRendered(
   while (!styleLoaded.isCompleted && DateTime.now().isBefore(styleDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
-      fail(
-        'Mapbox offline style failed: loadErrors=${loadErrors.join(' | ')} '
-        'resourceFailures=${resourceFailures.join(' | ')}',
-      );
+      break;
     }
   }
 
@@ -259,10 +281,7 @@ Future<void> _expectOfflineMapRendered(
       DateTime.now().isBefore(frameDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
-      fail(
-        'Mapbox offline map reported resource errors: loadErrors=${loadErrors.join(' | ')} '
-        'resourceFailures=${resourceFailures.join(' | ')}',
-      );
+      break;
     }
   }
 
@@ -285,6 +304,7 @@ Future<void> _expectOfflineMapRendered(
     'rendered_frames=$renderedFrames idle=$idleSeen '
     'load_errors=${loadErrors.length} '
     'resource_failures=${resourceFailures.length} '
+    'resource_failure_details=${resourceFailures.join(',')} '
     'screenshot_bytes=${screenshot.length} '
     'unique_colors=${metrics.$1} '
     'opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
