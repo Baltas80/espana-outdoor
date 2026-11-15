@@ -40,6 +40,8 @@ test("authorization URL uses code flow and S256 without a client secret", () => 
   assert.equal(url.searchParams.get("response_type"), "code");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.equal(url.searchParams.get("client_id"), "espana-outdoors-mobile");
+  assert.equal(url.searchParams.get("scope"), "profile email");
+  assert.equal(url.searchParams.get("scope").split(" ").includes("openid"), false);
   assert.equal(url.searchParams.has("client_secret"), false);
 });
 
