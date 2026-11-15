@@ -21,7 +21,7 @@ if (nav && !nav.querySelector('a[href="./cuenta.html"]')) {
 }
 
 // Tienda integrada en la navegación global de España Outdoor.
-if (nav && !nav.querySelector('a[href="./tienda.html"]'))
+if (nav && !nav.querySelector('a[href="./tienda.html"]')) {
   const storeLink = document.createElement('a');
   storeLink.href = './tienda.html';
   storeLink.textContent = 'Tienda';
@@ -38,7 +38,7 @@ if (footerLinks && !footerLinks.querySelector('a[href="./cuenta.html"]')) {
   footerLinks.appendChild(accountFooterLink);
 }
 
-if (footerLinks && !footerLinks.querySelector('a[href="./tienda.html"]'))
+if (footerLinks && !footerLinks.querySelector('a[href="./tienda.html"]')) {
   const storeFooterLink = document.createElement('a');
   storeFooterLink.href = './tienda.html';
   storeFooterLink.textContent = 'Tienda';
