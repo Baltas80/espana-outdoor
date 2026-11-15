@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,7 +52,7 @@ String _safeMapboxFailureClass(String message) {
 }
 
 void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   const accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
   const mode = String.fromEnvironment(
@@ -191,7 +188,7 @@ void main() {
         'geometry_points=${offlineRoute.points.length}',
       );
       // ignore: avoid_print
-      await _expectOfflineMapRendered(tester, binding);
+      await _expectOfflineMapRendered(tester);
       return;
     }
 
@@ -200,10 +197,7 @@ void main() {
 }
 
 
-Future<void> _expectOfflineMapRendered(
-  WidgetTester tester,
-  IntegrationTestWidgetsFlutterBinding binding,
-) async {
+Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   final styleLoaded = Completer<void>();
   final mapLoaded = Completer<void>();
   final fullFrameRendered = Completer<void>();
@@ -251,10 +245,12 @@ Future<void> _expectOfflineMapRendered(
             if (error == null) return;
             final reason = error.reason.name;
             final source = response?.source.name ?? 'unknown';
-            // Cache misses are expected before the resource loader checks the
-            // network or the offline TileStore. A real offline miss is reported
-            // as IN_OFFLINE_MODE/CONNECTION and must fail this acceptance test.
+            final dataSource = event.dataSource.name;
+            // A database lookup miss is expected before Mapbox falls back to
+            // an individual network tile (online) or reports a true offline
+            // miss. Do not confuse it with a failed resource response.
             if (reason == 'NOT_FOUND' &&
+                dataSource == 'DATABASE' &&
                 (source == 'CACHE' || source == 'TILE_STORE')) {
               return;
             }
@@ -285,16 +281,14 @@ Future<void> _expectOfflineMapRendered(
     }
   }
 
-  // Android embeds Mapbox in a native platform view. The integration-test
-  // binding requires Flutter surface conversion before capturing that view.
-  // Do this even on a failed render so the workflow retains diagnostic pixels.
-  await binding.convertFlutterSurfaceToImage();
+  // Flutter's integration_test screenshot channel is not registered by this
+  // flutter test runner. The host script captures the native platform view with
+  // adb screencap while this test app is still alive.
   await tester.pump(const Duration(seconds: 2));
-  final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
-  expect(screenshot, isNotEmpty);
-  final metrics = await _inspectRenderedPixels(screenshot);
   // ignore: avoid_print
-  print('MAPBOX_OFFLINE_RENDER_GATE version=2 entropy_min=1.2 dominant_max=0.85');
+  print('MAPBOX_OFFLINE_SCREENSHOT_READY');
+  // Keep the native view alive long enough for the host-side ADB capture.
+  await Future<void>.delayed(const Duration(seconds: 3));
   // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
@@ -305,11 +299,7 @@ Future<void> _expectOfflineMapRendered(
     'load_errors=${loadErrors.length} '
     'resource_failures=${resourceFailures.length} '
     'resource_failure_details=${resourceFailures.join(',')} '
-    'screenshot_bytes=${screenshot.length} '
-    'unique_colors=${metrics.$1} '
-    'opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
-    'entropy_bits=${metrics.$3.toStringAsFixed(3)} '
-    'dominant_ratio=${metrics.$4.toStringAsFixed(3)}',
+    'screenshot_source=adb',
   );
 
   expect(
@@ -347,103 +337,7 @@ Future<void> _expectOfflineMapRendered(
     greaterThan(0),
     reason: 'The offline map must produce at least one completed render frame.',
   );
-  expect(
-    metrics.$1,
-    greaterThan(24),
-    reason: 'The offline map screenshot must contain a diverse map viewport, not a nearly uniform canvas.',
-  );
-  expect(
-    metrics.$2,
-    greaterThan(0.95),
-    reason: 'The offline map screenshot must be predominantly opaque.',
-  );
-  expect(
-    metrics.$3,
-    greaterThan(1.2),
-    reason: 'The offline map must contain enough visual information to distinguish streets/labels from a flat background.',
-  );
-  expect(
-    metrics.$4,
-    lessThan(0.85),
-    reason: 'No single background color may dominate the offline map viewport.',
-  );
-  // ignore: avoid_print
-  print(
-    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length} '
-    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
-    'entropy_bits=${metrics.$3.toStringAsFixed(3)} '
-    'dominant_ratio=${metrics.$4.toStringAsFixed(3)}',
-  );
-}
 
-Future<(int, double, double, double)> _inspectRenderedPixels(List<int> screenshot) async {
-  final codec = await ui.instantiateImageCodec(Uint8List.fromList(screenshot));
-  try {
-    final frame = await codec.getNextFrame();
-    try {
-      final data = await frame.image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-      if (data == null) {
-        throw const FormatException('Could not decode the offline map screenshot.');
-      }
-      final pixels = data.buffer.asUint8List(
-        data.offsetInBytes,
-        data.lengthInBytes,
-      );
-      final width = frame.image.width;
-      final height = frame.image.height;
-      if (width < 300 || height < 300) {
-        throw const FormatException('Offline map screenshot viewport is too small.');
-      }
-      final minX = (width * 0.08).round();
-      final maxX = (width * 0.92).round();
-      final minY = (height * 0.12).round();
-      final maxY = (height * 0.88).round();
-      final colorCounts = <int, int>{};
-      var sampledPixels = 0;
-      var opaquePixels = 0;
-
-      // Ignore system bars and inspect the central map viewport only.
-      for (var y = minY; y < maxY; y += 16) {
-        for (var x = minX; x < maxX; x += 16) {
-          final offset = (y * width + x) * 4;
-          if (offset + 3 >= pixels.length) continue;
-          final red = pixels[offset];
-          final green = pixels[offset + 1];
-          final blue = pixels[offset + 2];
-          final alpha = pixels[offset + 3];
-          sampledPixels++;
-          if (alpha >= 240) opaquePixels++;
-          final color = ((red >> 4) << 12) |
-              ((green >> 4) << 8) |
-              ((blue >> 4) << 4) |
-              (alpha >> 4);
-          colorCounts.update(color, (count) => count + 1, ifAbsent: () => 1);
-        }
-      }
-      if (sampledPixels == 0) {
-        throw const FormatException('Offline map screenshot contains no map viewport pixels.');
-      }
-      var entropyBits = 0.0;
-      var dominantPixels = 0;
-      for (final count in colorCounts.values) {
-        final probability = count / sampledPixels;
-        entropyBits -= probability * (math.log(probability) / math.ln2);
-        dominantPixels = math.max(dominantPixels, count);
-      }
-      return (
-        colorCounts.length,
-        opaquePixels / sampledPixels,
-        entropyBits,
-        dominantPixels / sampledPixels,
-      );
-    } finally {
-      frame.image.dispose();
-    }
-  } finally {
-    codec.dispose();
-  }
 }
 
 void _expectUsableRoute(RouteResult route) {
