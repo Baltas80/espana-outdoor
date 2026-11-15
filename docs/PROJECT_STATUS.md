@@ -200,3 +200,18 @@ Commits recientes en la rama:
 - Android staging [43758128107](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128107): estado pending sin jobs publicados en la última consulta. No hay validación nueva del commit de captura `6df6281`.
 
 No se fusiona #61 hasta que la siguiente ejecución capture el viewport de la app correcta y demuestre fuentes/teselas, full-frame, idle y cero fallos reales offline. Después se requieren force-stop/reinicio y validación del APK exacto en OPPO. La ruta peatonal offline sí está demostrada en emulador; el mapa offline no.
+
+
+## Corrección de aceptación de TileStore — 15/11/2026
+
+La revisión del puente nativo de PR #61 detectó un falso positivo en el diagnóstico anterior: Maps y Navigation se descargaban en un único TileRegion y el resultado devolvía `mapTiles=true` incondicionalmente. El resultado 33/33 recursos / 42.847.606 bytes del run 43752643079 era agregado; no demostraba que el descriptor de Maps hubiera almacenado teselas vectoriales. La ruta peatonal offline sí estaba demostrada por separado.
+
+La rama PR #61 (último HEAD observado `8489728d450b374f6af0b357b62ea285a51b7939`) separa ahora:
+- `<regionId>-maps`: solo descriptor de Maps.
+- `<regionId>-routing-walking`: solo descriptor de Navigation.
+
+Cada TileRegion debe tener recursos y bytes mayores que cero, cero errores y completar el total requerido cuando esté disponible. Los marcadores se escriben solo cuando ambas regiones pasan; `hasOfflineRegion` verifica ambos IDs y marcadores. UI y integration test exigen contadores/bytes independientes. Las regiones legacy no se borran ni se consideran verificadas hasta redescargar.
+
+La modificación está en PR #61, no en `main`. No existe todavía un workflow nuevo asociado a estos commits; el último CI general observado (run 43758128192) había superado análisis y suite Flutter, con Android release/iOS aún ejecutándose. Security baseline 43758128131: 8/8. Android staging 43758128107 seguía pending sin jobs publicados. La compilación nativa y la descarga separada requieren CI nuevo antes de aceptar esta corrección.
+
+La PR sigue en draft y no mergeable: 193 commits por delante, 3 por detrás; merge base `125932eacad78cefa838a2333a0a018d3451a6be`. No se fusiona hasta validar los dos TileRegions, ruta offline, renderizado PNG correcto y reinicio; después se requiere validación del APK exacto en OPPO.
