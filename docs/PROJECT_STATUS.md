@@ -29,10 +29,10 @@ HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
 ### PR #61 — nueva implementación Mapbox Navigation
 
 Rama: `feat/mapbox-offline-routing-final-20261114`  
-HEAD observado: `cb347a7d7d686492c1c948a8532beb8941c9f6f9`  
+HEAD observado: `5549aefb13072bf6e6c722dbd5025191a64aad00`  
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)
 
-La rama está 55 commits por delante y 0 por detrás de main según la comparación observada. Incluye:
+La rama está 61 commits por delante y 0 por detrás de main según la comparación observada tras incorporar el commit documental 179a961. Incluye:
 
 - Mapbox Navigation Android 3.35.0 / Native 324.35.0, Maps 11.35.0 y Common 24.35.0 en variante `common-ndk27`.
 - TileStore persistente compartido entre Maps y Navigation.
@@ -56,9 +56,9 @@ Ejecución Android staging **43667786016**:
 Ejecución de revalidación **43676480595**:
 - APK staging y verificación completados.
 - Smoke nativo del mapa completado.
-- El paso de integración de rutas permaneció en ejecución durante una espera anormalmente larga y el endpoint de logs no proporcionó un log descargable.
+- El paso de integración de rutas permaneció en ejecución durante una espera anormalmente larga y el endpoint de logs no proporcionó un log descargable; la ejecución fue cancelada al actualizar el código.
 - Se añadió timeout de 45 s a la solicitud nativa, prueba unitaria de timeout, límite de 30 min al paso de emulador y 60 min al job Android.
-- La nueva ejecución asociada al HEAD `cb347a7` aún debe confirmarse; Security baseline **43676480606** terminó correctamente.
+- Nueva ejecución **43680940651** sobre HEAD `5549aef`: Android staging estaba en el paso de compilación APK en la última consulta; Security baseline **43680940665** terminó correctamente.
 
 Por tanto, existe evidencia de routing offline en emulador, pero la aceptación visual está pendiente. La captura anterior no debe usarse como prueba de mapa renderizado.
 
