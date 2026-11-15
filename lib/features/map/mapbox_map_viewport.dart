@@ -63,6 +63,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   int _partialFrameCount = 0;
   int _resourceSuccessCount = 0;
   int _resourceCancellationCount = 0;
+  int _resourceLookupMissCount = 0;
   int _resourceFailureCount = 0;
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
@@ -215,6 +216,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           'MAPBOX_MAP_LOADED partial_frames=$_partialFrameCount '
           'resource_successes=$_resourceSuccessCount '
           'resource_cancellations=$_resourceCancellationCount '
+          'resource_lookup_misses=$_resourceLookupMissCount '
           'resource_failures=$_resourceFailureCount',
         );
       },
@@ -243,6 +245,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           'MAPBOX_MAP_IDLE partial_frames=$_partialFrameCount '
           'resource_successes=$_resourceSuccessCount '
           'resource_cancellations=$_resourceCancellationCount '
+          'resource_lookup_misses=$_resourceLookupMissCount '
           'resource_failures=$_resourceFailureCount',
         );
       },
@@ -251,7 +254,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         final error = response?.error;
         final kind = event.request.kind;
         final dataSource = event.dataSource;
-        final responseSource = response?.source ?? 'unknown';
+        final responseSource = response?.source.name ?? 'unknown';
+        final dataSource = event.dataSource.name;
 
         // A cancelled cache/TileStore lookup is not itself a failed network
         // request. Keep it separate so diagnostics do not confuse expected
@@ -271,6 +275,22 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         }
 
         if (error != null) {
+          // NOT_FOUND from the local cache/TileStore is a lookup miss, not a
+          // failed map resource. READ_ONLY mode is expected to fall back to an
+          // individual tile request when the pack has no matching tile.
+          if (error.reason.name == 'NOT_FOUND' &&
+              dataSource == 'DATABASE' &&
+              (responseSource == 'CACHE' || responseSource == 'TILE_STORE')) {
+            _resourceLookupMissCount++;
+            if (_resourceLookupMissCount <= 20) {
+              debugPrint(
+                'MAPBOX_RESOURCE_LOOKUP_MISS kind=$kind '
+                'data_source=$dataSource '
+                'response_source=$responseSource',
+              );
+            }
+            return;
+          }
           _resourceFailureCount++;
           if (_resourceFailureCount <= 20) {
             // Never log request URLs or response messages: Mapbox URLs can
