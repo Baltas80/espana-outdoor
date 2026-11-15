@@ -97,12 +97,25 @@ class _OfflinePageState extends State<OfflinePage> {
           'maxZoom': 15,
         },
       );
+      final mapResources =
+          (result?['mapCompletedResourceCount'] as num?)?.toInt() ?? 0;
+      final mapBytes =
+          (result?['mapCompletedResourceSize'] as num?)?.toInt() ?? 0;
+      final routingResources =
+          (result?['routingCompletedResourceCount'] as num?)?.toInt() ?? 0;
+      final routingBytes =
+          (result?['routingCompletedResourceSize'] as num?)?.toInt() ?? 0;
       if (result == null ||
           result['regionId'] != _regionId ||
           result['mapTiles'] != true ||
-          result['routingProfile'] != 'walking') {
+          result['routingTiles'] != true ||
+          result['routingProfile'] != 'walking' ||
+          mapResources <= 0 ||
+          mapBytes <= 0 ||
+          routingResources <= 0 ||
+          routingBytes <= 0) {
         throw const FormatException(
-          'El motor nativo no confirmó los recursos de mapa y routing.',
+          'El motor nativo no confirmó por separado las teselas de mapa y routing.',
         );
       }
 
@@ -111,8 +124,8 @@ class _OfflinePageState extends State<OfflinePage> {
       setState(() {
         _hasOfflineRegion = exists;
         _message = exists
-            ? 'Descarga confirmada. Activa modo avión y valida mapa y ruta peatonal.'
-            : 'La descarga terminó, pero TileStore no confirmó la región.';
+            ? 'Descarga confirmada. Mapa: $mapResources recursos / $mapBytes bytes; routing peatonal: $routingResources recursos / $routingBytes bytes. Valida ambos en modo avión.'
+            : 'La descarga terminó, pero TileStore no confirmó ambas regiones.';
       });
     } on MissingPluginException {
       if (!mounted) return;
@@ -156,8 +169,9 @@ class _OfflinePageState extends State<OfflinePage> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Mapbox Outdoors · zoom 8–15. La región incluye cartografía '
-            'y routing peatonal. No representa cobertura de toda España.',
+            'Mapbox Outdoors · zoom 8–15. La descarga guarda por separado '
+            'teselas de mapa y routing peatonal; ambos paquetes deben persistir. '
+            'No representa cobertura de toda España.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
