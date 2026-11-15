@@ -23,6 +23,21 @@ for fragment in required:
     if fragment not in source:
         raise SystemExit(f"Shared Mapbox TileStore configuration is missing: {fragment}")
 
+VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+viewport = VIEWPORT.read_text(encoding="utf-8")
+required_viewport = (
+    "mapOptions: MapOptions(",
+    "pixelRatio: devicePixelRatio",
+    "MediaQuery.devicePixelRatioOf(context)",
+    "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
+    "fontFamily: 'sans-serif'",
+)
+for fragment in required_viewport:
+    if fragment not in viewport:
+        raise SystemExit(
+            f"Flutter MapWidget options must match the native offline descriptor: {fragment}"
+        )
+
 if "TileStoreUsageMode.READ_AND_UPDATE" in source:
     raise SystemExit(
         "Do not set READ_AND_UPDATE globally: it converts free-pan map requests "
