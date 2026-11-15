@@ -121,8 +121,7 @@ void main() {
         'offline',
         reason: 'In airplane mode, the new route must come from RouterOrigin.OFFLINE.',
       );
-      // ignore: avoid_print
-      await _expectOfflineMapRendered(tester, binding);
+      // Emit routing evidence before the independent map-rendering assertion.
       // ignore: avoid_print
       print(
         'MAPBOX_ROUTE_VALIDATION source=offline '
@@ -130,6 +129,8 @@ void main() {
         'duration_s=${offlineRoute.durationSeconds} '
         'geometry_points=${offlineRoute.points.length}',
       );
+      // ignore: avoid_print
+      await _expectOfflineMapRendered(tester, binding);
       return;
     }
 
@@ -142,8 +143,12 @@ Future<void> _expectOfflineMapRendered(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
 ) async {
-  final loaded = Completer<void>();
-  final loadError = Completer<String>();
+  final styleLoaded = Completer<void>();
+  final fullFrameRendered = Completer<void>();
+  final loadErrors = <String>[];
+  var idleSeen = false;
+  var renderedFrames = 0;
+
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -155,34 +160,76 @@ Future<void> _expectOfflineMapRendered(
             bearing: 0,
             pitch: 0,
           ),
-          onMapLoadedListener: (_) {
-            if (!loaded.isCompleted) loaded.complete();
+          onStyleLoadedListener: (_) {
+            if (!styleLoaded.isCompleted) styleLoaded.complete();
           },
-          onMapLoadErrorListener: (event) {
-            if (!loadError.isCompleted) loadError.complete(event.toString());
+          onRenderFrameFinishedListener: (event) {
+            renderedFrames++;
+            if (event.renderMode == RenderMode.FULL &&
+                !fullFrameRendered.isCompleted) {
+              fullFrameRendered.complete();
+            }
           },
+          onMapIdleListener: (_) {
+            idleSeen = true;
+          },
+          onMapLoadErrorListener: (event) => loadErrors.add(event.toString()),
         ),
       ),
     ),
   );
 
-  final deadline = DateTime.now().add(const Duration(seconds: 45));
-  while (!loaded.isCompleted && DateTime.now().isBefore(deadline)) {
+  final styleDeadline = DateTime.now().add(const Duration(seconds: 45));
+  while (!styleLoaded.isCompleted && DateTime.now().isBefore(styleDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
-    if (loadError.isCompleted) {
-      fail('Mapbox offline map failed to load: ${await loadError.future}');
+    if (loadErrors.isNotEmpty) {
+      fail('Mapbox offline style failed to load: \${loadErrors.join(' | ')}');
     }
   }
-  expect(
-    loaded.isCompleted,
-    isTrue,
-    reason: 'Mapbox must render the style and all visible tiles from the shared offline TileStore.',
-  );
-  // Give the renderer time to draw the downloaded vector tiles after the style-load callback.
+
+  final frameDeadline = DateTime.now().add(const Duration(seconds: 20));
+  while (styleLoaded.isCompleted &&
+      !fullFrameRendered.isCompleted &&
+      DateTime.now().isBefore(frameDeadline)) {
+    await tester.pump(const Duration(milliseconds: 250));
+    if (loadErrors.isNotEmpty) {
+      fail('Mapbox offline map reported load errors: \${loadErrors.join(' | ')}');
+    }
+  }
+
+  // Capture evidence even when the native renderer fails to emit a complete
+  // frame, so the failed workflow still retains a screenshot for diagnosis.
   await tester.pump(const Duration(seconds: 2));
   final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
   expect(screenshot, isNotEmpty);
   final metrics = await _inspectRenderedPixels(screenshot);
+  // ignore: avoid_print
+  print(
+    'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
+    'style_loaded=\${styleLoaded.isCompleted} '
+    'full_frame=\${fullFrameRendered.isCompleted} '
+    'rendered_frames=$renderedFrames idle=$idleSeen '
+    'load_errors=\${loadErrors.length} '
+    'screenshot_bytes=\${screenshot.length} '
+    'unique_colors=\${metrics.$1} '
+    'opaque_ratio=\${metrics.$2.toStringAsFixed(3)}',
+  );
+
+  expect(
+    styleLoaded.isCompleted,
+    isTrue,
+    reason: 'Mapbox must load the offline style from the shared TileStore.',
+  );
+  expect(
+    fullFrameRendered.isCompleted,
+    isTrue,
+    reason: 'Mapbox must finish at least one full render frame with offline resources.',
+  );
+  expect(
+    loadErrors,
+    isEmpty,
+    reason: 'The offline map must not report style, source, glyph, or tile load errors.',
+  );
   expect(
     metrics.$1,
     greaterThan(8),
@@ -195,8 +242,8 @@ Future<void> _expectOfflineMapRendered(
   );
   // ignore: avoid_print
   print(
-    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length} '
-    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
+    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=\${screenshot.length} '
+    'unique_colors=\${metrics.$1} opaque_ratio=\${metrics.$2.toStringAsFixed(3)}',
   );
 }
 
@@ -215,26 +262,37 @@ Future<(int, double)> _inspectRenderedPixels(List<int> screenshot) async {
         data.offsetInBytes,
         data.lengthInBytes,
       );
-      const bytesPerSample = 4 * 16;
+      final width = frame.image.width;
+      final height = frame.image.height;
+      final minX = (width * 0.08).round();
+      final maxX = (width * 0.92).round();
+      final minY = (height * 0.12).round();
+      final maxY = (height * 0.88).round();
       final colors = <int>{};
       var sampledPixels = 0;
       var opaquePixels = 0;
-      for (var offset = 0; offset + 3 < pixels.length; offset += bytesPerSample) {
-        final red = pixels[offset];
-        final green = pixels[offset + 1];
-        final blue = pixels[offset + 2];
-        final alpha = pixels[offset + 3];
-        sampledPixels++;
-        if (alpha >= 240) opaquePixels++;
-        colors.add(
-          ((red >> 4) << 12) |
-              ((green >> 4) << 8) |
-              ((blue >> 4) << 4) |
-              (alpha >> 4),
-        );
+
+      // Ignore system bars and inspect the central map viewport only.
+      for (var y = minY; y < maxY; y += 16) {
+        for (var x = minX; x < maxX; x += 16) {
+          final offset = (y * width + x) * 4;
+          if (offset + 3 >= pixels.length) continue;
+          final red = pixels[offset];
+          final green = pixels[offset + 1];
+          final blue = pixels[offset + 2];
+          final alpha = pixels[offset + 3];
+          sampledPixels++;
+          if (alpha >= 240) opaquePixels++;
+          colors.add(
+            ((red >> 4) << 12) |
+                ((green >> 4) << 8) |
+                ((blue >> 4) << 4) |
+                (alpha >> 4),
+          );
+        }
       }
       if (sampledPixels == 0) {
-        throw const FormatException('Offline map screenshot contains no pixels.');
+        throw const FormatException('Offline map screenshot contains no map viewport pixels.');
       }
       return (colors.length, opaquePixels / sampledPixels);
     } finally {
