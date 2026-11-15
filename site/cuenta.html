@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071511">
+  <meta name="description" content="Accede a tu cuenta de España Outdoor y sincroniza tu perfil entre web y Android.">
+  <link rel="canonical" href="https://espanaoutdoor.es/cuenta.html">
+  <link rel="icon" href="./assets/brand/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Mi cuenta — España Outdoor</title>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <header class="site-header" data-header>
+    <div class="shell header-inner">
+      <a class="brand" href="./index.html" aria-label="España Outdoor">
+        <img src="./assets/brand/mark.svg" alt="" width="48" height="48">
+        <span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" data-menu>
+        <span></span><span></span><span></span><span class="sr-only">Abrir menú</span>
+      </button>
+      <nav id="main-nav" class="main-nav" aria-label="Principal">
+        <a href="./index.html">Inicio</a>
+        <a href="./mapa.html">Mapa</a>
+        <a href="./rutas.html">Rutas</a>
+        <a href="./naturaleza.html">Naturaleza</a>
+        <a href="./flora-fauna.html">Flora y Fauna</a>
+        <a href="./seguridad.html">Seguridad</a>
+        <a href="./app.html">App</a>
+        <a href="./blog.html">Blog</a>
+        <a href="./contacto.html">Contacto</a>
+        <a class="nav-download" href="./cuenta.html" aria-current="page">Mi cuenta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="page-main account-page">
+    <section class="section account-section">
+      <div class="shell account-shell">
+        <p class="kicker">Identidad compartida</p>
+        <h1>Tu cuenta de <em>España Outdoor</em></h1>
+        <p class="account-intro">Utiliza la misma identidad en la web y en Android. El perfil se guarda en el servicio de España Outdoor, no en este navegador.</p>
+
+        <div class="account-card">
+          <div class="account-status" data-account-status role="status" aria-live="polite">Comprobando sesión…</div>
+
+          <div data-account-signed-out>
+            <h2>Accede o crea tu cuenta</h2>
+            <p>La identificación se realiza mediante el proveedor oficial. España Outdoor no solicita ni almacena tu contraseña.</p>
+            <button class="button button-gold account-primary" type="button" data-sign-in>Acceder / crear cuenta</button>
+          </div>
+
+          <div data-profile-summary hidden>
+            <p class="account-eyebrow">Perfil sincronizado</p>
+            <h2 data-profile-name></h2>
+            <p data-profile-email></p>
+          </div>
+
+          <form class="account-form" data-profile-form hidden>
+            <label for="display-name">Nombre visible</label>
+            <input id="display-name" name="displayName" type="text" minlength="2" maxlength="80" autocomplete="nickname" required>
+            <button class="button button-gold account-primary" type="submit">Guardar perfil</button>
+            <button class="button button-outline-dark account-secondary" type="button" data-sign-out>Cerrar sesión en este navegador</button>
+          </form>
+        </div>
+
+        <p class="account-footnote">La sesión web se conserva únicamente en la pestaña actual y expira con el token de acceso. No se almacena ningún secreto de cliente en el sitio.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <div class="brand footer-brand">
+        <img src="./assets/brand/mark.svg" alt="" width="40">
+        <span class="brand-wordmark">ESPAÑA<br><strong>OUTDOOR</strong></span>
+      </div>
+      <div class="footer-links">
+        <a href="./mapa.html">Mapa</a>
+        <a href="./rutas.html">Rutas</a>
+        <a href="./naturaleza.html">Naturaleza</a>
+        <a href="./flora-fauna.html">Flora y Fauna</a>
+        <a href="./seguridad.html">Seguridad</a>
+        <a href="./app.html">App</a>
+        <a href="./cuenta.html">Mi cuenta</a>
+        <a href="./blog.html">Blog</a>
+        <a href="./contacto.html">Contacto</a>
+      </div>
+      <div class="footer-copy">© <span data-year></span> España Outdoor</div>
+    </div>
+  </footer>
+  <script src="./app.js" defer></script>
+  <script type="module" src="./account.js"></script>
+</body>
+</html>
