@@ -33,6 +33,27 @@ const _offlineRoutePoints = [
   LatLng(37.8900, -4.7700),
 ];
 
+String _safeMapboxFailureClass(String message) {
+  final value = message.toLowerCase();
+  final status = RegExp(
+    r'\bhttp(?:\s+status\s+code)?\s*[:=]?\s*(\d{3})\b',
+  ).firstMatch(value)?.group(1);
+  if (status != null) return 'http_$status';
+  if (RegExp(r'\b401\b|\b403\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
+    return 'authorization';
+  }
+  if (value.contains('certificate') || value.contains('ssl') || value.contains('tls')) {
+    return 'tls';
+  }
+  if (value.contains('timeout') || value.contains('timed out')) return 'timeout';
+  if (value.contains('unknownhost') || value.contains('dns') || value.contains('resolve host')) {
+    return 'dns';
+  }
+  if (value.contains('connection') || value.contains('network')) return 'network';
+  if (value.contains('not found')) return 'not_found';
+  return 'other';
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -161,6 +182,7 @@ Future<void> _expectOfflineMapRendered(
   final styleLoaded = Completer<void>();
   final fullFrameRendered = Completer<void>();
   final loadErrors = <String>[];
+  final resourceFailures = <String>[];
   var idleSeen = false;
   var renderedFrames = 0;
 
@@ -188,7 +210,29 @@ Future<void> _expectOfflineMapRendered(
           onMapIdleListener: (_) {
             idleSeen = true;
           },
-          onMapLoadErrorListener: (event) => loadErrors.add(event.toString()),
+          onMapLoadErrorListener: (event) {
+            loadErrors.add(
+              '${event.type.name}/${event.sourceId ?? 'unknown'}/${_safeMapboxFailureClass(event.message)}',
+            );
+          },
+          onResourceRequestListener: (event) {
+            if (event.cancelled) return;
+            final response = event.response;
+            final error = response?.error;
+            if (error == null) return;
+            final reason = error.reason.name;
+            final source = response?.source.name ?? 'unknown';
+            // Cache misses are expected before the resource loader checks the
+            // network or the offline TileStore. A real offline miss is reported
+            // as IN_OFFLINE_MODE/CONNECTION and must fail this acceptance test.
+            if (reason == 'NOT_FOUND' &&
+                (source == 'CACHE' || source == 'TILE_STORE')) {
+              return;
+            }
+            resourceFailures.add(
+              '$reason/$source/${event.request.kind.name}/${_safeMapboxFailureClass(error.message)}',
+            );
+          },
         ),
       ),
     ),
@@ -197,8 +241,11 @@ Future<void> _expectOfflineMapRendered(
   final styleDeadline = DateTime.now().add(const Duration(seconds: 45));
   while (!styleLoaded.isCompleted && DateTime.now().isBefore(styleDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
-    if (loadErrors.isNotEmpty) {
-      fail('Mapbox offline style failed to load: ${loadErrors.join(' | ')}');
+    if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
+      fail(
+        'Mapbox offline style failed: loadErrors=${loadErrors.join(' | ')} '
+        'resourceFailures=${resourceFailures.join(' | ')}',
+      );
     }
   }
 
@@ -207,8 +254,11 @@ Future<void> _expectOfflineMapRendered(
       !fullFrameRendered.isCompleted &&
       DateTime.now().isBefore(frameDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
-    if (loadErrors.isNotEmpty) {
-      fail('Mapbox offline map reported load errors: ${loadErrors.join(' | ')}');
+    if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
+      fail(
+        'Mapbox offline map reported resource errors: loadErrors=${loadErrors.join(' | ')} '
+        'resourceFailures=${resourceFailures.join(' | ')}',
+      );
     }
   }
 
@@ -229,6 +279,7 @@ Future<void> _expectOfflineMapRendered(
     'full_frame=${fullFrameRendered.isCompleted} '
     'rendered_frames=$renderedFrames idle=$idleSeen '
     'load_errors=${loadErrors.length} '
+    'resource_failures=${resourceFailures.length} '
     'screenshot_bytes=${screenshot.length} '
     'unique_colors=${metrics.$1} '
     'opaque_ratio=${metrics.$2.toStringAsFixed(3)} '
@@ -250,6 +301,21 @@ Future<void> _expectOfflineMapRendered(
     loadErrors,
     isEmpty,
     reason: 'The offline map must not report style, source, glyph, or tile load errors.',
+  );
+  expect(
+    resourceFailures,
+    isEmpty,
+    reason: 'The offline map must not fail to load required resources.',
+  );
+  expect(
+    idleSeen,
+    isTrue,
+    reason: 'The offline map must reach the idle state after rendering.',
+  );
+  expect(
+    renderedFrames,
+    greaterThan(0),
+    reason: 'The offline map must produce at least one completed render frame.',
   );
   expect(
     metrics.$1,
