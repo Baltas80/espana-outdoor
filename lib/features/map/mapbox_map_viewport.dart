@@ -4,6 +4,26 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+/// Returns the single Mapbox Maps configuration used by production and the
+/// Android offline integration test. Its pixel ratio and glyph rasterization
+/// must match the native TileStore tileset descriptor.
+MapOptions mapboxMapOptionsForPixelRatio(double pixelRatio) {
+  if (!pixelRatio.isFinite || pixelRatio <= 0) {
+    throw ArgumentError.value(
+      pixelRatio,
+      'pixelRatio',
+      'must be finite and greater than zero',
+    );
+  }
+  return MapOptions(
+    pixelRatio: pixelRatio,
+    glyphsRasterizationOptions: GlyphsRasterizationOptions(
+      rasterizationMode: GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+      fontFamily: 'sans-serif',
+    ),
+  );
+}
+
 String _mapboxFailureClass(String? message) {
   final value = (message ?? '').toLowerCase();
   final status = RegExp(
@@ -210,14 +230,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       // TilesetDescriptorOptions. MapOptions' default pixelRatio is 1.0;
       // a mismatch makes the MapView request a tile-pack variant that the
       // offline region did not download.
-      mapOptions: MapOptions(
-        pixelRatio: devicePixelRatio,
-        glyphsRasterizationOptions: GlyphsRasterizationOptions(
-          rasterizationMode:
-              GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
-          fontFamily: 'sans-serif',
-        ),
-      ),
+      mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio),
       viewport: CameraViewportState(
         center: Point(coordinates: widget.initialCenter),
         zoom: widget.initialZoom,
