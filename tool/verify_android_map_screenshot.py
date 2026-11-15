@@ -12,6 +12,7 @@ from pathlib import Path
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_DIMENSION = 10000
+MAX_PIXELS = 40_000_000
 
 
 def _paeth(a: int, b: int, c: int) -> int:
@@ -56,6 +57,8 @@ def decode_png(payload: bytes) -> tuple[int, int, int, bytes]:
                 raise ValueError("only 8-bit RGB/RGBA Android screenshots are supported")
             if not (1 <= width <= MAX_DIMENSION and 1 <= height <= MAX_DIMENSION):
                 raise ValueError("PNG dimensions are outside the accepted range")
+            if width * height > MAX_PIXELS:
+                raise ValueError("PNG pixel count is outside the accepted range")
         elif kind == b"IDAT":
             compressed.extend(data)
         elif kind == b"IEND":
@@ -174,6 +177,7 @@ def main() -> int:
             f"entropy_bits={metrics['entropy_bits']:.3f} "
             f"dominant_ratio={metrics['dominant_ratio']:.3f}"
         )
+        print("MAPBOX_OFFLINE_RENDER_GATE version=3 entropy_min=1.2 dominant_max=0.85")
         failures = []
         if metrics["unique_colors"] <= 24:
             failures.append("unique_colors")
