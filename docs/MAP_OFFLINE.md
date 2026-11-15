@@ -109,6 +109,25 @@ el rechazo de una red predeterminada no validada.
 
 Android compila con NDK 28.2.13676358 para satisfacer los plugins Flutter nativos; los artefactos Mapbox usan el sufijo `-ndk27` para conservar la compatibilidad de páginas de 16 KB.
 
+### Captura nativa de la prueba offline
+
+El integration test no usa `convertFlutterSurfaceToImage()` ni
+`takeScreenshot()`: en el runner actual de `flutter test` el canal
+`plugins.flutter.io/integration_test` no está registrado y provocaba una
+`MissingPluginException` después de que Navigation ya hubiera calculado una
+ruta nueva con origen `OFFLINE`. El test emite
+`MAPBOX_OFFLINE_SCREENSHOT_READY`; el script host captura la vista nativa con
+`adb exec-out screencap -p` mientras el test app permanece abierto.
+
+`tool/verify_android_map_screenshot.py` valida el PNG sin dependencias
+externas, comprueba que no sea un viewport casi uniforme y emite
+`MAPBOX_OFFLINE_MAP_RENDERED` solo cuando supera el gate de píxeles. La captura
+se adjunta al artefacto de routing aunque fallen las aserciones de renderizado.
+
+Los `NOT_FOUND` procedentes de `DATABASE` con origen `CACHE` o
+`TILE_STORE` se clasifican como misses de búsqueda local, no como fallos de
+recurso. Se mantienen separados de los errores reales de red/HTTP/offline.
+
 ## Protocolo de aceptación Android
 
 La validación debe realizarse sobre el APK construido desde el commit exacto candidato a integrar:
