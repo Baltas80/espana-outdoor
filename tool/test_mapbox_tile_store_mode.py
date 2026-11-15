@@ -49,6 +49,10 @@ INTEGRATION_TEST = ROOT / "integration_test" / "mapbox_android_live_route_test.d
 integration_test = INTEGRATION_TEST.read_text(encoding="utf-8")
 if "onSourceDataLoadedListener:" not in integration_test or "source_data_events=" not in integration_test:
     raise SystemExit("Android offline integration must report Mapbox source metadata/tile loading.")
+if "onSourceAddedListener:" not in viewport or "onSourceDataLoadedListener:" not in viewport:
+    raise SystemExit("Production MapWidget must expose bounded Mapbox source diagnostics.")
+if "onSourceDataLoadedListener:" not in integration_test or "source_data_events=" not in integration_test:
+    raise SystemExit("Android offline integration must report Mapbox source metadata/tile loading.")
 if "mapboxMapOptionsForPixelRatio(" not in integration_test:
     raise SystemExit("Offline MapWidget must use the production MapOptions helper.")
 if "WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio" not in integration_test:
