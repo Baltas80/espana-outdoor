@@ -8,7 +8,7 @@ import {
 } from "./oidc-pkce.mjs";
 
 const OIDC_ISSUER = "https://auth.espanaoutdoor.es/realms/espana-outdoor";
-const OIDC_CLIENT_ID = "espana-outdoors-mobile";
+const OIDC_CLIENT_ID = "espana-outdoors-web";
 const COMMUNITY_API_BASE_URL = "https://api.espanaoutdoor.es";
 const ALLOWED_WEB_ORIGINS = new Set([
   "https://espanaoutdoor.es",
