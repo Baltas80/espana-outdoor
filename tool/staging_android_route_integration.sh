@@ -60,6 +60,10 @@ ORIGINAL_WIFI="$(adb -s "$DEVICE_SERIAL" shell settings get global wifi_on | tr 
 [[ "$ORIGINAL_AIRPLANE" == 0 || "$ORIGINAL_AIRPLANE" == 1 ]]
 [[ "$ORIGINAL_WIFI" == 0 || "$ORIGINAL_WIFI" == 1 ]]
 
+# The online/download phase must start with a genuinely connected emulator.
+# Capture the original radio state first so the EXIT trap can restore it.
+bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"
+
 run_route_phase() {
   local mode="$1"
   echo "ROUTE_PHASE_START mode=$mode test_package=$TEST_PACKAGE_NAME app_package=$PACKAGE_NAME"
