@@ -249,3 +249,20 @@ Se añade instrumentación acotada de `sourceAdded` y `sourceDataLoaded` (ID de 
 La revisión del run 43752643079 mostró que el host veía `MAPBOX_OFFLINE_SCREENSHOT_READY` cuando la actividad de integración ya había abandonado el primer plano. La tubería del test pasaba por `sed` antes de `tee`; GNU sed con salida redirigida puede retener el marcador en un búfer de bloque. Se reprodujo localmente con un proceso que imprimía el marcador y esperaba 5 segundos: con `sed -E`, el log seguía en 0 bytes tras 1 segundo; con `sed -u -E`, el log contenía los 32 bytes del marcador tras 1 segundo.
 
 Se cambia la tubería del runner a `sed -u -E` para que el host capture el PNG mientras el integration app sigue en primer plano. El guard `tool/test_android_validation_order.py` exige que el modo no-buffered permanezca. Esta corrección resuelve el fallo de sincronización de la captura; **no** resuelve ni disimula los 14 fallos offline de teselas ni acredita el renderizado. La próxima ejecución debe producir una captura del paquete correcto y permitir distinguir visualmente el viewport aunque el test termine fallando.
+
+
+## Corrección de falso positivo: TileRegion separados — 15/11/2026
+
+La inspección de `MapboxNavigationBridge.kt` encontró un defecto de validación en la implementación anterior: Maps y Navigation se descargaban en un único `TileRegion`, se sumaban sus recursos y el puente devolvía `mapTiles=true` incondicionalmente. Por tanto, el resultado anterior `33/33`, 42.847.606 bytes demostraba recursos combinados persistidos, pero **no demostraba que el descriptor de Maps hubiera almacenado teselas vectoriales**. La ruta offline sí estaba demostrada por separado.
+
+La rama cambia a dos regiones persistentes dentro del mismo TileStore:
+- `<regionId>-maps`: solo `mapsDescriptor`.
+- `<regionId>-routing-walking`: solo `navigationDescriptor`.
+
+Cada región debe informar recursos completados y bytes mayores que cero, cero errores y, cuando Mapbox comunica el total requerido, completarlo. Los marcadores de persistencia se escriben con `commit()` solo después de que ambas regiones pasen. `hasOfflineRegion` comprueba ambos IDs, sus recursos y sus marcadores. El resultado nativo expone contadores/bytes separados y `mapTiles`/`routingTiles` ya no se asignan por un agregado.
+
+La UI y el integration test exigen recursos no vacíos para Maps y Navigation por separado. Las regiones legacy con ID combinado no se eliminan ni se consideran verificadas; el usuario deberá repetir la descarga para generar los dos IDs nuevos. Esto evita aceptar falsos positivos y no destruye datos existentes.
+
+La siguiente ejecución dará una respuesta concluyente:
+- Si `OFFLINE_MAP_REGION_EMPTY/INCOMPLETE` ocurre, el descriptor de Maps no está almacenando el paquete esperado.
+- Si ambas regiones contienen recursos pero los eventos `sourceDataLoaded` siguen fallando en modo avión, el problema estará en el matching entre tileset/viewport/TileStore, no en la descarga de routing.
