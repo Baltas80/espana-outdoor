@@ -18,7 +18,7 @@ capture_failure_diagnostics() {
   local status=$?
   trap - EXIT
   if test "${status}" -ne 0; then
-    adb logcat -d >"${logcat_file}" 2>/dev/null || true
+    adb logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${logcat_file}" 2>/dev/null || true
     adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
     adb shell dumpsys activity activities >"${activity_file}" 2>/dev/null || true
     echo "=== Android bootstrap and crash diagnostics ==="
@@ -245,7 +245,7 @@ adb shell input tap "${tap_x}" "${tap_y}"
 # A visible native view or attribution alone is not proof that map tiles rendered.
 map_render_ready=0
 for attempt in $(seq 1 45); do
-  adb logcat -d -s flutter:I >"${diagnostics_dir}/espana-flutter-map-log.txt"
+  adb logcat -d -s flutter:I | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${diagnostics_dir}/espana-flutter-map-log.txt"
   if grep -q 'MAPBOX_MAP_STYLE_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
      grep -q 'MAPBOX_MAP_FULL_FRAME' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
      grep -q 'MAPBOX_MAP_IDLE' "${diagnostics_dir}/espana-flutter-map-log.txt"; then
@@ -261,7 +261,7 @@ if test "${map_render_ready}" -ne 1; then
 fi
 sleep 5
 
-adb logcat -d >"${logcat_file}"
+adb logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
 
