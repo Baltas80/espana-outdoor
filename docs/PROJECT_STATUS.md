@@ -168,3 +168,26 @@ La rama `feat/mapbox-offline-routing-final-20261114` incorpora ahora:
 Commits de este incremento: `510423a`, `bf8a718`, `41cbbc6` y `10fd7b5`. Las pruebas locales del guard y `bash -n` pasaron. Todavía no existe una ejecución CI asociada al nuevo HEAD `10fd7b55ce995727b4d67d8de6092f0341a22569`; sus resultados quedan pendientes.
 
 PR #61 continúa en draft. No se fusiona hasta que el mismo APK/HEAD supere descarga, ruta offline, renderizado PNG validado, reapertura y reinicio. La prueba física OPPO sigue siendo obligatoria para la aceptación de producción.
+
+
+## Actualización 15/11/2026 21:22 CET — evidencia de fuentes Mapbox
+
+La ejecución [43752643079](https://github.com/Baltas80/espana-outdoor/actions/runs/43752643079) terminó con fallo funcional, pero publicó evidencia suficiente para separar routing y cartografía:
+
+- La ruta online se calculó: 767,757 m / 55 puntos.
+- Córdoba se descargó con 33/33 recursos, 0 errores y 42.847.606 bytes.
+- Tras activar modo avión y deshabilitar Wi-Fi, Mapbox Navigation devolvió una ruta nueva con origen nativo `offline`: 1.109,662 m / 66 puntos.
+- El mapa offline no renderizó el viewport: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`, 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`.
+- La captura del integration test no se aceptó porque el paquete de prueba no estaba en primer plano. El artefacto separado del smoke online sí contiene una captura de la pantalla real de Mapa, con fondo y elementos de agua, pero sin cartografía viaria/etiquetas suficiente para aceptación.
+- En el smoke online el estilo, sprites, glyphs y algunas teselas respondieron desde red; solo hubo dos frames parciales y no aparecieron errores de recurso ni callbacks de mapa completo.
+
+No se cambia todavía el descriptor ni se amplía la región por conjetura. La rama añade instrumentación `sourceAdded`/`sourceDataLoaded` en producción y en el integration test para identificar qué fuentes vectoriales cargan metadata/tiles. Los IDs se saneen y se limitan los eventos; no se registran URLs, mensajes originales ni tokens.
+
+Commits de instrumentación:
+- `653bd89`: eventos de fuentes en el viewport de producción.
+- `b037c82`: eventos de fuentes en la prueba offline.
+- `df1fc3a`: mantener los logs del test compatibles con lint.
+- `608e2e0` y `e799dab`: exigir los diagnósticos mediante el guard estático.
+- `437bfb2`: documentar la evidencia y el diagnóstico.
+
+La ruta offline peatonal queda demostrada en emulador; el mapa offline no. No fusionar #61 hasta que el mismo APK/HEAD produzca metadata/tiles de las fuentes necesarias, full frame, idle y PNG verificado; después debe repetirse persistencia y reinicio y validarse el APK exacto en OPPO.
