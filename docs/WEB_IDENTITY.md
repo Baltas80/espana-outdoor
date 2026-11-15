@@ -2,16 +2,16 @@
 
 ## Implementación
 
-La página estática `/cuenta.html` utiliza Authorization Code + PKCE (S256) como cliente público. No contiene un client secret ni usa cookies de terceros.
+La página estática `/cuenta.html` utiliza OAuth 2.0 Authorization Code + PKCE (S256) como cliente público. Consulta el discovery OIDC del emisor, pero no solicita el scope `openid` ni consume un ID token: solo utiliza el access token destinado a la API. No contiene un client secret ni usa cookies de terceros.
 
 - Emisor: `https://auth.espanaoutdoor.es/realms/espana-outdoor`
 - Cliente público compartido: `espana-outdoors-mobile`
 - Callback web: `https://espanaoutdoor.es/cuenta.html` y `https://www.espanaoutdoor.es/cuenta.html`
 - API de perfiles: `https://api.espanaoutdoor.es/v1/me`
 - Sesión del navegador: `sessionStorage`, nunca `localStorage`; no se solicita ni almacena refresh token.
-- El backend valida la firma, issuer y audiencia del access token. La web no envía un identificador de usuario.
+- El backend valida firma, issuer, audiencia API y el claim `typ=Bearer` del access token. Los ID tokens (`typ=ID`) y refresh tokens no son credenciales válidas para la API; la exigencia de tipo se implementa en la PR #65. La web no envía un identificador de usuario.
 
-El cliente elimina el código de autorización de la URL antes del intercambio, comprueba `state`, usa un verificador PKCE de alta entropía y restringe el discovery y el token endpoint al mismo origen HTTPS del issuer. El perfil se obtiene y actualiza exclusivamente a través de `GET/PATCH /v1/me`.
+El cliente elimina el código de autorización de la URL antes del intercambio, comprueba `state`, usa un verificador PKCE de alta entropía y restringe el discovery y el token endpoint al mismo origen HTTPS del issuer. Al no solicitar `openid`, no recibe ni ignora un ID token que tendría que validar como relying party; el API recibe exclusivamente el access token. El perfil se obtiene y actualiza exclusivamente a través de `GET/PATCH /v1/me`.
 
 ## Configuración necesaria en el proveedor OIDC
 
@@ -23,7 +23,7 @@ La interfaz no funcionará en producción hasta registrar el cliente público:
 4. Configurar Web Origins exactamente como `https://espanaoutdoor.es` y `https://www.espanaoutdoor.es`; no utilizar comodines.
 5. Configurar el mapper de audiencia para que el access token incluya el valor esperado por `OIDC_AUDIENCE` en Source Gateway.
 6. Habilitar el registro/autoregistro del realm si se ofrece creación de cuentas desde la pantalla web; configurar verificación de correo y los campos obligatorios del perfil. Si el registro público no se habilita, cambiar el texto de la interfaz para no prometer creación de cuentas.
-7. Confirmar que el cliente puede solicitar `openid profile email` y que el proveedor emite `email_verified=true` solo tras verificar el correo.
+7. Confirmar que el cliente puede solicitar los scopes `profile email`, que el access token incluye `sub`, `name`/`preferred_username`, `email` y `email_verified`, y que `email_verified=true` solo se emite tras verificar el correo.
 
 No crear un client secret para la web ni copiar credenciales privadas a los archivos estáticos.
 
