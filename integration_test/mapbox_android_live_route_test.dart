@@ -183,7 +183,7 @@ Future<void> _expectOfflineMapRendered(
   while (!styleLoaded.isCompleted && DateTime.now().isBefore(styleDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (loadErrors.isNotEmpty) {
-      fail('Mapbox offline style failed to load: \${loadErrors.join(' | ')}');
+      fail('Mapbox offline style failed to load: ${loadErrors.join(' | ')}');
     }
   }
 
@@ -193,7 +193,7 @@ Future<void> _expectOfflineMapRendered(
       DateTime.now().isBefore(frameDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
     if (loadErrors.isNotEmpty) {
-      fail('Mapbox offline map reported load errors: \${loadErrors.join(' | ')}');
+      fail('Mapbox offline map reported load errors: ${loadErrors.join(' | ')}');
     }
   }
 
@@ -206,13 +206,13 @@ Future<void> _expectOfflineMapRendered(
   // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
-    'style_loaded=\${styleLoaded.isCompleted} '
-    'full_frame=\${fullFrameRendered.isCompleted} '
+    'style_loaded=${styleLoaded.isCompleted} '
+    'full_frame=${fullFrameRendered.isCompleted} '
     'rendered_frames=$renderedFrames idle=$idleSeen '
-    'load_errors=\${loadErrors.length} '
-    'screenshot_bytes=\${screenshot.length} '
-    'unique_colors=\${metrics.$1} '
-    'opaque_ratio=\${metrics.$2.toStringAsFixed(3)}',
+    'load_errors=${loadErrors.length} '
+    'screenshot_bytes=${screenshot.length} '
+    'unique_colors=${metrics.$1} '
+    'opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
   );
 
   expect(
@@ -242,8 +242,8 @@ Future<void> _expectOfflineMapRendered(
   );
   // ignore: avoid_print
   print(
-    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=\${screenshot.length} '
-    'unique_colors=\${metrics.$1} opaque_ratio=\${metrics.$2.toStringAsFixed(3)}',
+    'MAPBOX_OFFLINE_MAP_RENDERED screenshot_bytes=${screenshot.length} '
+    'unique_colors=${metrics.$1} opaque_ratio=${metrics.$2.toStringAsFixed(3)}',
   );
 }
 
