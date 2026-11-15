@@ -45,6 +45,7 @@ env:
 jobs:
   android-staging:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
     # Install staging previews side-by-side with the production package.
@@ -218,6 +219,7 @@ jobs:
       - name: Android online and offline route integration
         id: android_route_integration
         if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
