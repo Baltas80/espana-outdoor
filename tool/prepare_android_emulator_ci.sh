@@ -23,10 +23,14 @@ fi
 
 sleep 2
 anr_windows="$(adb -s "${DEVICE_SERIAL}" shell dumpsys window windows | grep -F 'Application Not Responding' || true)"
-if [[ -n "${anr_windows}" ]]; then
-  echo "ERROR: Android system ANR overlay remains after emulator setup stabilization."
+if [[ -z "${anr_windows}" ]]; then
+  echo "ANDROID_EMULATOR_SYSTEM anr_overlay=absent"
+elif grep -qi 'com.google.android.apps.nexuslauncher' <<<"${anr_windows}" && ! grep -viq 'com.google.android.apps.nexuslauncher' <<<"${anr_windows}"; then
+  # The map smoke owns the UI-level ANR classifier and closes only this unrelated launcher dialog.
+  echo "ANDROID_EMULATOR_SYSTEM anr_overlay=launcher_deferred_to_smoke_guard"
+  printf '%s\n' "${anr_windows}"
+else
+  echo "ERROR: unexpected Android system ANR overlay; refusing to hide it."
   printf '%s\n' "${anr_windows}"
   exit 1
 fi
-
-echo "ANDROID_EMULATOR_SYSTEM anr_overlay=absent"
