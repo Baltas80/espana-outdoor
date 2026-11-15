@@ -88,7 +88,9 @@ kotlin {
 dependencies {
     implementation("com.mapbox.maps:android-ndk27:11.35.0")
     implementation("com.mapbox.navigationcore:android-ndk27:3.35.0")
-    implementation("com.mapbox.common:common:24.35.0")
+    // Match the NDK27 variants above; the regular common artifact bundles a
+    // second libc++_shared.so and makes mergeReleaseNativeLibs fail.
+    implementation("com.mapbox.common:common-ndk27:24.35.0")
 }
 
 flutter {
