@@ -1,83 +1,151 @@
 # España Outdoor — estado técnico
 
-Última revisión del repositorio remoto: **14/11/2026**. Rama de referencia: `main`, HEAD `c878af97e12faf19e45cfa80335310a60ab70783`. Este documento separa cambios integrados, checks automatizados y validaciones que requieren un dispositivo o servicios reales.
+Última revisión: **15/11/2026 06:20 CET**. Rama de referencia: `main`, HEAD observado: `8acb12a32cff5c557147045552683551f6eb58f6`.
 
-## Objetivo MVP
+Este documento distingue código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
-Android primero. El criterio de aceptación es un APK instalable que abra el mapa, renderice cartografía real, permita usar GPS y rutas, y gestione correctamente errores y pérdida de conectividad. La web pública debe seguir funcionando, pero no sustituye la validación de Android.
+## Objetivo de entrega
 
-## Cambios integrados recientemente
+Android Flutter es el producto prioritario. La web pública debe seguir funcionando y compartir identidad/perfil canónico con Android. Cartografía y routing offline son puertas de calidad: no se aceptan sin evidencia de mapa renderizado, ruta nueva calculada sin conectividad y persistencia tras cierre/reinicio.
 
-- PR #43, iconos premium: integrada en `935d1e85a203c2f79ce169834a2ff0e4b5d6aaa3`.
-- PR #44, firma de producción Android: integrada en `b3a2756d9dcad64389cd0d225d87849a233c0393`. Los builds con `APP_ENV=production` exigen una clave de release dedicada; el workflow comprueba la huella SHA-256 del APK y del AAB.
-- PR #45, búsqueda y filtros del catálogo de rutas: integrada en `bbcb3daa706e86f4e3d7e581d58cea7119a4a52d`.
-- PR #47, perfiles de Senderismo, BTT y Cicloturismo: integrada en `c7b73ba60a1a0dd312e1752598cd2bd8c2598203`; CI, Android staging y Security baseline pasaron en el HEAD de la PR antes de la fusión. La validación funcional contra un endpoint Valhalla real sigue pendiente.
-- PR #50, staging de Dependabot: integrada en `c878af97e12faf19e45cfa80335310a60ab70783`. Los builds sin credenciales Maven de Mapbox quedan identificados como análisis/tests sin validación Android, sin crear artefactos que aparenten ser builds nativos comprobados.
-- PR #28, actualización de pgx a 5.12.0: integrada en `f91e69cc5c14be824a104dd60b0bda4115a307a3` para incorporar correcciones de seguridad del protocolo simple y de autenticación/channel binding.
-- PR #38, CodeQL Action 4.39.3: integrada en `2202afc064c69da088643ff883298df98e420bca`.
-- PR #26 y #27, imágenes builder Go 1.27.3-alpine para Rescue Link y Source Gateway: integradas en `4a25fb5ceae310a078f908c39ef405251e9a5ef8` y `7d5c95cd9339329ada7f133892e4fc3cd00087c0`.
+## Estado de integración en main
 
-Los checks de las ramas de PR #44 y #45 terminaron correctamente: CI, Android staging y Security baseline. CI incluyó además Flutter, Source Gateway e iOS. Las PR #28, #26, #27 y #38 también tenían CI y Security baseline correctos antes de fusionarse. Estos resultados no prueban instalación física, funcionamiento offline ni un release candidate.
+- PR #44: protección de firma release Android integrada. El build de producción exige keystore dedicado y comprobación de huella; no se ha validado todavía un release firmado con los secretos reales.
+- PR #47: perfiles de Senderismo, BTT y Cicloturismo integrados. La respuesta real del endpoint Valhalla para cada perfil sigue pendiente de verificación de producción.
+- PR #50: staging de Dependabot integrado. Las compilaciones sin credenciales Maven Mapbox se identifican como análisis/tests sin APK nativo validado.
+- PR #58: API canónica de perfiles integrada. Source Gateway incluye `GET /v1/me`, `PATCH /v1/me`, migración PostgreSQL y adaptador Flutter. El subject procede del token verificado y el UUID de perfil lo genera PostgreSQL. El servicio no se considera desplegado hasta verificar PostgreSQL y HTTPS reales.
 
-Las PR #4, #7, #13 y #16 se cerraron como supersedidas porque sus cambios ya estaban incorporados en `main` o reemplazados por implementaciones posteriores.
+HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
 
-## Arquitectura cartográfica y routing en main
+## Cartografía y navegación offline
 
-- Motor cartográfico: **Mapbox**, mediante `mapbox_maps_flutter 3.33.0`.
-- La pantalla de mapas offline usa `OfflineManager` y `TileStore.createDefault()` para descargar el estilo y una región de prueba de Córdoba.
-- El proveedor de rutas de `main` utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`. Ese servicio requiere conectividad; no debe presentarse como cálculo de rutas offline.
-- La persistencia de teselas, la reapertura en frío, el renderizado en modo avión y el alcance de las regiones deben validarse en el APK exacto que se pretenda distribuir.
-- Una región de Córdoba no demuestra cobertura cartográfica nacional.
+### Estado de main
 
-## Estado de navegación offline
+- Mapbox es el motor cartográfico de Flutter.
+- La página offline puede descargar una región de prueba de Córdoba usando Mapbox OfflineManager/TileStore.
+- El routing de main continúa dependiendo de Valhalla online. No debe presentarse como cálculo offline.
+- Una región de Córdoba no demuestra cobertura nacional.
 
-La implementación nueva está en la [PR #53 — Mapbox Navigation offline para senderismo](https://github.com/Baltas80/espana-outdoor/pull/53), rama `feat/mapbox-offline-routing-validation-20261114`, basada en el `main` vigente a 14/11/2026. La PR histórica #25 y el intento de validación #52 se cerraron como supersedidos; sus ramas se conservan, pero no se deben fusionar.
+### PR #61 — nueva implementación Mapbox Navigation
 
-La PR #53 propone:
-- Mapbox Navigation 3.34.1 con Maps SDK 11.34.1 y Flutter plugin 3.34.1.
-- Un `TileStore` persistente compartido por Maps y Navigation, configurado antes del primer `MapWidget`.
-- Descarga de prueba de Córdoba con style pack, teselas y descriptor de routing peatonal.
-- Routing compuesto: Android senderismo/peatonal con Mapbox; BTT, cicloturismo y map matching GPX con Valhalla. No se afirma routing offline de bicicleta.
-- Pruebas unitarias e integración Android para ruta online, descarga, cierre del proceso, modo avión, nueva ruta con origen explícito `OFFLINE` y evidencia de carga del mapa.
-- Staging con permisos de solo lectura, lockfile obligatorio y sin commits automáticos desde CI.
+Rama: `feat/mapbox-offline-routing-final-20261114`  
+HEAD observado: `4519a342034449456c5bfd291ac23db06c8db202`  
+[PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)
 
-Estado observado del HEAD `d246ea77ea6be7cacac455bbc678ba604c7c80d7`: Security baseline y análisis de seguridad completados correctamente; Cloudflare Pages ha generado preview; Android staging sigue ejecutando análisis y tests. Estos resultados no acreditan todavía compilación Android, integración offline ni validación física.
+La rama está 55 commits por delante y 0 por detrás de main según la comparación observada. Incluye:
 
-La PR #53 debe superar todos los checks y demostrar en emulador una ruta nueva con origen `OFFLINE`. Después debe instalarse el APK exacto en el OPPO y repetirse la prueba tras cierre forzado y reinicio. La región de Córdoba es una prueba de concepto, no cobertura nacional.
+- Mapbox Navigation Android 3.35.0 / Native 324.35.0, Maps 11.35.0 y Common 24.35.0 en variante `common-ndk27`.
+- TileStore persistente compartido entre Maps y Navigation.
+- Descarga de style pack, teselas visibles y recursos de routing peatonal para Córdoba.
+- Routing nativo peatonal con origen explícito `online` o `offline`.
+- Valhalla conservado para BTT, cicloturismo y map matching GPX online.
+- Verificadores de Gradle/Mapbox, prueba del parche de expiración y controles de captura Android.
+- Workflows de solo lectura; no deben persistir credenciales Git.
 
-Los perfiles de Senderismo, BTT y Cicloturismo ya están integrados mediante la PR #47. Falta validar sus respuestas contra el endpoint Valhalla real.
+### Evidencia automatizada observada
 
-## Validación disponible y límites
+Ejecución Android staging **43667786016**:
+- APK staging compilado y verificado.
+- Las bibliotecas Mapbox requeridas están empaquetadas.
+- Se encontró una sola `libc++_shared.so` por ABI inspeccionado.
+- Los símbolos JNI requeridos por Navigation están presentes en Common.
+- El smoke nativo inicial arrancó la aplicación, pero su captura visual era casi uniforme y no demuestra cartografía completa.
+- La integración obtuvo una ruta online y una ruta nueva con `source=offline` en modo avión (1.109,662 m; 66 puntos).
+- La prueba falló al capturar el platform view porque faltaba `convertFlutterSurfaceToImage()`. La ruta offline quedó registrada antes del fallo visual.
 
-| Comprobación | Estado |
-|---|---|
-| Checks CI de PR #44 y #45 | Correctos en sus HEAD previos a la fusión |
-| CI/Security de PR #28, #26, #27 y #38 | Correctos antes de fusionar |
-| Guard de firma de producción | Integrado; falta ejecutar Release candidate con secretos reales |
-| APK/AAB staging | Android staging correcto en PR #44 y #45; firma debug, no distribuible |
-| Mapa online en dispositivo físico con el HEAD actual | Pendiente de nueva evidencia |
-| Descarga y persistencia de región offline en el HEAD actual | Pendiente de validación reproducible |
-| Reapertura en frío y mapa renderizado en modo avión | Pendiente en dispositivo físico |
-| Cálculo de una ruta nueva con origen nativo `OFFLINE` | No integrado en `main`; PR #53 pendiente de CI y validación |
-| Routing real con Valhalla en producción | Pendiente de comprobar endpoint y respuesta para senderismo, BTT y cicloturismo |
-| Firma release y candidato de producción | Pendiente de secretos y ejecución manual del workflow |
+Ejecución de revalidación **43676480595**:
+- APK staging y verificación completados.
+- Smoke nativo del mapa completado.
+- La prueba de integración online/offline seguía en ejecución en la última consulta; todavía no hay conclusión ni artefacto final de evidencia.
+- Security baseline **43676480606** terminó correctamente.
 
-La PR #39 (setup-java 6.2.0) conserva una ejecución antigua de Android staging fallida y su rama está 7 commits por detrás de `main`; se solicitó a Dependabot que la rebase para repetir CI sobre el estado actual. La PR #41 (background_downloader 9.6.6) pasó CI, Security baseline, CodeQL y Android staging; sus pasos incluyen compilación y verificación del APK. Su lockfile deberá reconciliarse con Mapbox 3.34.1 si se integra después de la PR #53.
+Por tanto, existe evidencia de routing offline en emulador, pero la aceptación visual está pendiente. La captura anterior no debe usarse como prueba de mapa renderizado.
 
-Una prueba anterior de la región de Córdoba fue reportada como funcional sin conexión en un OPPO. Es evidencia histórica de una prueba de concepto; no acredita el APK actual, reapertura tras reinicio, cálculo offline de rutas ni cobertura nacional.
+### Puertas pendientes de PR #61
 
-## Pendientes prioritarios
+1. Terminar el job `Android online and offline route integration` de la ejecución 43676480595.
+2. Inspeccionar la captura PNG del viewport real y exigir diversidad/entropía de píxeles, no solo que el archivo exista.
+3. Confirmar carga offline del style pack, glyphs/sprites y teselas sin errores.
+4. Instalar el APK release exacto en OPPO físico.
+5. Repetir descarga, cierre forzado, modo avión, ruta nueva `OFFLINE`, renderizado y reinicio.
+6. Fusionar solo después de CI completo y revisión de la evidencia. La validación física seguirá siendo necesaria antes de cerrar la aceptación offline.
 
-1. Completar CI de la PR #53 y corregir cualquier fallo de compilación, análisis o integración.
-2. Inspeccionar los artefactos de emulador: ruta nueva con origen `OFFLINE`, mapa cargado y evidencia visual; no aceptar solo el código de salida.
-3. Instalar el APK exacto en el OPPO y registrar mapa online, permisos, GPS y descarga de Córdoba.
-4. Con la región descargada, forzar cierre, activar modo avión y comprobar renderizado, persistencia y cálculo de una ruta nueva con origen explícito `OFFLINE`; repetir tras reiniciar el dispositivo.
-5. Integrar la PR #41 y actualizar su lockfile después de resolver la versión Mapbox definitiva; revalidar la PR #39 tras el rebase de Dependabot.
-6. Comprobar los perfiles Senderismo, BTT y Cicloturismo contra un endpoint Valhalla real y verificar sus respuestas.
-7. Verificar Valhalla y los servicios backend con endpoints HTTPS reales.
-8. Configurar de forma segura los cinco secretos de firma Android y ejecutar manualmente el workflow Release candidate. No crear una clave nueva si ya existe una clave de subida registrada en Google Play.
-9. Auditar autenticación móvil/web, perfil, backend Go, PostgreSQL y permisos antes de ampliar funcionalidades de comunidad.
+### Alcance que no cubre PR #61
+
+- Routing offline BTT/cicloturismo: issue #62.
+- Cobertura cartográfica nacional.
+- Validación física del APK release.
+- Navegación turn-by-turn completa en todos los perfiles.
+
+## Identidad y perfiles web/Android
+
+### Backend integrado
+
+La PR #58 incorpora la API de perfil en Source Gateway:
+- `GET /v1/me` crea/recupera el perfil asociado al subject OIDC verificado.
+- `PATCH /v1/me` actualiza únicamente `displayName`.
+- Email solo se importa si `email_verified=true`.
+- El cliente no puede elegir subject, UUID ni email.
+- PostgreSQL genera el UUID canónico.
+
+El código está integrado, pero no hay evidencia de despliegue operativo con PostgreSQL real.
+
+### PR #64 — cliente web
+
+[PR #64](https://github.com/Baltas80/espana-outdoor/pull/64), todavía draft.
+
+Incluye `/cuenta.html`, cliente web PKCE, callback, llamadas a `/v1/me`, CSP/CORS y pruebas Node. El preview de Cloudflare Pages se desplegó correctamente en un commit anterior, pero no equivale a producción ni valida el realm OIDC.
+
+El cliente web se ha ajustado para usar Authorization Code + PKCE y solicitar únicamente scopes de access token (`profile email`), sin pedir `openid` ni consumir un ID token que la SPA no valida. Usa `sessionStorage` y no guarda refresh token ni client secret.
+
+Último commit conocido tras esta corrección: `7f39db5258e133852f97bd4013ee4fcf77cbaa80`. La CI de ese nuevo HEAD aún debe confirmarse.
+
+### PR #65 — endurecimiento del token de API
+
+[PR #65](https://github.com/Baltas80/espana-outdoor/pull/65), abierta y con CI en curso.
+
+El backend exige el claim JWT `typ=Bearer` después de validar firma, issuer y audience. Rechaza ID tokens, refresh tokens y tokens sin tipo explícito. La configuración del proveedor debe incluir una audiencia dedicada al resource server/API en el access token; no debe depender solo del client ID público.
+
+### Bloqueos externos de identidad
+
+- Registrar redirect URIs exactos web y Android en el proveedor OIDC.
+- Exigir PKCE S256; configurar registro/autoregistro solo si se desea ofrecer creación pública de cuentas.
+- Configurar audience mapper de la API y comprobar que el access token contiene la audiencia esperada y `typ=Bearer`.
+- Desplegar Source Gateway con PostgreSQL TLS, migración aplicada, issuer/audience/roles, credencial AEMET y CORS restringido.
+- Verificar `GET/PATCH /v1/me` con la misma cuenta en web y Android.
+
+Issue de seguimiento: [#55](https://github.com/Baltas80/espana-outdoor/issues/55).
+
+## Dispositivo físico
+
+Issue [#63](https://github.com/Baltas80/espana-outdoor/issues/63).
+
+El script `tool/test_mapbox_oppo_routes.ps1` está en la rama de PR #61, no en main. Ejecuta `flutter test` y valida el test app de integración debug; no instala por sí mismo el APK release exacto de CI. Debe ampliarse para aceptar una ruta de APK, verificar SHA-256/package/versionCode, instalar ese artefacto y separar el smoke release de la prueba de integración debug.
+
+No hay una nueva prueba física del OPPO acreditada en este estado.
+
+## Backend, routing y despliegue
+
+- Source Gateway: código de perfiles integrado; despliegue y PostgreSQL de producción no verificados.
+- Valhalla: perfiles de routing integrados en el cliente; respuesta real de `https://routing.espanaoutdoor.es/status` y rutas BTT/cicloturismo no verificadas en este ciclo.
+- Rescue Link: endpoint de producción no verificado.
+- Cloudflare Pages: preview de PR #64 confirmado en comentarios del bot para el commit anterior; no confundir preview con publicación de identidad operativa.
+- Release Android: firma dedicada protegida por configuración; falta ejecución con secretos reales y verificación de huella.
+
+## Hoja de ruta priorizada
+
+1. Cerrar la ejecución 43676480595 e inspeccionar artefactos de routing/renderizado de PR #61.
+2. Corregir el smoke visual si no demuestra calles/etiquetas y recursos offline completos.
+3. Implementar la instalación y validación del APK release exacto en OPPO (issue #63).
+4. Ejecutar prueba física tras cierre forzado y reinicio; no cerrar offline sin ella.
+5. Integrar PR #65 después de CI y revisión; actualizar la configuración de audiencia API en el proveedor.
+6. Completar CI de PR #64 y verificar callback PKCE con el proveedor real.
+7. Provisionar PostgreSQL y desplegar Source Gateway; verificar `/healthz` y `/v1/me` por HTTPS.
+8. Probar la misma cuenta y perfil en web y Android.
+9. Verificar Valhalla real para senderismo, BTT y cicloturismo.
+10. Implementar routing offline de bicicleta y ampliar la cobertura regional.
+11. Generar un release firmado, instalarlo y realizar regresión final.
 
 ## Criterio de seguridad
 
-No incluir secretos en código, Git, artefactos públicos ni logs. Los APK/AAB de CI y staging firmados con debug son exclusivamente de prueba. Respetar licencias y condiciones de uso de la cartografía. No marcar funcionalidades como completadas sin evidencia reproducible en el entorno correspondiente.
+No incluir secretos en código, commits, artefactos públicos ni logs. Los APK de staging firmados con debug son solo para pruebas. No declarar producción por una compilación correcta, un preview de Pages o una prueba de routing aislada.
