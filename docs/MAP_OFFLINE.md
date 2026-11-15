@@ -24,6 +24,26 @@ Referencias oficiales:
 - [TileStoreUsageMode](https://docs.mapbox.com/android/maps/api/11.18.2/mapbox-maps-android/com.mapbox.maps/-tile-store-usage-mode/)
 - [Conceptos de mapas offline](https://docs.mapbox.com/android/maps/guides/offline/concepts/)
 
+### Paridad del pixel ratio entre MapWidget y TileStore
+
+El descriptor nativo de teselas usa `resources.displayMetrics.density`. El
+`MapWidget` Flutter debe pedir la misma variante mediante
+`mapOptions: MapOptions(pixelRatio: MediaQuery.devicePixelRatioOf(context))`.
+En Mapbox Flutter 3.34.1, `MapOptions.pixelRatio` tiene valor predeterminado
+1.0; dejarlo implícito puede hacer que el mapa solicite una variante distinta
+de la descargada por el descriptor. El modo de rasterización de glyphs también
+se fija explícitamente en `IDEOGRAPHS_RASTERIZED_LOCALLY`, con fallback
+`sans-serif`, para mantener coherencia con el style pack.
+
+Referencias:
+- [MapOptions — Mapbox Maps Flutter](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/MapOptions-class.html)
+- [MapWidget — Mapbox Maps Flutter](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/MapWidget-class.html)
+- [GlyphsRasterizationOptions](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/GlyphsRasterizationOptions-class.html)
+
+La paridad está protegida por `tool/test_mapbox_tile_store_mode.py` y
+`tool/verify_mobile_native.py`; el renderizado debe seguir demostrarse con
+callbacks nativos y captura offline, no solo con el guard estático.
+
 ## Dos capacidades distintas
 
 ### Mapas y teselas offline
