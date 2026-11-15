@@ -161,6 +161,24 @@ def verify_android() -> None:
     if "walking ? (mapbox ?? valhalla) : valhalla" not in composite or "final service = valhalla" not in composite:
         raise SystemExit("Composite routing must preserve Valhalla for bicycle profiles and GPX matching.")
 
+    viewport = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+    viewport_text = viewport.read_text(encoding="utf-8")
+    required_viewport_diagnostics = (
+        "onMapLoadedListener",
+        "onRenderFrameFinishedListener",
+        "onResourceRequestListener",
+        "MAPBOX_MAP_PARTIAL_FRAME",
+        "MAPBOX_RESOURCE_FAILURE",
+        "MAPBOX_MAP_LOADED",
+        "MAPBOX_MAP_FULL_FRAME",
+        "MAPBOX_MAP_IDLE",
+    )
+    for marker in required_viewport_diagnostics:
+        if marker not in viewport_text:
+            raise SystemExit(
+                f"Mapbox viewport is missing bounded render diagnostics: {marker}"
+            )
+
     integration_test = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
     if not integration_test.is_file():
         raise SystemExit("The Android online/offline Mapbox integration test is missing.")
