@@ -120,11 +120,12 @@ try {
     if ($wifi -ne '0') { throw "Wi-Fi is still enabled (wifi_on=$wifi); offline test refused." }
     # Flutter installs the integration-test runner under Gradle's namespace,
     # which is intentionally different from the staging/production application ID.
-    foreach ($package in @($TestPackageName, $PackageName) | Select-Object -Unique) {
+    $ProcessPackages = @($TestPackageName, $PackageName) | Select-Object -Unique
+    foreach ($package in $ProcessPackages) {
         Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $package) | Out-Null
     }
     Start-Sleep -Seconds 2
-    foreach ($package in @($TestPackageName, $PackageName) | Select-Object -Unique) {
+    foreach ($package in $ProcessPackages) {
         $processOutput = & $Adb -s $DeviceId shell pidof $package 2>$null
         $processExitCode = $LASTEXITCODE
         if ($processExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace(($processOutput | Out-String).Trim())) {
