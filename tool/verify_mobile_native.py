@@ -46,7 +46,7 @@ def verify_android() -> None:
         "Application ID default": '?: "com.espanaoutdoors.espana_outdoors"',
         "Android minSdk 24": "minSdk = 24",
     }
-    required_gradle["Mapbox Common 24.35.0"] = 'com.mapbox.common:common:24.35.0'
+    required_gradle["Mapbox Common 24.35.0 / NDK27"] = 'com.mapbox.common:common-ndk27:24.35.0'
     for label, fragment in required_gradle.items():
         if fragment not in gradle:
             raise SystemExit(f"Android Gradle configuration is missing: {label}")
@@ -204,7 +204,7 @@ def verify_android() -> None:
     print("mapbox_flutter_sdk=3.34.1")
     print("mapbox_maps_android=11.35.0-ndk27")
     print("mapbox_navigation_android=3.35.0-ndk27")
-    print("mapbox_common=24.35.0")
+    print("mapbox_common=24.35.0-ndk27")
     print("android_ndk=28.2.13676358")
     print("shared_persistent_tilestore=verified")
     print("android_ci_uses_committed_sources=verified")
