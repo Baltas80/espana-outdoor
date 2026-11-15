@@ -160,18 +160,28 @@ func TestLoadConfigRequiresOIDCRequiredRole(t *testing.T) {
 }
 
 func TestOIDCAudienceRejectsTokenIssuedForAnotherClient(t *testing.T) {
-    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoor")
+    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-api")
     defer cleanup()
 
-    validToken := signTestIDToken(t, signingKey, issuer, "espana-outdoor")
-    if _, err := verifier.Verify(context.Background(), validToken); err != nil {
-        t.Fatalf("expected token for configured audience to verify: %v", err)
+    validToken := signTestAccessToken(t, signingKey, issuer, "espana-outdoors-api")
+    if !acceptsAccessToken(t, verifier, "espana-outdoors-api", validToken) {
+        t.Fatal("expected token for configured API audience to be accepted")
     }
 
-    foreignToken := signTestIDToken(t, signingKey, issuer, "another-client")
-    if _, err := verifier.Verify(context.Background(), foreignToken); err == nil {
-        t.Fatal("expected token issued for another client to be rejected")
+    foreignToken := signTestAccessToken(t, signingKey, issuer, "another-client")
+    if acceptsAccessToken(t, verifier, "espana-outdoors-api", foreignToken) {
+        t.Fatal("expected token without the API audience to be rejected")
     }
+}
+
+func acceptsAccessToken(t *testing.T, verifier *oidc.IDTokenVerifier, audience, rawToken string) bool {
+    t.Helper()
+    srv := &server{cfg: config{oidcAudience: audience}, verifier: verifier}
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+rawToken)
+    response := httptest.NewRecorder()
+    _, ok := srv.verifiedClaims(response, request)
+    return ok && response.Code == http.StatusOK
 }
 
 func TestOIDCAudienceRejectsMissingAudience(t *testing.T) {
@@ -193,7 +203,7 @@ func TestOIDCAudienceRejectsMissingAudience(t *testing.T) {
         t.Fatalf("serialize token: %v", err)
     }
 
-    if _, err := verifier.Verify(context.Background(), token); err == nil {
+    if acceptsAccessToken(t, verifier, "espana-outdoors-api", token) {
         t.Fatal("expected token without audience to be rejected")
     }
 }
@@ -202,7 +212,7 @@ func TestOIDCJWTRejectsWrongIssuer(t *testing.T) {
     verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoor")
     defer cleanup()
 
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
         "iss": "https://unexpected.example/realms/other",
     })
 
@@ -215,7 +225,7 @@ func TestOIDCJWTRejectsExpiredToken(t *testing.T) {
     verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoor")
     defer cleanup()
 
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
         "exp": time.Now().Add(-1 * time.Minute).Unix(),
     })
 
@@ -228,7 +238,7 @@ func TestOIDCJWTRejectsNotYetValidToken(t *testing.T) {
     verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoor")
     defer cleanup()
 
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
         "nbf": time.Now().Add(5 * time.Minute).Unix(),
     })
     verified, err := verifier.Verify(context.Background(), token)
@@ -249,7 +259,7 @@ func TestOIDCJWTRejectsFutureIssuedAt(t *testing.T) {
     verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoor")
     defer cleanup()
 
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoor", map[string]any{
         "iat": time.Now().Add(5 * time.Minute).Unix(),
     })
     verified, err := verifier.Verify(context.Background(), token)
@@ -275,7 +285,7 @@ func TestOIDCJWTRejectsInvalidSignature(t *testing.T) {
         t.Fatalf("generate alternate signing key: %v", err)
     }
 
-    token := signTestIDToken(t, otherKey, issuer, "espana-outdoor")
+    token := signTestAccessToken(t, otherKey, issuer, "espana-outdoor")
     if _, err := verifier.Verify(context.Background(), token); err == nil {
         t.Fatal("expected token with invalid signature to be rejected")
     }
@@ -290,7 +300,7 @@ func TestOIDCJWTRejectsMalformedToken(t *testing.T) {
     }
 }
 
-func newTestOIDCVerifier(t *testing.T, audience string) (*oidc.IDTokenVerifier, string, *rsa.PrivateKey, func()) {
+func newTestOIDCVerifier(t *testing.T, _ string) (*oidc.IDTokenVerifier, string, *rsa.PrivateKey, func()) {
     t.Helper()
 
     key, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -323,14 +333,14 @@ func newTestOIDCVerifier(t *testing.T, audience string) (*oidc.IDTokenVerifier, 
         t.Fatalf("OIDC discovery failed: %v", err)
     }
 
-    return provider.Verifier(&oidc.Config{ClientID: audience}), server.URL, key, server.Close
+    return provider.Verifier(&oidc.Config{SkipClientIDCheck: true}), server.URL, key, server.Close
 }
 
-func signTestIDToken(t *testing.T, key *rsa.PrivateKey, issuer, audience string) string {
-    return signTestIDTokenWithClaims(t, key, issuer, audience, nil)
+func signTestAccessToken(t *testing.T, key *rsa.PrivateKey, issuer, audience string) string {
+    return signTestAccessTokenWithClaims(t, key, issuer, audience, nil)
 }
 
-func signTestIDTokenWithClaims(t *testing.T, key *rsa.PrivateKey, issuer, audience string, overrides map[string]any) string {
+func signTestAccessTokenWithClaims(t *testing.T, key *rsa.PrivateKey, issuer, audience string, overrides map[string]any) string {
     t.Helper()
 
     signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, nil)
