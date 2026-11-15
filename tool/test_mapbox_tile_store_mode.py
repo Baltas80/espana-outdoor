@@ -48,6 +48,19 @@ for fragment in required_viewport:
             f"Flutter MapWidget configuration/diagnostics missing: {fragment}"
         )
 
+for fragment in (
+    "it.id == mapRegionId",
+    "it.id == routingRegionId",
+    "mapCompleted <= 0",
+    "routingCompleted <= 0",
+    "mapErrors > 0",
+    "routingErrors > 0",
+):
+    if fragment not in source:
+        raise SystemExit(
+            f"Offline acceptance must verify map and routing TileRegions independently: {fragment}"
+        )
+
 if "TileStoreUsageMode.READ_AND_UPDATE" in source:
     raise SystemExit(
         "Do not set READ_AND_UPDATE globally: it converts free-pan map requests "
