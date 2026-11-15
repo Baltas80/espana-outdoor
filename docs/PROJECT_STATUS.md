@@ -8,7 +8,7 @@
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
 - HEAD de código examinado antes de esta actualización: 4664692c9406222cd3a191455824712196ef27dc.
 - HEAD de la rama al inicio de esta actualización documental: cfb3ec6c7583790be32ad6fdf723f767aa4c3192.
-- La rama está 132 commits por delante y 1 por detrás de main; el único commit pendiente de sincronización es el despliegue de Pages de main.
+- La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -74,9 +74,14 @@ Ejecuciones del commit anterior `6a35844`:
 - [Security baseline 43713796155](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796155): todos los trabajos terminaron correctamente.
 
 Workflows disparados por el HEAD con preflight e instrumentación nuevos:
-- [Android staging 43719251447](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251447): pendiente en la última consulta.
-- [CI 43719251310](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251310): en ejecución.
-- [Security baseline 43719251313](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251313): en ejecución.
+- [Android staging 43719251447](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251447): quedó pendiente y sin jobs al sincronizar la rama; no se usa como evidencia.
+- [CI 43719251310](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251310): cancelada por la ejecución posterior al sincronizar la rama; Source Gateway pasó antes de la cancelación.
+- [Security baseline 43719251313](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251313): todos los trabajos terminaron correctamente.
+
+Workflows del HEAD sincronizado `cd17eb3`:
+- [Android staging 43719412769](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412769): pendiente/queued en la última consulta.
+- [CI 43719412779](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412779): pendiente en la última consulta.
+- [Security baseline 43719412729](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412729): en ejecución; los primeros trabajos de Go, secret scan y dependencias no mostraban fallos.
 
 Evidencia histórica, no aceptación del HEAD actual:
 - La ejecución 43667786016 obtuvo una ruta nueva con origen OFFLINE en modo avión (1.109,662 m; 66 puntos), pero la captura del mapa no acreditó renderizado completo.
