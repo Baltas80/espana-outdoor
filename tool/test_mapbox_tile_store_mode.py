@@ -18,6 +18,14 @@ required = (
     ".tileStore(store)",
     ".pixelRatio(appContext.resources.displayMetrics.density)",
     ".networkRestriction(NetworkRestriction.NONE)",
+    'val mapRegionId = "$regionId-maps"',
+    'val routingRegionId = "$regionId-routing-walking"',
+    ".descriptors(listOf(mapsDescriptor))",
+    ".descriptors(listOf(navigationDescriptor))",
+    "mapCompletedResourceCount",
+    "routingCompletedResourceCount",
+    '"offline:$regionId:maps"',
+    '"offline:$regionId:routing-walking"',
 )
 for fragment in required:
     if fragment not in source:
@@ -55,10 +63,26 @@ for fragment in (
     "onSourceAddedListener:",
     "onSourceDataLoadedListener:",
     "source_data_events=",
+    "mapCompletedResourceCount",
+    "routingCompletedResourceCount",
+    "routingTiles",
 ):
     if fragment not in integration_test:
         raise SystemExit(
             f"Android offline integration is missing required diagnostic/configuration: {fragment}"
+        )
+
+
+OFFLINE_PAGE = ROOT / "lib" / "features" / "offline" / "offline_page.dart"
+offline_page = OFFLINE_PAGE.read_text(encoding="utf-8")
+for fragment in (
+    "result['routingTiles'] != true",
+    "mapCompletedResourceCount",
+    "routingCompletedResourceCount",
+):
+    if fragment not in offline_page:
+        raise SystemExit(
+            f"Offline UI must require separate map/routing resources: {fragment}"
         )
 
 print("mapbox_maps_tile_store=shared")
