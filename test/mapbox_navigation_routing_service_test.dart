@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -86,6 +88,29 @@ void main() {
     expect(result.steps.single.instruction, 'Continúa por el sendero');
   });
 
+
+  test('times out a native route request that never completes', () async {
+    final pending = Completer<Object?>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, (call) {
+      if (call.method == 'requestRoute') return pending.future;
+      throw MissingPluginException(call.method);
+    });
+
+    final service = MapboxNavigationRoutingService(
+      accessToken: 'pk.test',
+      routeTimeout: const Duration(milliseconds: 10),
+    );
+    await expectLater(
+      service.route(
+        const RouteRequest(points: [
+          LatLng(37.8882, -4.7794),
+          LatLng(37.8900, -4.7700),
+        ]),
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
 
   test('rejects an unknown router source instead of labeling it online', () async {
     const points = [
