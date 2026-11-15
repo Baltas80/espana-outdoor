@@ -101,6 +101,8 @@ function Launch-And-Capture([string]$Phase) {
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'uiautomator', 'dump', $remoteXml) | Out-Null
     $postText = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'cat', $remoteXml)
     if ($postText -match 'No se pudo cargar el mapa|Reintentar') { throw "Mapbox loader error appeared after opening Mapa ($Phase)." }
+    $pidAfterMap = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pidof', $PackageName)
+    if (-not $pidAfterMap) { throw "Release APK exited after opening Mapa ($Phase)." }
     $logcat = Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-d')
     if ($logcat -match 'FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:') { throw "Release APK crashed ($Phase)." }
     $remotePng = '/sdcard/espana-outdoor-release-map.png'
@@ -109,7 +111,7 @@ function Launch-And-Capture([string]$Phase) {
     Invoke-Adb @('-s', $DeviceSerial, 'pull', $remotePng, $localPng) | Out-Null
     if (-not (Test-Path -LiteralPath $localPng) -or (Get-Item -LiteralPath $localPng).Length -lt 1024) { throw 'Release map screenshot is missing or too small.' }
     $Report.Add("PASS: release APK launched and opened Mapa ($Phase); screenshot=$localPng")
-    $Report.Add($logcat)
+    $Report.Add('No fatal application/native crash markers found.')
 }
 
 try {
@@ -154,6 +156,7 @@ try {
             Set-Airplane $true
             Invoke-Adb @('-s', $DeviceSerial, 'shell', 'svc', 'wifi', 'disable') | Out-Null
             Start-Sleep -Seconds 3
+            if ((Invoke-Adb @('-s', $DeviceSerial, 'shell', 'settings', 'get', 'global', 'wifi_on')) -ne '0') { throw 'Wi-Fi remained enabled after reboot.' }
         }
         Launch-And-Capture 'after-reboot'
         $Report.Add('PASS: release APK relaunched after reboot with original app data.')
