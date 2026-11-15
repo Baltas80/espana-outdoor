@@ -36,6 +36,13 @@ for phase in ("online_offline_routing", "map_smoke"):
     if f"ANDROID_VALIDATION_PHASE_RESULT phase={phase}" not in orchestrator:
         raise SystemExit(f"Android validation must report the {phase} result independently.")
 
+
+if "| sed -u -E " not in (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8"):
+    raise SystemExit(
+        "The offline screenshot marker must be streamed without sed buffering; "
+        "the host capture must run while the integration app is foregrounded."
+    )
+
 if "if: always()" not in workflow:
     raise SystemExit("Android staging must retain unconditional evidence-upload steps.")
 
