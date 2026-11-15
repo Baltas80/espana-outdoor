@@ -6,7 +6,7 @@
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61)
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD observado de PR #61: 4cdc3335a5bfc177aeb8fb0fb4aa5bab0c9fd5c1
+- HEAD de la rama PR #61: ecd4df1321c296c7cef2c876e350e67d32f01b85 (actualización documental); HEAD de código validado: 4cdc3335a5bfc177aeb8fb0fb4aa5bab0c9fd5c1
 - Comparación de PR #61: 121 commits por delante y 1 por detrás de main.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
