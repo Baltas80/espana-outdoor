@@ -242,3 +242,10 @@ La ejecución [43752643079](https://github.com/Baltas80/espana-outdoor/actions/r
 - En el smoke online se recibieron respuestas de red para estilo, sprites, glyphs y teselas, pero solo dos frames parciales y ningún evento de mapa cargado/completo/inactivo. No se observaron `MAPBOX_RESOURCE_FAILURE` ni errores de carga de estilo en ese logcat.
 
 Se añade instrumentación acotada de `sourceAdded` y `sourceDataLoaded` (ID de fuente, tipo, estado y presencia de tile; nunca URL ni token) tanto al viewport de producción como al integration test. La siguiente ejecución debe mostrar qué fuentes vectoriales notifican metadata/tiles y cuáles no llegan a cargar. No se cambia el modo TileStore ni se amplía la región a ciegas: primero se identifica si el problema es cobertura geométrica, descriptor/TileStore o carga de una fuente del estilo.
+
+
+## Captura ADB: corrección de buffering de stdout — 15/11/2026
+
+La revisión del run 43752643079 mostró que el host veía `MAPBOX_OFFLINE_SCREENSHOT_READY` cuando la actividad de integración ya había abandonado el primer plano. La tubería del test pasaba por `sed` antes de `tee`; GNU sed con salida redirigida puede retener el marcador en un búfer de bloque. Se reprodujo localmente con un proceso que imprimía el marcador y esperaba 5 segundos: con `sed -E`, el log seguía en 0 bytes tras 1 segundo; con `sed -u -E`, el log contenía los 32 bytes del marcador tras 1 segundo.
+
+Se cambia la tubería del runner a `sed -u -E` para que el host capture el PNG mientras el integration app sigue en primer plano. El guard `tool/test_android_validation_order.py` exige que el modo no-buffered permanezca. Esta corrección resuelve el fallo de sincronización de la captura; **no** resuelve ni disimula los 14 fallos offline de teselas ni acredita el renderizado. La próxima ejecución debe producir una captura del paquete correcto y permitir distinguir visualmente el viewport aunque el test termine fallando.
