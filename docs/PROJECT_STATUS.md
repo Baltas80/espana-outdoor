@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 18:21 CET**. Rama de referencia: `main`, HEAD observado: `2288290b3fb233fe5e0d124f0b38008a31b0cd25`.
+Última revisión: **15/11/2026 19:24 CET**. Rama de referencia: `main`, HEAD observado: `125932eacad78cefa838a2333a0a018d3451a6be`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -9,7 +9,7 @@ Este documento separa código integrado, pruebas automatizadas, validación de e
 - Android Flutter sigue siendo la prioridad.
 - La seguridad de Source Gateway y Rescue Link está integrada en `main` mediante PR #68.
 - El workflow de GitHub Pages está corregido en `2288290`; la ejecución de despliegue 43699356632 terminó correctamente. No se ha hecho una comprobación HTTP independiente del dominio en esta revisión.
-- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**.
+- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**. PR #61 sigue en draft, con HEAD `97aaa316efb878dc3e70c07c1288a2c175a3d003`, 166 commits por delante y 0 por detrás de `main`.
 - No se acepta todavía el renderizado de mapas offline: una ejecución anterior calculó una ruta offline nueva, pero falló el renderizado y una captura resultó ser del launcher, no del mapa.
 - La identidad web PKCE está en PR #64 (draft); falta configurar Keycloak y verificar una cuenta real contra backend/PostgreSQL desplegados.
 - No se declara producción.
@@ -30,7 +30,8 @@ La rama `main` no tiene protección de rama habilitada en la última consulta a 
 
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)  
 Rama: `feat/mapbox-offline-routing-final-20261114`  
-HEAD observado: `3e31b123bfe27f2a7947d0bafea8d2ebecb44f05`.
+HEAD: `97aaa316efb878dc3e70c07c1288a2c175a3d003`  
+Comparación con `main`: 166 commits por delante, 0 por detrás. PR abierta, draft y mergeable; no hay revisiones registradas.
 
 La rama implementa:
 
@@ -41,22 +42,25 @@ La rama implementa:
 - Origen nativo de ruta `online` / `offline`.
 - Valhalla se mantiene para BTT/cicloturismo y map matching GPX online; esta PR no implementa routing offline de bicicleta ni cobertura nacional.
 - Instrumentación de callbacks, errores de recursos y captura PNG host-side mediante ADB.
+- Paridad de pixel ratio y rasterización de glyphs entre el descriptor nativo, el MapWidget de producción y el MapWidget del integration test.
+- Captura host-side condicionada a que la app de prueba esté en primer plano; el validador ya no acepta una captura del launcher como prueba del mapa.
 
-### CI observada en HEAD 3e31b12
+### CI del HEAD actual 97aaa316
 
-- [CI 43739155142](https://github.com/Baltas80/espana-outdoor/actions/runs/43739155142): Source Gateway, Rescue Link, Flutter (análisis, tests y build Android release) e iOS terminaron correctamente.
-- [Security baseline 43739155137](https://github.com/Baltas80/espana-outdoor/actions/runs/43739155137): 8/8 trabajos correctos.
-- [Android staging 43739155167](https://github.com/Baltas80/espana-outdoor/actions/runs/43739155167): APK staging generado; al consultar, el job seguía en `Android map and routing validation`. No hay todavía resultado final ni PNG de esa ejecución.
+- [CI 43741045698](https://github.com/Baltas80/espana-outdoor/actions/runs/43741045698): terminó correctamente.
+- [Security baseline 43741045701](https://github.com/Baltas80/espana-outdoor/actions/runs/43741045701): terminó correctamente; 8/8 trabajos.
+- [Android staging 43741045704](https://github.com/Baltas80/espana-outdoor/actions/runs/43741045704): análisis/tests, compilación APK, manifiesto y KVM superados en el primer intento. El job de emulador terminó con estado `failure`, pero el resumen del job y el estado del paso `Android map and routing validation` fueron inconsistentes; los logs devolvieron `BlobNotFound` y no se publicó evidencia de routing ni PNG. Se lanzó un reintento del job; al cierre de esta revisión sigue en ejecución.
 
-Artefacto staging de la ejecución 43739155167:
+Artefacto del primer intento, válido como build pero no como aceptación funcional:
 
-- ID: `14172276569`.
+- ID: `14172761851`.
 - Application ID: `com.espanaoutdoors.espana_outdoors.iconspreview`.
 - VersionCode: `5`.
-- SHA-256: `9a19c738deccfa9058c137e03edb8eddc3362e021f95669c984ce2f76cebabe5`.
-- Fuente: commit `3e31b123bfe27f2a7947d0bafea8d2ebecb44f05`.
+- SHA-256 recalculado y coincidente con el manifiesto: `a7244146c6c739cc36d47db002bdcbaa71984c24c57ed037097148106b795fc3`.
+- `source_commit=97aaa316efb878dc3e70c07c1288a2c175a3d003`.
+- `validation_scope=runtime-capable-artifact`; ambos tokens Mapbox estaban disponibles durante la compilación.
 
-### Evidencia anterior, no equivalente a aceptación
+### Evidencia runtime anterior, no equivalente a aceptación
 
 La ejecución [43736972241](https://github.com/Baltas80/espana-outdoor/actions/runs/43736972241) registró:
 
@@ -72,7 +76,7 @@ Por tanto, el cálculo peatonal offline se ha demostrado en el integration test 
 
 1. CI y Security baseline verdes en el HEAD final.
 2. APK runtime-capable exacto con manifiesto y SHA-256.
-3. Smoke online con callbacks style-loaded, map-loaded, full-frame e idle.
+3. Smoke online con callbacks style-loaded, map-loaded, full-frame e idle y PNG de la app correcta.
 4. Descarga de Córdoba con recursos completos, cero errores y persistencia confirmada en TileStore.
 5. Cierre forzado, modo avión y Wi-Fi desactivado.
 6. Ruta nueva con origen nativo `OFFLINE`.
