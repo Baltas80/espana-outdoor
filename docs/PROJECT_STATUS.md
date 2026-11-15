@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 06:20 CET**. Rama de referencia: `main`. HEAD funcional observado antes de la actualización documental: `8acb12a32cff5c557147045552683551f6eb58f6`; actualización documental posterior integrada en `179a961c345d3d5c5d6f409856ec255e5d697c6d`.
+Última revisión: **15/11/2026 07:25 CET**. Rama de referencia: `main`. HEAD de `main`: `179a961c345d3d5c5d6f409856ec255e5d697c6d`.
 
 Este documento distingue código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -15,7 +15,7 @@ Android Flutter es el producto prioritario. La web pública debe seguir funciona
 - PR #50: staging de Dependabot integrado. Las compilaciones sin credenciales Maven Mapbox se identifican como análisis/tests sin APK nativo validado.
 - PR #58: API canónica de perfiles integrada. Source Gateway incluye `GET /v1/me`, `PATCH /v1/me`, migración PostgreSQL y adaptador Flutter. El subject procede del token verificado y el UUID de perfil lo genera PostgreSQL. El servicio no se considera desplegado hasta verificar PostgreSQL y HTTPS reales.
 
-HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
+HEAD de referencia: `179a961c345d3d5c5d6f409856ec255e5d697c6d`.
 
 ## Cartografía y navegación offline
 
@@ -29,10 +29,10 @@ HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
 ### PR #61 — nueva implementación Mapbox Navigation
 
 Rama: `feat/mapbox-offline-routing-final-20261114`  
-HEAD observado: `0af48daaeafc7940ab77fa40dbedf59cf5eb8da4`  
+HEAD observado: `b1878f7c65e16cd1fd88e79c2cb895fea65c8f56`  
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)
 
-La rama está 75 commits por delante y 0 por detrás de main según la comparación observada tras incorporar el commit documental 179a961. Incluye:
+La rama está 86 commits por delante y 0 por detrás de main según la comparación del 15/11/2026 07:25 CET. Incluye:
 
 - Mapbox Navigation Android 3.35.0 / Native 324.35.0, Maps 11.35.0 y Common 24.35.0 en variante `common-ndk27`.
 - TileStore persistente compartido entre Maps y Navigation.
@@ -58,7 +58,7 @@ Ejecución de revalidación **43676480595**:
 - Smoke nativo del mapa completado.
 - El paso de integración de rutas permaneció en ejecución durante una espera anormalmente larga y el endpoint de logs no proporcionó un log descargable; la ejecución fue cancelada al actualizar el código.
 - Se añadió timeout de 45 s a la solicitud nativa, prueba unitaria de timeout, límite de 30 min al paso de emulador y 60 min al job Android.
-- Ejecución **43680940651** sobre HEAD `5549aef` fue cancelada al actualizar el harness y los scripts físicos. No hay una ejecución nueva asociada al HEAD `0af48da`; debe dispararse CI sobre el estado final. Security baseline **43680940665** terminó correctamente para el commit anterior.
+- Ejecución **43682026291** sobre HEAD `8af3b035` generó y verificó el APK; el smoke nativo arrancó y la fase online calculó una ruta de 767,757 m y descargó la región. La fase offline terminó fallando antes de emitir `source=offline`. El artefacto de evidencia confirma que la segunda instalación/debug build comenzó, pero no contiene salida de test offline; además Flutter registró `adb uninstall failed: DELETE_FAILED_INTERNAL_ERROR` para `com.example.espana_outdoors`. El harness se corrigió en commits posteriores para resolver el package de integración desde el `namespace`, detenerlo antes de relanzar, evitar `pub get` entre fases y acotar cada fase a 8 minutos. El smoke ahora espera `MAPBOX_MAP_STYLE_LOADED`, `MAPBOX_MAP_FULL_FRAME` y `MAPBOX_MAP_IDLE`. Estas correcciones aún necesitan una ejecución nueva sobre el HEAD final `b1878f7c`.
 
 Por tanto, existe evidencia de routing offline en emulador, pero la aceptación visual está pendiente. La captura anterior no debe usarse como prueba de mapa renderizado.
 
@@ -97,19 +97,20 @@ El código está integrado, pero no hay evidencia de despliegue operativo con Po
 
 Incluye `/cuenta.html`, cliente web PKCE, callback, llamadas a `/v1/me`, CSP/CORS y pruebas Node. El preview de Cloudflare Pages se desplegó correctamente en un commit anterior, pero no equivale a producción ni valida el realm OIDC.
 
-El cliente web se ha ajustado para usar Authorization Code + PKCE y solicitar únicamente scopes de access token (`profile email`), sin pedir `openid` ni consumir un ID token que la SPA no valida. Usa `sessionStorage` y no guarda refresh token ni client secret.
+El cliente web usa Authorization Code + PKCE y solicita scopes de access token (`profile email`), sin pedir `openid` ni consumir un ID token que la SPA no valida. Usa `sessionStorage` y no guarda refresh token ni client secret.
 
-Último commit conocido tras esta corrección: `7f39db5258e133852f97bd4013ee4fcf77cbaa80`. La CI de ese nuevo HEAD aún debe confirmarse.
+Último HEAD conocido: `6c6738946f42ce5a904628c45b9a43ea458a0888`. El workflow Web OIDC de un commit anterior pasó; CI general del HEAD actual sigue pendiente de confirmación.
 
-### PR #65 — endurecimiento del token de API
+### PR #68 — endurecimiento OIDC de Source Gateway y Rescue Link
 
-[PR #65](https://github.com/Baltas80/espana-outdoor/pull/65), abierta y con CI en curso.
+[PR #68](https://github.com/Baltas80/espana-outdoor/pull/68), draft y con CI general en curso.
 
-El backend exige el claim JWT `typ=Bearer` después de validar firma, issuer y audience. Rechaza ID tokens, refresh tokens y tokens sin tipo explícito. La configuración del proveedor debe incluir una audiencia dedicada al resource server/API en el access token; no debe depender solo del client ID público.
+Incluye la implementación de #65 y añade validación de audiencia dedicada y `typ=Bearer` en Rescue Link. Los roles Rescue Link se limitan a `resource_access[RESCUE_LINK_OIDC_AUDIENCE].roles`; se rechazan roles de realm y de otros clientes. Compose comparte el `DATABASE_URL` TLS-aware con Source Gateway. En la ejecución 43685272980, Source Gateway y Rescue Link (`go test -race`, `go vet`) pasaron; Flutter y iOS seguían construyendo. Security baseline 43685272998 pasó. Falta terminar CI y configurar los audience mappers/client roles en Keycloak antes del despliegue.
 
 ### Bloqueos externos de identidad
 
 - Registrar redirect URIs exactos web y Android en el proveedor OIDC.
+- Configurar los audience mappers dedicados de Source Gateway y Rescue Link, y asignar roles de Rescue Link al cliente resource server correspondiente.
 - Exigir PKCE S256; configurar registro/autoregistro solo si se desea ofrecer creación pública de cuentas.
 - Configurar audience mapper de la API y comprobar que el access token contiene la audiencia esperada y `typ=Bearer`.
 - Desplegar Source Gateway con PostgreSQL TLS, migración aplicada, issuer/audience/roles, credencial AEMET y CORS restringido.
@@ -135,11 +136,11 @@ El procedimiento físico está documentado en `docs/MAP_OFFLINE.md` y issue #63,
 
 ## Hoja de ruta priorizada
 
-1. Cerrar la ejecución 43676480595 e inspeccionar artefactos de routing/renderizado de PR #61.
+1. Ejecutar Android staging sobre el HEAD final de PR #61 y revisar el nuevo artefacto visual y la fase offline.
 2. Corregir el smoke visual si no demuestra calles/etiquetas y recursos offline completos.
 3. Implementar la instalación y validación del APK release exacto en OPPO (issue #63).
 4. Ejecutar prueba física tras cierre forzado y reinicio; no cerrar offline sin ella.
-5. Integrar PR #65 después de CI y revisión; actualizar la configuración de audiencia API en el proveedor.
+5. Terminar CI y revisar PR #68; actualizar la configuración de audiencias/roles en Keycloak antes de desplegar.
 6. Completar CI de PR #64 y verificar callback PKCE con el proveedor real.
 7. Provisionar PostgreSQL y desplegar Source Gateway; verificar `/healthz` y `/v1/me` por HTTPS.
 8. Probar la misma cuenta y perfil en web y Android.
