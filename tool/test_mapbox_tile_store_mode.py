@@ -26,8 +26,7 @@ for fragment in required:
 VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
 viewport = VIEWPORT.read_text(encoding="utf-8")
 required_viewport = (
-    "mapOptions: MapOptions(",
-    "pixelRatio: devicePixelRatio",
+    "mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio)",
     "MediaQuery.devicePixelRatioOf(context)",
     "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
     "fontFamily: 'sans-serif'",
@@ -44,6 +43,14 @@ if "TileStoreUsageMode.READ_AND_UPDATE" in source:
         "to tile-pack-only requests and can leave viewports outside downloaded "
         "regions without online individual-tile fallback."
     )
+
+
+INTEGRATION_TEST = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
+integration_test = INTEGRATION_TEST.read_text(encoding="utf-8")
+if "mapboxMapOptionsForPixelRatio(" not in integration_test:
+    raise SystemExit("Offline MapWidget must use the production MapOptions helper.")
+if "WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio" not in integration_test:
+    raise SystemExit("Offline MapWidget must use the actual Android display pixel ratio.")
 
 print("mapbox_maps_tile_store=shared")
 print("mapbox_maps_tile_store_usage=READ_ONLY")

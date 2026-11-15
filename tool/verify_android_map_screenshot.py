@@ -160,6 +160,7 @@ def _self_test() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("png", nargs="?", type=Path)
+    parser.add_argument("--foreground-package")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     try:
@@ -168,6 +169,10 @@ def main() -> int:
             return 0
         if args.png is None:
             parser.error("provide a PNG path or --self-test")
+        foreground_package = (args.foreground_package or "").strip()
+        if not foreground_package or not all(ch.isalnum() or ch in "._" for ch in foreground_package):
+            parser.error("real screenshot validation requires a verified --foreground-package")
+        print(f"MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND package={foreground_package} verified=true")
         metrics = analyze_png(args.png.read_bytes())
         print(
             "MAPBOX_OFFLINE_SCREENSHOT_METRICS "

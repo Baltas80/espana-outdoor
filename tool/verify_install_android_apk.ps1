@@ -50,6 +50,41 @@ $ReportDir = Join-Path $RepoRoot 'build\mapbox-oppo-validation'
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
 $ReportPath = Join-Path $ReportDir 'release-apk-install-report.txt'
 $Report = [System.Collections.Generic.List[string]]::new()
+$RouteEvidencePath = Join-Path $ReportDir 'validation-report.txt'
+if ($OfflineSmoke) {
+    if (-not (Test-Path -LiteralPath $RouteEvidencePath)) {
+        throw "OfflineSmoke requires a successful route/download report first: run tool/test_mapbox_oppo_routes.ps1."
+    }
+    $routeEvidence = Get-Content -LiteralPath $RouteEvidencePath -Raw
+    $requiredRouteEvidence = @(
+        "Device verified: OPPO $ExpectedModel ($DeviceSerial)",
+        "Source commit: $SourceCommit",
+        "Application ID: $PackageName",
+        "MAPBOX_ROUTE_VALIDATION source=online",
+        "MAPBOX_OFFLINE_REGION_READY id=espana-outdoor-cordoba-poc",
+        "MAPBOX_ROUTE_VALIDATION source=offline",
+        "MAPBOX_TILESTORE_FILES_PRESENT region=espana-outdoor-cordoba-poc marker=true",
+        "PASS: fresh native offline route confirmed"
+    )
+    foreach ($marker in $requiredRouteEvidence) {
+        if (-not $routeEvidence.Contains($marker)) {
+            throw "OfflineSmoke route evidence is missing or belongs to another device/build: $marker"
+        }
+    }
+    $routeDiagnostics = [regex]::Split($routeEvidence, '\r?\n') |
+        Where-Object { $_ -match 'MAPBOX_OFFLINE_MAP_DIAGNOSTICS' } |
+        Select-Object -Last 1
+    if (-not $routeDiagnostics) { throw 'OfflineSmoke route report has no Mapbox render diagnostics.' }
+    foreach ($marker in @('style_loaded=true','map_loaded=true','full_frame=true','idle=true','load_errors=0','resource_failures=0')) {
+        if ($routeDiagnostics -notmatch [regex]::Escape($marker)) {
+            throw "OfflineSmoke route report does not prove '$marker'."
+        }
+    }
+    if ($RebootAfterInstall -and $routeEvidence -notmatch 'PASS: offline TileStore and routing persisted after device reboot') {
+        throw 'RebootAfterInstall requires route/download evidence that already survived a device reboot.'
+    }
+    $Report.Add("Offline integration evidence verified: $RouteEvidencePath")
+}
 $OriginalAirplane = $null
 $OriginalWifi = $null
 $NetworkCaptured = $false
@@ -74,6 +109,20 @@ function Set-Airplane([bool]$Enabled) {
     if ($actual -ne $expected) { throw 'Airplane mode could not be verified.' }
 }
 
+$PythonCommand = if ($env:PYTHON) {
+    $env:PYTHON
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
+    (Get-Command python).Source
+} elseif (Get-Command py -ErrorAction SilentlyContinue) {
+    (Get-Command py).Source
+} else {
+    $null
+}
+if (-not $PythonCommand -or -not (Test-Path -LiteralPath $PythonCommand)) {
+    throw 'Python 3 is required for the Android screenshot validation gate.'
+}
+$PythonLauncherArgs = if ((Split-Path -Leaf $PythonCommand) -eq 'py.exe') { @('-3') } else { @() }
+
 function Launch-And-Capture([string]$Phase) {
     Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-c') | Out-Null
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
@@ -97,21 +146,67 @@ function Launch-And-Capture([string]$Phase) {
     $tapX = [int](($x1 + $x2) / 2)
     $tapY = [int](($y1 + $y2) / 2)
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'input', 'tap', "$tapX", "$tapY") | Out-Null
-    Start-Sleep -Seconds 15
+    $requiredMapMarkers = @('MAPBOX_MAP_STYLE_LOADED','MAPBOX_MAP_LOADED','MAPBOX_MAP_FULL_FRAME','MAPBOX_MAP_IDLE')
+    $mapDeadline = (Get-Date).AddSeconds(90)
+    $missingMapMarkers = @($requiredMapMarkers)
+    $logcat = ''
+    while ((Get-Date) -lt $mapDeadline) {
+        $logcat = Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-d')
+        if ($logcat -match 'FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:') {
+            throw "Release APK crashed while loading Mapa ($Phase)."
+        }
+        if ($logcat -match 'MAPBOX_MAP_LOAD_ERROR') {
+            throw "Release map reported a Mapbox load error ($Phase)."
+        }
+        $missingMapMarkers = @($requiredMapMarkers | Where-Object { -not $logcat.Contains($_) })
+        if ($missingMapMarkers.Count -eq 0) { break }
+        Start-Sleep -Seconds 2
+    }
+    if ($missingMapMarkers.Count -gt 0) {
+        throw "Release map did not finish rendering within 90 seconds ($Phase): $($missingMapMarkers -join ', ')."
+    }
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'uiautomator', 'dump', $remoteXml) | Out-Null
     $postText = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'cat', $remoteXml)
     if ($postText -match 'No se pudo cargar el mapa|Reintentar') { throw "Mapbox loader error appeared after opening Mapa ($Phase)." }
+    [xml]$postDocument = $postText
+    if (-not $postDocument.SelectSingleNode("//node[@text='Mapa']")) {
+        throw "The release APK did not reach the Mapa page ($Phase)."
+    }
     $pidAfterMap = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pidof', $PackageName)
     if (-not $pidAfterMap) { throw "Release APK exited after opening Mapa ($Phase)." }
+    $activityDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'activity', 'activities')
+    $foregroundLine = [regex]::Split($activityDump, '\r?\n') |
+        Where-Object { $_ -match 'mResumedActivity|topResumedActivity' } |
+        Select-Object -Last 1
+    if (-not $foregroundLine -or $foregroundLine -notmatch [regex]::Escape($PackageName + '/')) {
+        throw "The expected release application is not the resumed Android activity ($Phase)."
+    }
+    $Report.Add("MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND package=$PackageName verified=true phase=$Phase")
     $logcat = Invoke-Adb @('-s', $DeviceSerial, 'logcat', '-d')
     if ($logcat -match 'FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort message:') { throw "Release APK crashed ($Phase)." }
+    foreach ($marker in @('MAPBOX_MAP_STYLE_LOADED','MAPBOX_MAP_LOADED','MAPBOX_MAP_FULL_FRAME','MAPBOX_MAP_IDLE')) {
+        if (-not $logcat.Contains($marker)) { throw "Release map did not emit $marker ($Phase)." }
+    }
+    if ($logcat -match 'MAPBOX_MAP_LOAD_ERROR') { throw "Release map reported a Mapbox load error ($Phase)." }
+    if ($OfflineSmoke -and $logcat -match 'MAPBOX_RESOURCE_FAILURE') {
+        throw "Release map reported failed offline resources ($Phase)."
+    }
+    $sanitizedLogcat = [regex]::Replace($logcat, '(?i)(pk|sk)\.[A-Za-z0-9._~-]{10,}', '$1.<REDACTED>')
+    $sanitizedLogcat = [regex]::Replace($sanitizedLogcat, '(?i)(access_token=)[^&\s]+', '$1[REDACTED]')
+    $logcatPath = Join-Path $ReportDir ("release-map-$Phase-logcat.txt")
+    $sanitizedLogcat | Set-Content -LiteralPath $logcatPath -Encoding utf8
     $remotePng = '/sdcard/espana-outdoor-release-map.png'
     $localPng = Join-Path $ReportDir ("release-map-$Phase.png")
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'screencap', '-p', $remotePng) | Out-Null
     Invoke-Adb @('-s', $DeviceSerial, 'pull', $remotePng, $localPng) | Out-Null
     if (-not (Test-Path -LiteralPath $localPng) -or (Get-Item -LiteralPath $localPng).Length -lt 1024) { throw 'Release map screenshot is missing or too small.' }
-    $Report.Add("PASS: release APK launched and opened Mapa ($Phase); screenshot=$localPng")
-    $Report.Add('No fatal application/native crash markers found.')
+    $gateOutput = & $PythonCommand @PythonLauncherArgs (Join-Path $RepoRoot 'tool\verify_android_map_screenshot.py') --foreground-package $PackageName $localPng 2>&1
+    $gateExitCode = $LASTEXITCODE
+    $gateOutput | ForEach-Object { $Report.Add([string]$_) }
+    if ($gateExitCode -ne 0) { throw "Release map screenshot failed the visual acceptance gate ($Phase)." }
+    $Report.Add("PASS: release APK rendered the Córdoba map ($Phase); screenshot=$localPng; logcat=$logcatPath")
+    $Report.Add('Required Mapbox style-loaded, map-loaded, full-frame and idle callbacks were observed.')
+    $Report.Add('No fatal application/native crash markers or offline resource failures were found.')
 }
 
 try {
@@ -129,19 +224,45 @@ try {
     $Report.Add("Artifact commit: $SourceCommit")
     $Report.Add("APK SHA-256: $ActualHash")
     $Report.Add("Package/versionCode: $PackageName/$ExpectedVersionCode")
+    $firstInstallTimeBefore = $null
+    if ($OfflineSmoke) {
+        $preInstallPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
+        if (-not $preInstallPath.StartsWith('package:')) {
+            throw 'OfflineSmoke requires the integration-test app to remain installed; refusing a fresh install without TileStore data.'
+        }
+        $preInstallDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
+        $preInstallTimeMatch = [regex]::Match($preInstallDump, '(?m)^\s*firstInstallTime=(.+)$')
+        if (-not $preInstallTimeMatch.Success) { throw 'Could not read the pre-update firstInstallTime for the integration-test app.' }
+        $firstInstallTimeBefore = $preInstallTimeMatch.Groups[1].Value.Trim()
+    }
     Invoke-Adb @('-s', $DeviceSerial, 'install', '-r', $ReleaseApkPath) | Out-Null
     $installedPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
-    if (-not $installedPath.StartsWith('package:')) { throw 'Android did not return an installed base APK path for the expected package.' }
+    $basePathLine = ($installedPath -split "`r?`n" | Where-Object { $_ -match '^package:' } | Select-Object -First 1)
+    if (-not $basePathLine) { throw 'Android did not return an installed base APK path for the expected package.' }
+    $remoteBaseApk = $basePathLine -replace '^package:', ''
     $installedDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
     if ($installedDump -notmatch "versionCode=$ExpectedVersionCode\b") { throw 'Installed versionCode does not match the artifact manifest.' }
-    $Report.Add('PASS: exact CI APK installed without uninstalling app data.')
+    if ($OfflineSmoke) {
+        $afterInstallTimeMatch = [regex]::Match($installedDump, '(?m)^\s*firstInstallTime=(.+)$')
+        if (-not $afterInstallTimeMatch.Success -or $afterInstallTimeMatch.Groups[1].Value.Trim() -ne $firstInstallTimeBefore) {
+            throw 'The release APK update did not preserve the existing app installation/data; offline TileStore continuity cannot be claimed.'
+        }
+        $Report.Add("PASS: install -r preserved firstInstallTime=$firstInstallTimeBefore and the prevalidated offline app data.")
+    }
+    $installedBaseApk = Join-Path $ReportDir 'installed-base.apk'
+    Invoke-Adb @('-s', $DeviceSerial, 'pull', $remoteBaseApk, $installedBaseApk) | Out-Null
+    $installedBaseHash = (Get-FileHash -LiteralPath $installedBaseApk -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($installedBaseHash -ne $ActualHash) { throw 'Installed base.apk SHA-256 does not match the exact CI artifact.' }
+    $Report.Add("Installed base APK SHA-256: $installedBaseHash")
+    $Report.Add('PASS: exact CI APK installed and verified without uninstalling app data.')
     if ($OfflineSmoke) {
         Set-Airplane $true
         Invoke-Adb @('-s', $DeviceSerial, 'shell', 'svc', 'wifi', 'disable') | Out-Null
         Start-Sleep -Seconds 3
         if ((Invoke-Adb @('-s', $DeviceSerial, 'shell', 'settings', 'get', 'global', 'wifi_on')) -ne '0') { throw 'Wi-Fi remained enabled; offline smoke aborted.' }
     }
-    Launch-And-Capture 'installed'
+    $installedPhase = if ($OfflineSmoke) { 'offline-installed' } else { 'online-installed' }
+    Launch-And-Capture $installedPhase
     if ($RebootAfterInstall) {
         Invoke-Adb @('-s', $DeviceSerial, 'reboot') | Out-Null
         Invoke-Adb @('-s', $DeviceSerial, 'wait-for-device') | Out-Null
@@ -158,7 +279,8 @@ try {
             Start-Sleep -Seconds 3
             if ((Invoke-Adb @('-s', $DeviceSerial, 'shell', 'settings', 'get', 'global', 'wifi_on')) -ne '0') { throw 'Wi-Fi remained enabled after reboot.' }
         }
-        Launch-And-Capture 'after-reboot'
+        $rebootPhase = if ($OfflineSmoke) { 'offline-after-reboot' } else { 'online-after-reboot' }
+        Launch-And-Capture $rebootPhase
         $Report.Add('PASS: release APK relaunched after reboot with original app data.')
     }
 } catch {

@@ -176,7 +176,7 @@ def verify_android() -> None:
         "MAPBOX_RESOURCE_FAILURE",
         "MAPBOX_RESOURCE_LOOKUP_MISS",
         "MAPBOX_MAP_OPTIONS",
-        "mapOptions: MapOptions(",
+        "mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio)",
         "MediaQuery.devicePixelRatioOf(context)",
         "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
         "MAPBOX_MAP_LOADED",
@@ -207,12 +207,22 @@ def verify_android() -> None:
             raise SystemExit(
                 f"Android offline integration test is missing evidence marker: {marker}"
             )
+    for marker in (
+        "mapboxMapOptionsForPixelRatio(",
+        "WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio",
+    ):
+        if marker not in integration_text:
+            raise SystemExit(
+                f"Android offline integration test is missing production MapOptions parity: {marker}"
+            )
 
     screenshot_validator = ROOT / "tool" / "verify_android_map_screenshot.py"
     screenshot_validator_text = screenshot_validator.read_text(encoding="utf-8")
     required_screenshot_evidence = (
         "MAPBOX_OFFLINE_MAP_RENDERED",
         "MAPBOX_OFFLINE_SCREENSHOT_METRICS",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
         "MAPBOX_OFFLINE_RENDER_GATE version=3",
         "unique_colors",
         "opaque_ratio",
@@ -226,7 +236,13 @@ def verify_android() -> None:
             )
 
     route_harness = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
-    for marker in ("screencap -p", "tool/verify_android_map_screenshot.py"):
+    for marker in (
+        "screencap -p",
+        "tool/verify_android_map_screenshot.py",
+        "dumpsys activity activities",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
+    ):
         if marker not in route_harness:
             raise SystemExit(f"Android route harness is missing host screenshot capture: {marker}")
 
@@ -274,6 +290,9 @@ def verify_android() -> None:
     staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
     for marker in (
         "MAPBOX_OFFLINE_MAP_RENDERED",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "dumpsys activity activities",
+        "--foreground-package",
         "TEST_PACKAGE_NAME",
         "namespace[[:space:]]*=",
         "am force-stop",
@@ -294,14 +313,43 @@ def verify_android() -> None:
         if marker not in smoke_script:
             raise SystemExit(f"Android map smoke does not wait for: {marker}")
     oppo_script = (ROOT / "tool" / "test_mapbox_oppo_routes.ps1").read_text(encoding="utf-8")
-    for marker in ("RebootAfterOffline", "--enforce-lockfile", "patch_mapbox_resource_expiry.py", "verify_mapbox_lock.py"):
+    for marker in (
+        "RebootAfterOffline",
+        "--enforce-lockfile",
+        "patch_mapbox_resource_expiry.py",
+        "verify_mapbox_lock.py",
+        "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
+        "resource_failures=0",
+        "Source commit:",
+        "Application ID:",
+        "Assert-OfflineRegionPersisted",
+        "MAPBOX_TILESTORE_FILES_PRESENT",
+    ):
         if marker not in oppo_script:
             raise SystemExit(f"The physical integration script is missing CI parity marker: {marker}")
     release_device_script = ROOT / "tool" / "verify_install_android_apk.ps1"
     if not release_device_script.is_file():
         raise SystemExit("The exact release APK device validation script is missing.")
     release_device_text = release_device_script.read_text(encoding="utf-8")
-    for marker in ("apk_sha256", "application_id", "version_code", "OfflineSmoke", "RebootAfterInstall", "install"):
+    for marker in (
+        "apk_sha256",
+        "application_id",
+        "version_code",
+        "OfflineSmoke",
+        "RebootAfterInstall",
+        "install",
+        "validation-report.txt",
+        "installed-base.apk",
+        "firstInstallTime",
+        "MAPBOX_MAP_LOADED",
+        "MAPBOX_MAP_FULL_FRAME",
+        "MAPBOX_MAP_IDLE",
+        "mapDeadline",
+        "verify_android_map_screenshot.py",
+        "dumpsys activity",
+        "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "--foreground-package",
+    ):
         if marker not in release_device_text:
             raise SystemExit(f"The release APK device validation script is missing: {marker}")
 

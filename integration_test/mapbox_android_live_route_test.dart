@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:espana_outdoors/core/contracts/routing_service.dart';
 import 'package:espana_outdoors/infrastructure/routing/mapbox_navigation_routing_service.dart';
+import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 
 const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
 const _regionId = 'espana-outdoor-cordoba-poc';
@@ -211,6 +212,9 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
       home: Scaffold(
         body: MapWidget(
           styleUri: _styleUri,
+          mapOptions: mapboxMapOptionsForPixelRatio(
+            WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio,
+          ),
           viewport: CameraViewportState(
             center: Point(coordinates: Position(-4.7794, 37.8882)),
             zoom: 13,
@@ -288,7 +292,7 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   // ignore: avoid_print
   print('MAPBOX_OFFLINE_SCREENSHOT_READY');
   // Keep the native view alive long enough for the host-side ADB capture.
-  await Future<void>.delayed(const Duration(seconds: 3));
+  await Future<void>.delayed(const Duration(seconds: 8));
   // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '

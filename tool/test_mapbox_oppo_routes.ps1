@@ -10,6 +10,7 @@ $Adb = $AdbCommand
 $DeviceId = if ($env:ANDROID_SERIAL) { $env:ANDROID_SERIAL } else { 'da09ac8c' }
 $ExpectedModel = if ($env:EXPECTED_ANDROID_MODEL) { $env:EXPECTED_ANDROID_MODEL } else { 'CPH2009' }
 $PackageName = if ($env:ANDROID_APPLICATION_ID) { $env:ANDROID_APPLICATION_ID } else { 'com.espanaoutdoors.espana_outdoors' }
+$OfflineRegionId = 'espana-outdoor-cordoba-poc'
 $GradleFile = Join-Path $RepoRoot 'android\app\build.gradle.kts'
 $GradleText = Get-Content -LiteralPath $GradleFile -Raw
 if ($GradleText -notmatch '(?m)^\s*namespace\s*=\s*"([^"]+)"') {
@@ -37,6 +38,13 @@ $NetworkStateCaptured = $false
 $OfflineConfirmed = $false
 $Report.Add("Started: $(Get-Date -Format o)")
 $Report.Add("Required device serial: $DeviceId")
+$SourceCommit = (& git rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $SourceCommit.Length -ne 40 -or $SourceCommit -notmatch '^[0-9a-f]+$') {
+    throw 'Could not resolve the exact source commit for the physical validation report.'
+}
+$Report.Add("Source commit: $SourceCommit")
+$Report.Add("Application ID: $PackageName")
+$Report.Add("Integration namespace: $TestPackageName")
 
 function Invoke-Adb([string[]] $Arguments) {
     $output = & $Adb @Arguments
@@ -64,16 +72,48 @@ function Invoke-RouteIntegration([string] $Mode) {
         ConvertTo-Json -Compress | Set-Content -LiteralPath $DartDefineFile -Encoding ascii
     $output = & flutter test --no-pub --reporter expanded -d $DeviceId "--dart-define-from-file=$DartDefineFile" 'integration_test/mapbox_android_live_route_test.dart' 2>&1
     $exitCode = $LASTEXITCODE
-    $output | ForEach-Object { $line = [string]$_; if ($line -notmatch 'MAPBOX_ACCESS_TOKEN|pk\.[A-Za-z0-9._-]+') { $Report.Add($line) } }
+    $outputLines = @($output | ForEach-Object { [string]$_ })
+    $outputLines | ForEach-Object {
+        $line = [string]$_
+        if ($line -notmatch 'MAPBOX_ACCESS_TOKEN|pk\.[A-Za-z0-9._-]+') { $Report.Add($line) }
+    }
     if ($exitCode -ne 0) { throw "Mapbox integration phase '$Mode' failed with exit code $exitCode." }
     $source = if ($Mode -eq 'offline') { 'offline' } else { 'online' }
-    if (-not ($output | ForEach-Object { [string]$_ } | Select-String -Quiet "MAPBOX_ROUTE_VALIDATION source=$source\b")) {
+    if (-not ($outputLines | Select-String -Quiet "MAPBOX_ROUTE_VALIDATION source=$source\b")) {
         throw "The '$Mode' phase completed without explicit '$source' route evidence."
     }
-    if ($Mode -eq 'offline' -and -not ($output | ForEach-Object { [string]$_ } | Select-String -Quiet 'MAPBOX_OFFLINE_MAP_RENDERED')) {
-        throw 'The offline phase did not confirm Mapbox map rendering from the downloaded TileStore.'
+    if ($Mode -eq 'offline') {
+        # MAPBOX_OFFLINE_MAP_RENDERED is emitted by the CI host PNG validator,
+        # not the Dart integration test. Validate the native MapWidget callbacks.
+        $diagnostics = $outputLines |
+            Where-Object { $_ -match 'MAPBOX_OFFLINE_MAP_DIAGNOSTICS' } |
+            Select-Object -Last 1
+        if (-not $diagnostics) {
+            throw 'The offline phase did not emit native Mapbox render diagnostics.'
+        }
+        foreach ($marker in @('style_loaded=true','map_loaded=true','full_frame=true','idle=true','load_errors=0','resource_failures=0')) {
+            if ($diagnostics -notmatch [regex]::Escape($marker)) {
+                throw "Offline Mapbox render diagnostics did not satisfy '$marker'."
+            }
+        }
+        if ($diagnostics -notmatch 'rendered_frames=[1-9][0-9]*') {
+            throw 'Offline Mapbox did not report a completed render frame.'
+        }
+        $Report.Add($diagnostics)
     }
     $Report.Add("Phase passed: $Mode; explicit route origin=$source")
+}
+function Assert-OfflineRegionPersisted {
+    $preferences = Invoke-Adb @('-s', $DeviceId, 'shell', 'run-as', $PackageName, 'cat', 'shared_prefs/espana_outdoor_offline.xml')
+    $markerName = 'offline:' + $OfflineRegionId
+    if ($preferences -notmatch [regex]::Escape($markerName) -or $preferences -notmatch 'value="true"') {
+        throw "Offline region completion marker is missing from app-private SharedPreferences: $OfflineRegionId."
+    }
+    $tileStoreFile = Invoke-Adb @('-s', $DeviceId, 'shell', 'run-as', $PackageName, 'sh', '-c', 'find no_backup/mapbox-tiles -type f | head -n 1')
+    if ([string]::IsNullOrWhiteSpace($tileStoreFile)) {
+        throw "No persisted Mapbox TileStore file was found for region $OfflineRegionId."
+    }
+    $Report.Add("MAPBOX_TILESTORE_FILES_PRESENT region=$OfflineRegionId marker=true")
 }
 
 try {
@@ -140,6 +180,7 @@ try {
     $airplaneNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'airplane_mode_on')
     $wifiNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
     if ($airplaneNow -ne '1' -or $wifiNow -ne '0') { throw 'Connectivity changed during the offline route request.' }
+    Assert-OfflineRegionPersisted
 
     if ($RebootAfterOffline) {
         $Report.Add("Reboot persistence validation started at $(Get-Date -Format o)")
@@ -166,6 +207,7 @@ try {
         }
         Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
         Invoke-RouteIntegration 'offline'
+        Assert-OfflineRegionPersisted
         $Report.Add("PASS: offline TileStore and routing persisted after device reboot at $(Get-Date -Format o)")
     }
 

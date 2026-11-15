@@ -79,15 +79,36 @@ run_route_phase() {
     integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
   local phase_pid=$!
 
+  local screenshot_captured=0
+  local foreground_package=""
   if [[ "$mode" == "offline" ]]; then
-    local screenshot_captured=0
-    # The Dart test emits this marker after the MapWidget has had its render
-    # deadline. Capture the native platform view before its assertions finish.
+    rm -f "$SCREENSHOT_PATH"
+    # The screenshot is useful only while the app under test is the resumed
+    # activity. A launcher/wallpaper PNG can have high entropy and must never
+    # be accepted as Mapbox evidence.
     for attempt in $(seq 1 360); do
       if grep -q 'MAPBOX_OFFLINE_SCREENSHOT_READY' "$TEST_LOG_PATH"; then
-        if adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" && test -s "$SCREENSHOT_PATH"; then
-          echo "MAPBOX_OFFLINE_SCREENSHOT_CAPTURED bytes=$(wc -c < "$SCREENSHOT_PATH" | tr -d ' ')" | tee -a "$TEST_LOG_PATH"
-          screenshot_captured=1
+        foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -E 'mResumedActivity|topResumedActivity' | tail -n 1 || true)"
+        if [[ -z "$foreground_activity" ]]; then
+          foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys window windows 2>/dev/null | tr -d '\r' | grep -E 'mCurrentFocus|mFocusedApp' | tail -n 1 || true)"
+        fi
+        case "$foreground_activity" in
+          *"$PACKAGE_NAME/"*) foreground_package="$PACKAGE_NAME" ;;
+          *"$TEST_PACKAGE_NAME/"*) foreground_package="$TEST_PACKAGE_NAME" ;;
+          *)
+            echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR foreground_package_mismatch expected=$PACKAGE_NAME observed=$(printf '%s' "$foreground_activity" | tr -s ' ' | cut -c1-240)" | tee -a "$TEST_LOG_PATH"
+            phase_status=1
+            ;;
+        esac
+        if [[ -n "$foreground_package" ]]; then
+          echo "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND package=$foreground_package verified=true" | tee -a "$TEST_LOG_PATH"
+          if adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" && test -s "$SCREENSHOT_PATH"; then
+            echo "MAPBOX_OFFLINE_SCREENSHOT_CAPTURED bytes=$(wc -c < "$SCREENSHOT_PATH" | tr -d ' ')" | tee -a "$TEST_LOG_PATH"
+            screenshot_captured=1
+          else
+            echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR capture_failed=true" | tee -a "$TEST_LOG_PATH"
+            phase_status=1
+          fi
         fi
         break
       fi
@@ -97,7 +118,8 @@ run_route_phase() {
       sleep 1
     done
     if [[ "$screenshot_captured" != "1" ]]; then
-      echo "WARNING: screenshot marker was not observed before test exit; attempting a diagnostic capture." | tee -a "$TEST_LOG_PATH"
+      echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR foreground_verified=false captured=false" | tee -a "$TEST_LOG_PATH"
+      phase_status=1
     fi
   fi
 
@@ -108,17 +130,14 @@ run_route_phase() {
   fi
 
   if [[ "$mode" == "offline" ]]; then
-    if [[ ! -s "$SCREENSHOT_PATH" ]]; then
-      adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" 2>/dev/null || true
-    fi
-    if [[ -s "$SCREENSHOT_PATH" ]]; then
-      if python3 tool/verify_android_map_screenshot.py "$SCREENSHOT_PATH" 2>&1 | tee -a "$TEST_LOG_PATH"; then
+    if [[ "$screenshot_captured" == "1" && -s "$SCREENSHOT_PATH" && -n "$foreground_package" ]]; then
+      if python3 tool/verify_android_map_screenshot.py --foreground-package "$foreground_package" "$SCREENSHOT_PATH" 2>&1 | tee -a "$TEST_LOG_PATH"; then
         :
       else
         phase_status=1
       fi
     else
-      echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR missing=true" | tee -a "$TEST_LOG_PATH"
+      echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR rejected_without_verified_foreground=true" | tee -a "$TEST_LOG_PATH"
       phase_status=1
     fi
   fi
@@ -161,4 +180,6 @@ adb -s "$DEVICE_SERIAL" shell settings get global wifi_on | tr -d '\r\n' | grep 
 adb -s "$DEVICE_SERIAL" logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' > "$LOGCAT_PATH"
 grep -q 'MAPBOX_ROUTE_VALIDATION source=online' "$TEST_LOG_PATH"
 grep -q 'MAPBOX_ROUTE_VALIDATION source=offline' "$TEST_LOG_PATH"
+grep -q 'MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND .* verified=true' "$TEST_LOG_PATH"
 grep -q 'MAPBOX_OFFLINE_MAP_RENDERED' "$TEST_LOG_PATH"
+grep -Eq 'MAPBOX_OFFLINE_MAP_DIAGNOSTICS style_loaded=true map_loaded=true full_frame=true rendered_frames=[1-9][0-9]* idle=true load_errors=0 resource_failures=0' "$TEST_LOG_PATH"
