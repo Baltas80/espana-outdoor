@@ -456,8 +456,6 @@ class MapboxNavigationBridge(context: Context) {
                         )
                     }
                 }
-            }                    }
-                }
             }
         }
     }
