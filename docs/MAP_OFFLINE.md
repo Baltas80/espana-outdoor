@@ -66,3 +66,15 @@ La PR #61 añade marcadores de arranque sin secretos, timeout para inicializaci�
 
 
 En caso de fallo del smoke, el artefacto Android staging debe conservar `logcat`, `dumpsys activity`, captura de pantalla y jerarquía UI (`uiautomator dump`). La aceptación requiere que el log muestre `MAPBOX_OFFLINE_MAP_RENDERED` con una captura PNG decodificable, más de 8 colores cuantizados y más del 95 % de píxeles opacos, y que la ruta de prueba devuelva `OFFLINE`; así se evita aceptar un canvas vacío como mapa renderizado. La mera instalación del APK no cuenta como prueba de navegación offline.
+## Mapbox resource expiry compatibility
+
+The Mapbox Common SDK can represent an absent resource expiry with an int64 sentinel outside Dart's supported `DateTime` range. The current Mapbox Flutter platform-interface parser attempts to convert every non-null value and emits a `RangeError` for that sentinel during tile requests. The error is caught by the plugin event handler, but it floods logcat and prevents reliable resource-event diagnostics.
+
+After `flutter pub get`, run:
+
+```bash
+python3 tool/patch_mapbox_resource_expiry.py
+python3 tool/test_patch_mapbox_resource_expiry.py
+```
+
+All CI, Android staging, and release-candidate workflows apply the patch after dependency resolution. It is idempotent and fails closed if the upstream parser changes unexpectedly. It modifies only the resolved Pub cache copy; it does not alter the committed dependency source or lockfile. Remove this workaround when Mapbox ships a parser that maps out-of-range expiry sentinels to `null`.
