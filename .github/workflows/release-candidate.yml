@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Test Mapbox resource expiry patch
+        run: python3 tool/test_patch_mapbox_resource_expiry.py
 
       - name: Setup Java 21
         uses: actions/setup-java@v6.0.1
@@ -115,6 +117,8 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+      - name: Patch Mapbox resource expiry sentinel
+        run: python3 tool/patch_mapbox_resource_expiry.py
 
       - name: Analyze and test
         run: |
@@ -188,6 +192,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Test Mapbox resource expiry patch
+        run: python3 tool/test_patch_mapbox_resource_expiry.py
 
       - name: Check production endpoints and Mapbox token
         shell: bash
@@ -236,6 +242,8 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+      - name: Patch Mapbox resource expiry sentinel
+        run: python3 tool/patch_mapbox_resource_expiry.py
 
       - name: Analyze and test
         run: |
