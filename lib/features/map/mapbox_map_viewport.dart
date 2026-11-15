@@ -7,10 +7,10 @@ const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 String _mapboxFailureClass(String? message) {
   final value = (message ?? '').toLowerCase();
   final status = RegExp(
-    r'\\bhttp(?:\\s+status\\s+code)?\\s*[:=]?\\s*(\\d{3})\\b',
+    r'\bhttp(?:\s+status\s+code)?\s*[:=]?\s*(\d{3})\b',
   ).firstMatch(value)?.group(1);
   if (status != null) return 'http_$status';
-  if (RegExp(r'\\b401\\b|\\b403\\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
+  if (RegExp(r'\b401\b|\b403\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
     return 'authorization';
   }
   if (value.contains('certificate') || value.contains('ssl') || value.contains('tls')) {
