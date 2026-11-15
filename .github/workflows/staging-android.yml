@@ -65,6 +65,14 @@ jobs:
         run: python3 tool/test_android_emulator_network_guard.py
       - name: Verify shared Mapbox TileStore mode
         run: python3 tool/test_mapbox_tile_store_mode.py
+      - name: Test Mapbox runtime access preflight
+        run: python3 tool/test_mapbox_runtime_access.py
+      - name: Verify Mapbox runtime style and vector tile access
+        if: env.MAPBOX_ACCESS_TOKEN != '' && github.actor != 'dependabot[bot]'
+        run: python3 tool/verify_mapbox_runtime_access.py
+      - name: Report Mapbox runtime preflight skipped for Dependabot
+        if: env.MAPBOX_ACCESS_TOKEN == '' && github.actor == 'dependabot[bot]'
+        run: echo "Mapbox runtime access was not tested because Dependabot does not receive runtime secrets."
       - name: Check staging endpoints
         shell: bash
         run: |
