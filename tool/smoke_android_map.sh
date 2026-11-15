@@ -23,7 +23,7 @@ capture_failure_diagnostics() {
     adb shell dumpsys activity activities >"${activity_file}" 2>/dev/null || true
     echo "=== Android bootstrap and crash diagnostics ==="
     if test -s "${logcat_file}"; then
-      grep -Ei "APP_BOOTSTRAP|EspanaOutdoorBootstrap|FATAL EXCEPTION|Fatal signal|AndroidRuntime|MapboxException|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 250 || true
+      grep -Ei "APP_BOOTSTRAP|EspanaOutdoorBootstrap|MAPBOX_MAP_|MAPBOX_RESOURCE_FAILURE|FATAL EXCEPTION|Fatal signal|AndroidRuntime|MapboxException|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 250 || true
     fi
     echo "diagnostic_logcat=${logcat_file}"
     echo "diagnostic_screenshot=${screenshot_file}"
@@ -247,6 +247,7 @@ map_render_ready=0
 for attempt in $(seq 1 45); do
   adb logcat -d -s flutter:I | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${diagnostics_dir}/espana-flutter-map-log.txt"
   if grep -q 'MAPBOX_MAP_STYLE_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
      grep -q 'MAPBOX_MAP_FULL_FRAME' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
      grep -q 'MAPBOX_MAP_IDLE' "${diagnostics_dir}/espana-flutter-map-log.txt"; then
     map_render_ready=1
@@ -255,7 +256,7 @@ for attempt in $(seq 1 45); do
   sleep 1
 done
 if test "${map_render_ready}" -ne 1; then
-  echo "FAIL: Mapbox did not report style-loaded, full-frame and idle within 45 seconds."
+  echo "FAIL: Mapbox did not report style-loaded, map-loaded, full-frame and idle within 45 seconds."
   cat "${diagnostics_dir}/espana-flutter-map-log.txt" || true
   exit 1
 fi
