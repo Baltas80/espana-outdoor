@@ -48,12 +48,12 @@ func (s *memoryCommunityProfileStore) updateDisplayName(_ context.Context, subje
 
 func newCommunityProfileTestServer(t *testing.T, claims map[string]any) (*server, string, *memoryCommunityProfileStore, func()) {
     t.Helper()
-    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-mobile")
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoors-mobile", claims)
+    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-api")
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoors-api", claims)
     store := &memoryCommunityProfileStore{}
     srv := &server{
         cfg: config{
-            oidcAudience: "espana-outdoors-mobile",
+            oidcAudience: "espana-outdoors-api",
             rateLimit: 100,
             rateBurst: 100,
             allowedOrigins: map[string]struct{}{"https://espanaoutdoor.es": {}},
@@ -173,12 +173,78 @@ func TestMyProfileRequiresBearerToken(t *testing.T) {
     }
 }
 
-func TestMyProfileRejectsWrongAudience(t *testing.T) {
-    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-mobile")
+func TestMyProfileRejectsIDAndRefreshTokens(t *testing.T) {
+    for _, tokenType := range []string{"ID", "Refresh"} {
+        t.Run(tokenType, func(t *testing.T) {
+            srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+                "sub": "user-oidc-token-type",
+                "typ": tokenType,
+            })
+            defer cleanup()
+
+            request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+            request.Header.Set("Authorization", "Bearer "+token)
+            response := httptest.NewRecorder()
+            srv.myProfile(response, request)
+
+            if response.Code != http.StatusUnauthorized {
+                t.Fatalf("expected 401 for %s token, got %d", tokenType, response.Code)
+            }
+            if store.lastSubject != "" {
+                t.Fatal("non-access token must not provision a profile")
+            }
+        })
+    }
+}
+
+func TestMyProfileRejectsMissingTokenType(t *testing.T) {
+    srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+        "sub": "user-missing-token-type",
+        "typ": nil,
+    })
     defer cleanup()
-    token := signTestIDToken(t, signingKey, issuer, "another-client")
+
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+token)
+    response := httptest.NewRecorder()
+    srv.myProfile(response, request)
+
+    if response.Code != http.StatusUnauthorized {
+        t.Fatalf("expected 401 for token without typ, got %d", response.Code)
+    }
+    if store.lastSubject != "" {
+        t.Fatal("token without typ must not provision a profile")
+    }
+}
+
+func TestMyProfileAcceptsAPIAudienceWithDifferentAuthorizedParty(t *testing.T) {
+    srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+        "sub": "user-api-audience",
+        "aud": []string{"espana-outdoors-api", "account"},
+        "azp": "espana-outdoors-mobile",
+        "typ": "Bearer",
+    })
+    defer cleanup()
+
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+token)
+    response := httptest.NewRecorder()
+    srv.myProfile(response, request)
+
+    if response.Code != http.StatusOK {
+        t.Fatalf("expected 200 for API audience and separate authorized party, got %d: %s", response.Code, response.Body.String())
+    }
+    if store.lastSubject != "user-api-audience" {
+        t.Fatalf("profile subject = %q, want verified access-token subject", store.lastSubject)
+    }
+}
+
+func TestMyProfileRejectsWrongAudience(t *testing.T) {
+    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-api")
+    defer cleanup()
+    token := signTestAccessToken(t, signingKey, issuer, "another-client")
     srv := &server{
-        cfg: config{oidcAudience: "espana-outdoors-mobile", rateLimit: 10, rateBurst: 10},
+        cfg: config{oidcAudience: "espana-outdoors-api", rateLimit: 10, rateBurst: 10},
         verifier: verifier,
         profiles: &memoryCommunityProfileStore{},
         limiters: make(map[string]*limiterEntry),
@@ -247,14 +313,23 @@ func TestMyProfileReturnsUnavailableWithoutDatabase(t *testing.T) {
 }
 
 func TestValidateDatabaseURLRequiresTLSOutsideLoopback(t *testing.T) {
-    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app"); err == nil {
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app", false); err == nil {
         t.Fatal("production PostgreSQL URL without TLS must be rejected")
     }
-    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require"); err != nil {
+    if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require", false); err != nil {
         t.Fatalf("TLS-enabled PostgreSQL URL rejected: %v", err)
     }
-    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable"); err != nil {
-        t.Fatalf("local loopback development URL rejected: %v", err)
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", true); err != nil {
+        t.Fatalf("explicit loopback development URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", false); err == nil {
+        t.Fatal("loopback PostgreSQL without explicit dev mode must be rejected")
+    }
+    if err := validateDatabaseURL("postgres://user:pass@postgres/app?sslmode=disable", true); err != nil {
+        t.Fatalf("explicit local Docker PostgreSQL URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@postgres/app?sslmode=disable", false); err == nil {
+        t.Fatal("Docker service hostname without explicit dev mode must be rejected")
     }
 }
 
