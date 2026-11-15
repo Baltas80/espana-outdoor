@@ -262,18 +262,30 @@ class MapboxNavigationBridge(context: Context) {
                     .build()
             )
             val navigationDescriptor = engine.tilesetDescriptorFactory.getLatest()
-            val regionOptions = TileRegionLoadOptions.Builder()
-                .geometry(Polygon.fromLngLats(listOf(ring)))
-                .descriptors(listOf(mapsDescriptor, navigationDescriptor))
+            // Keep map and routing packs in separate TileStore regions. A
+            // combined progress count can be satisfied by Navigation alone,
+            // which previously allowed mapTiles=true without proving any map
+            // vector tiles had actually been stored.
+            val mapRegionId = "$regionId-maps"
+            val routingRegionId = "$regionId-routing-walking"
+            val geometry = Polygon.fromLngLats(listOf(ring))
+            val mapRegionOptions = TileRegionLoadOptions.Builder()
+                .geometry(geometry)
+                .descriptors(listOf(mapsDescriptor))
+                .networkRestriction(NetworkRestriction.NONE)
+                .build()
+            val routingRegionOptions = TileRegionLoadOptions.Builder()
+                .geometry(geometry)
+                .descriptors(listOf(navigationDescriptor))
                 .networkRestriction(NetworkRestriction.NONE)
                 .build()
 
-            var latestTileProgress: Map<String, Long> = emptyMap()
+            var mapProgress: Map<String, Long> = emptyMap()
             store.loadTileRegion(
-                regionId,
-                regionOptions,
+                mapRegionId,
+                mapRegionOptions,
                 { progress ->
-                    latestTileProgress = mapOf(
+                    mapProgress = mapOf(
                         "completedResourceCount" to progress.completedResourceCount,
                         "completedResourceSize" to progress.completedResourceSize,
                         "erroredResourceCount" to progress.erroredResourceCount,
@@ -282,48 +294,118 @@ class MapboxNavigationBridge(context: Context) {
                         "loadedResourceSize" to progress.loadedResourceSize
                     )
                 }
-            ) { tileExpected ->
-                if (tileExpected.isValue) {
-                    val downloadedRegion = tileExpected.value
-                    val erroredResources = latestTileProgress["erroredResourceCount"] ?: 0L
-                    val requiredResources = latestTileProgress["requiredResourceCount"] ?: 0L
-                    val completedResources = latestTileProgress["completedResourceCount"]
-                        ?: downloadedRegion?.completedResourceCount
-                        ?: 0L
-                    if (
-                        downloadedRegion == null ||
-                        downloadedRegion.completedResourceCount <= 0 ||
-                        downloadedRegion.completedResourceSize <= 0
-                    ) {
-                        mainHandler.post {
-                            result.error(
-                                "OFFLINE_REGION_EMPTY",
-                                "Mapbox reported success without storing any offline resources.",
-                                null
-                            )
-                        }
-                        return@loadTileRegion
+            ) map@{ mapExpected ->
+                if (!mapExpected.isValue) {
+                    mainHandler.post {
+                        result.error(
+                            "OFFLINE_MAP_REGION_DOWNLOAD_FAILED",
+                            "Mapbox could not download the map tile region.",
+                            mapProgress
+                        )
                     }
-                    if (
-                        erroredResources > 0 ||
-                        (requiredResources > 0 && completedResources < requiredResources)
-                    ) {
+                    return@map
+                }
+
+                val downloadedMapRegion = mapExpected.value
+                val mapCompleted = mapProgress["completedResourceCount"]
+                    ?: downloadedMapRegion?.completedResourceCount
+                    ?: 0L
+                val mapSize = downloadedMapRegion?.completedResourceSize
+                    ?: mapProgress["completedResourceSize"]
+                    ?: 0L
+                val mapRequired = mapProgress["requiredResourceCount"] ?: 0L
+                val mapErrors = mapProgress["erroredResourceCount"] ?: 0L
+                if (downloadedMapRegion == null || mapCompleted <= 0 || mapSize <= 0) {
+                    mainHandler.post {
+                        result.error(
+                            "OFFLINE_MAP_REGION_EMPTY",
+                            "Mapbox reported no stored map tile resources.",
+                            mapProgress
+                        )
+                    }
+                    return@map
+                }
+                if (mapErrors > 0 || (mapRequired > 0 && mapCompleted < mapRequired)) {
+                    mainHandler.post {
+                        result.error(
+                            "OFFLINE_MAP_REGION_INCOMPLETE",
+                            "Mapbox did not complete all required map tile resources.",
+                            mapProgress
+                        )
+                    }
+                    return@map
+                }
+
+                var routingProgress: Map<String, Long> = emptyMap()
+                store.loadTileRegion(
+                    routingRegionId,
+                    routingRegionOptions,
+                    { progress ->
+                        routingProgress = mapOf(
+                            "completedResourceCount" to progress.completedResourceCount,
+                            "completedResourceSize" to progress.completedResourceSize,
+                            "erroredResourceCount" to progress.erroredResourceCount,
+                            "requiredResourceCount" to progress.requiredResourceCount,
+                            "loadedResourceCount" to progress.loadedResourceCount,
+                            "loadedResourceSize" to progress.loadedResourceSize
+                        )
+                    }
+                ) routing@{ routingExpected ->
+                    if (!routingExpected.isValue) {
                         mainHandler.post {
                             result.error(
-                                "OFFLINE_REGION_INCOMPLETE",
-                                "Mapbox did not complete all required offline resources.",
-                                latestTileProgress
+                                "OFFLINE_ROUTING_REGION_DOWNLOAD_FAILED",
+                                "Mapbox could not download walking routing resources.",
+                                routingProgress
                             )
                         }
-                        return@loadTileRegion
+                        return@routing
                     }
 
-                    // A force-stop/reboot test must not race an asynchronous
-                    // SharedPreferences write. Persist the completion marker
-                    // to disk before reporting success to Dart.
+                    val downloadedRoutingRegion = routingExpected.value
+                    val routingCompleted = routingProgress["completedResourceCount"]
+                        ?: downloadedRoutingRegion?.completedResourceCount
+                        ?: 0L
+                    val routingSize = downloadedRoutingRegion?.completedResourceSize
+                        ?: routingProgress["completedResourceSize"]
+                        ?: 0L
+                    val routingRequired = routingProgress["requiredResourceCount"] ?: 0L
+                    val routingErrors = routingProgress["erroredResourceCount"] ?: 0L
+                    if (
+                        downloadedRoutingRegion == null ||
+                        routingCompleted <= 0 ||
+                        routingSize <= 0
+                    ) {
+                        mainHandler.post {
+                            result.error(
+                                "OFFLINE_ROUTING_REGION_EMPTY",
+                                "Mapbox reported no stored walking routing resources.",
+                                routingProgress
+                            )
+                        }
+                        return@routing
+                    }
+                    if (
+                        routingErrors > 0 ||
+                        (routingRequired > 0 && routingCompleted < routingRequired)
+                    ) {
+                        mainHandler.post {
+                            result.error(
+                                "OFFLINE_ROUTING_REGION_INCOMPLETE",
+                                "Mapbox did not complete all required walking routing resources.",
+                                routingProgress
+                            )
+                        }
+                        return@routing
+                    }
+
+                    // Commit both markers only after the two independent TileStore
+                    // regions are complete and non-empty.
                     val markerPersisted = appContext
                         .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
                         .edit()
+                        .putBoolean("offline:$regionId:maps", true)
+                        .putBoolean("offline:$regionId:routing-walking", true)
                         .putBoolean("offline:$regionId", true)
                         .commit()
                     if (!markerPersisted) {
@@ -334,28 +416,47 @@ class MapboxNavigationBridge(context: Context) {
                                 null
                             )
                         }
-                        return@loadTileRegion
+                        return@routing
                     }
+
+                    val totalCompleted = mapCompleted + routingCompleted
+                    val totalSize = mapSize + routingSize
+                    val totalRequired = mapRequired + routingRequired
+                    val totalErrors = mapErrors + routingErrors
+                    val totalLoaded = (mapProgress["loadedResourceCount"] ?: 0L) +
+                        (routingProgress["loadedResourceCount"] ?: 0L)
+                    val totalLoadedSize = (mapProgress["loadedResourceSize"] ?: 0L) +
+                        (routingProgress["loadedResourceSize"] ?: 0L)
+
                     mainHandler.post {
                         result.success(
                             mapOf(
                                 "regionId" to regionId,
+                                "mapRegionId" to mapRegionId,
+                                "routingRegionId" to routingRegionId,
                                 "mapTiles" to true,
+                                "routingTiles" to true,
                                 "routingProfile" to "walking",
-                                "completedResourceCount" to downloadedRegion.completedResourceCount,
-                                "completedResourceSize" to downloadedRegion.completedResourceSize,
-                                "erroredResourceCount" to erroredResources,
-                                "requiredResourceCount" to requiredResources,
-                                "progressCompletedResourceCount" to completedResources,
-                                "loadedResourceCount" to (latestTileProgress["loadedResourceCount"] ?: 0L),
-                                "loadedResourceSize" to (latestTileProgress["loadedResourceSize"] ?: 0L)
+                                "mapCompletedResourceCount" to mapCompleted,
+                                "mapCompletedResourceSize" to mapSize,
+                                "mapRequiredResourceCount" to mapRequired,
+                                "mapErroredResourceCount" to mapErrors,
+                                "routingCompletedResourceCount" to routingCompleted,
+                                "routingCompletedResourceSize" to routingSize,
+                                "routingRequiredResourceCount" to routingRequired,
+                                "routingErroredResourceCount" to routingErrors,
+                                "completedResourceCount" to totalCompleted,
+                                "completedResourceSize" to totalSize,
+                                "erroredResourceCount" to totalErrors,
+                                "requiredResourceCount" to totalRequired,
+                                "progressCompletedResourceCount" to totalCompleted,
+                                "loadedResourceCount" to totalLoaded,
+                                "loadedResourceSize" to totalLoadedSize
                             )
                         )
                     }
-                } else {
-                    mainHandler.post {
-                        result.error("OFFLINE_REGION_DOWNLOAD_FAILED", "Mapbox map and routing tile download failed.", null)
-                    }
+                }
+            }                    }
                 }
             }
         }
