@@ -67,6 +67,8 @@ jobs:
         run: python3 tool/test_mapbox_tile_store_mode.py
       - name: Test Mapbox runtime access preflight
         run: python3 tool/test_mapbox_runtime_access.py
+      - name: Test Android map screenshot decoder
+        run: python3 tool/verify_android_map_screenshot.py --self-test
       - name: Verify Mapbox runtime style and vector tile access
         if: env.MAPBOX_ACCESS_TOKEN != '' && github.actor != 'dependabot[bot]'
         run: python3 tool/verify_mapbox_runtime_access.py
@@ -260,6 +262,7 @@ jobs:
           path: |
             ${{ runner.temp }}/espana-outdoor-route-logcat.txt
             ${{ runner.temp }}/espana-outdoor-route-test-output.txt
+            ${{ runner.temp }}/espana-outdoor-offline-map.png
           if-no-files-found: ignore
       - name: Upload Android map smoke evidence
         if: always()
