@@ -15,7 +15,7 @@ First-party gateway for official live data. Provider credentials stay on the ser
 
 The gateway has two distinct OIDC controls:
 
-1. `OIDC_AUDIENCE` is the expected audience/client identifier accepted by the token verifier.
+1. `OIDC_AUDIENCE` is the resource-server/API audience that must be present in every accepted access token. It is separate from the public web/mobile client ID.
 2. `OIDC_REQUIRED_ROLE` is the exact application permission required by protected gateway endpoints.
 
 For authorization, the required role is accepted **only** from:
@@ -35,11 +35,12 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 | Variable | Required | Purpose |
 |---|---:|---|
 | `OIDC_ISSUER` | yes | OIDC issuer used to validate product access tokens |
-| `OIDC_AUDIENCE` | yes | Expected access-token audience and client key for resource-scoped roles |
+| `OIDC_AUDIENCE` | yes | Resource-server/API audience and key for roles under `resource_access[OIDC_AUDIENCE]` |
 | `OIDC_REQUIRED_ROLE` | yes | Exact role required under `resource_access[OIDC_AUDIENCE].roles` |
 | `AEMET_API_KEY` | yes | AEMET provider credential, runtime only |
 | `AEMET_API_KEY_EXPIRES_AT` | yes | RFC3339 expiry used for startup/health monitoring |
 | `DATABASE_URL` | for profiles | PostgreSQL URL; production must use sslmode=require or stronger |
+| `ALLOW_HTTP_DEV` | no | Defaults to false; true permits HTTP only to the internal `keycloak` service and `sslmode=disable` only for loopback or the internal `postgres` service during local development |
 | `PROFILE_MIGRATION_PATH` | no | Defaults to migrations/001_community_profiles.sql |
 | `COMMUNITY_ALLOWED_ORIGINS` | no | Comma-separated HTTPS origins; defaults to the production website domains |
 | `AEMET_BASE_URL` | no | Defaults to `https://opendata.aemet.es/opendata/api` |
@@ -58,7 +59,7 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 - `GET /v1/me` — provisions/returns the authenticated user's canonical profile.
 - `PATCH /v1/me` — updates only the authenticated user's display name.
 
-The community profile endpoints require a valid OIDC bearer token with the configured audience. They derive the subject from the verified token and never accept a user ID from the request. Email is imported only when the issuer sets email_verified=true. PostgreSQL generates the canonical profile UUID.
+The community profile endpoints require a cryptographically verified Keycloak access token with the configured resource-server audience and the JWT payload claim `typ=Bearer`. `DATABASE_URL` must be configured to enable the profile API; the local Compose example wires the PostgreSQL service and applies the migration at startup. ID tokens (`typ=ID`), refresh tokens, and tokens without an explicit bearer type are rejected even if they share the issuer, signing key, or frontend-client audience. Configure an audience mapper for this API and set `OIDC_AUDIENCE` to that API audience; do not rely only on the public web/mobile client ID. The service derives the subject from the verified token and never accepts a user ID from the request. Email is imported only when the issuer sets email_verified=true. PostgreSQL generates the canonical profile UUID.
 
 The source-data endpoints continue to require the configured client-scoped role.
 

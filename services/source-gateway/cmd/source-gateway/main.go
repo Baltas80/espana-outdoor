@@ -138,7 +138,10 @@ func main() {
     s := &server{
         cfg: cfg,
         client: newProviderHTTPClient(cfg.clientTimeout),
-        verifier: provider.Verifier(&oidc.Config{ClientID: cfg.oidcAudience}),
+        // Access tokens target the resource server, not the public client.
+        // Validate their audience explicitly below; IDTokenVerifier's normal
+        // azp/client-ID coupling is not appropriate for API access tokens.
+        verifier: provider.Verifier(&oidc.Config{SkipClientIDCheck: true}),
         profiles: profiles,
         log: log,
         cache: make(map[string]cacheEntry),
@@ -191,11 +194,17 @@ func newProviderHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func loadConfig(now time.Time) (config, error) {
+    allowHTTPDev, err := parseBoolEnv("ALLOW_HTTP_DEV", false)
+    if err != nil { return config{}, err }
+
     issuer, err := requiredEnv("OIDC_ISSUER")
     if err != nil { return config{}, err }
     issuerURL, err := url.Parse(issuer)
-    if err != nil || issuerURL.Host == "" || issuerURL.Scheme != "https" {
-        return config{}, errors.New("OIDC_ISSUER must be HTTPS")
+    if err != nil || issuerURL.Host == "" || issuerURL.User != nil || issuerURL.RawQuery != "" || issuerURL.Fragment != "" {
+        return config{}, errors.New("OIDC_ISSUER must be a valid issuer URL")
+    }
+    if issuerURL.Scheme != "https" && !(allowHTTPDev && issuerURL.Scheme == "http" && isDevelopmentIssuerHost(issuerURL.Hostname())) {
+        return config{}, errors.New("OIDC_ISSUER must use HTTPS outside explicitly enabled local development")
     }
     audience, err := requiredEnv("OIDC_AUDIENCE")
     if err != nil { return config{}, err }
@@ -204,7 +213,7 @@ func loadConfig(now time.Time) (config, error) {
 
     databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
     if databaseURL != "" {
-        if err := validateDatabaseURL(databaseURL); err != nil { return config{}, err }
+        if err := validateDatabaseURL(databaseURL, allowHTTPDev); err != nil { return config{}, err }
     }
     allowedOrigins, err := parseAllowedOrigins(envOrDefault(
         "COMMUNITY_ALLOWED_ORIGINS",
@@ -270,6 +279,18 @@ func envOrDefault(name, fallback string) string {
     return fallback
 }
 
+func parseBoolEnv(name string, fallback bool) (bool, error) {
+    value := strings.ToLower(envOrDefault(name, strconv.FormatBool(fallback)))
+    switch value {
+    case "true":
+        return true, nil
+    case "false":
+        return false, nil
+    default:
+        return false, fmt.Errorf("%s must be true or false", name)
+    }
+}
+
 func parseDuration(name, fallback string) (time.Duration, error) {
     value := envOrDefault(name, fallback)
     parsed, err := time.ParseDuration(value)
@@ -291,7 +312,7 @@ func parseFloat(name string, fallback float64) (float64, error) {
     return parsed, nil
 }
 
-func validateDatabaseURL(raw string) error {
+func validateDatabaseURL(raw string, allowHTTPDev bool) error {
     parsed, err := url.Parse(raw)
     if err != nil || parsed.Host == "" || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") {
         return errors.New("DATABASE_URL must be a PostgreSQL URL")
@@ -301,9 +322,11 @@ func validateDatabaseURL(raw string) error {
     case "require", "verify-ca", "verify-full":
         return nil
     case "", "disable":
-        if isLoopbackHost(parsed.Hostname()) { return nil }
+        if allowHTTPDev && (isLoopbackHost(parsed.Hostname()) || strings.EqualFold(parsed.Hostname(), "postgres")) {
+            return nil
+        }
     }
-    return errors.New("DATABASE_URL must enable TLS (sslmode=require or verify-full), except for local loopback development")
+    return errors.New("DATABASE_URL must enable TLS (sslmode=require or verify-full), except for loopback or explicitly enabled local Docker development")
 }
 
 func parseAllowedOrigins(raw string) (map[string]struct{}, error) {
@@ -329,6 +352,10 @@ func isLoopbackHost(host string) bool {
     if strings.EqualFold(host, "localhost") { return true }
     ip := net.ParseIP(host)
     return ip != nil && ip.IsLoopback()
+}
+
+func isDevelopmentIssuerHost(host string) bool {
+    return isLoopbackHost(host) || strings.EqualFold(host, "keycloak")
 }
 
 func (s *server) securityHeaders(next http.Handler) http.Handler {
@@ -688,6 +715,14 @@ func (s *server) allow(subject string) bool {
     return entry.limiter.Allow()
 }
 
+func containsAudience(audiences []string, expected string) bool {
+    if expected == "" { return false }
+    for _, audience := range audiences {
+        if audience == expected { return true }
+    }
+    return false
+}
+
 func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
     fields := strings.Fields(strings.TrimSpace(r.Header.Get("Authorization")))
     if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
@@ -699,8 +734,20 @@ func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[str
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
         return nil, false
     }
+    if !containsAudience(token.Audience, s.cfg.oidcAudience) {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return nil, false
+    }
     var claims map[string]any
     if err := token.Claims(&claims); err != nil {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return nil, false
+    }
+    // Keycloak access tokens carry typ=Bearer in the JWT payload. ID tokens
+    // and refresh tokens are not API credentials, even when they share the
+    // same issuer, signature and frontend-client audience.
+    tokenType, ok := claims["typ"].(string)
+    if !ok || tokenType != "Bearer" {
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
         return nil, false
     }

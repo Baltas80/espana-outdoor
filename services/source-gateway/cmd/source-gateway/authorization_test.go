@@ -168,7 +168,7 @@ func TestOIDCAuthorizationIsEnforcedServerSideForSourceData(t *testing.T) {
     }
 
     invoke := func(claims map[string]any) int {
-        token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoor", claims)
+        token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoor", claims)
         request := httptest.NewRequest(http.MethodGet, "/v1/sources/aemet-weather?municipalityCode=03099", nil)
         request.Header.Set("Authorization", "Bearer "+token)
 

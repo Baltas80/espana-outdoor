@@ -93,6 +93,31 @@ The machine-readable generic contract is `docs/api/source-gateway.schema.json`.
 
 Source-specific item schemas must be versioned independently from the transport envelope so the generic gateway client does not become coupled to one provider.
 
+## Shared identity and canonical profile
+
+`GET /v1/me` provisions or returns the canonical profile for the authenticated subject. `PATCH /v1/me` updates only `displayName`; clients cannot choose a subject, profile UUID or email.
+
+Both endpoints require a cryptographically verified Keycloak **access token**:
+- `iss` must match `OIDC_ISSUER`.
+- `aud` must contain the dedicated resource-server audience configured by `OIDC_AUDIENCE` (for example, `espana-outdoors-api`). This is not the public client ID used by the web/Android authorization flow.
+- The JWT payload must contain `typ=Bearer`. ID tokens (`typ=ID`), refresh tokens and tokens without a type are rejected.
+- The subject is derived from the verified token. Email is persisted/returned only when `email_verified=true`.
+
+Configure a Keycloak audience mapper to add the API audience to the **access token**. Do not rely on the frontend client's own audience alone. The service verifies the resource audience independently of `azp`, which remains the client that obtained the access token.
+
+Example response:
+
+```json
+{
+  "id": "server-generated-uuid",
+  "displayName": "Outdoor User",
+  "email": "verified@example.test",
+  "createdAt": "2026-11-15T00:00:00Z"
+}
+```
+
+PostgreSQL generates the canonical UUID. The subject remains internal and is never returned to clients.
+
 ## Security requirements
 
 - Provider API keys stay server-side.
