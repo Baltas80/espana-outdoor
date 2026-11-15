@@ -319,8 +319,11 @@ func TestValidateDatabaseURLRequiresTLSOutsideLoopback(t *testing.T) {
     if err := validateDatabaseURL("postgres://user:pass@db.example.test/app?sslmode=require", false); err != nil {
         t.Fatalf("TLS-enabled PostgreSQL URL rejected: %v", err)
     }
-    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", false); err != nil {
-        t.Fatalf("local loopback development URL rejected: %v", err)
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", true); err != nil {
+        t.Fatalf("explicit loopback development URL rejected: %v", err)
+    }
+    if err := validateDatabaseURL("postgres://user:pass@localhost/app?sslmode=disable", false); err == nil {
+        t.Fatal("loopback PostgreSQL without explicit dev mode must be rejected")
     }
     if err := validateDatabaseURL("postgres://user:pass@postgres/app?sslmode=disable", true); err != nil {
         t.Fatalf("explicit local Docker PostgreSQL URL rejected: %v", err)
