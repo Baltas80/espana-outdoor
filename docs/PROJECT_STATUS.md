@@ -168,3 +168,35 @@ La rama `feat/mapbox-offline-routing-final-20261114` incorpora ahora:
 Commits de este incremento: `510423a`, `bf8a718`, `41cbbc6` y `10fd7b5`. Las pruebas locales del guard y `bash -n` pasaron. Todavía no existe una ejecución CI asociada al nuevo HEAD `10fd7b55ce995727b4d67d8de6092f0341a22569`; sus resultados quedan pendientes.
 
 PR #61 continúa en draft. No se fusiona hasta que el mismo APK/HEAD supere descarga, ruta offline, renderizado PNG validado, reapertura y reinicio. La prueba física OPPO sigue siendo obligatoria para la aceptación de producción.
+
+
+## Actualización 15/11/2026 21:35 CET — estado verificado de PR #61
+
+Main permanece sin la implementación de Navigation offline. PR #61 continúa en draft, rama `feat/mapbox-offline-routing-final-20261114`, último commit observado `d5afd38cace1411c16ec92265165beef5c19bd6f`. La comparación actual indica 179 commits por delante y 2 por detrás de `main`; la ascendencia de los dos commits documentales posteriores a `125932e` sigue pendiente de incorporar antes de la integración. La PR no está marcada mergeable en la consulta actual.
+
+### Evidencia Android del run 43752643079
+
+- Ruta online nueva: 767,757 m / 55 puntos.
+- Descarga Córdoba: 33/33 recursos, 0 errores, 42.847.606 bytes.
+- Modo avión + Wi-Fi deshabilitado: ruta peatonal nueva con origen nativo `offline`, 1.109,662 m / 66 puntos.
+- Mapa offline no aceptado: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`, 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`.
+- El artefacto de smoke online muestra la app real, pero solo fondo/agua; no hay mapa completo ni callbacks de carga completa. La captura offline del test fue rechazada porque el host observó el launcher en primer plano.
+
+### Correcciones de diagnóstico en PR #61
+
+Se añadieron eventos `sourceAdded` y `sourceDataLoaded` al viewport de producción y al integration test, con IDs saneados, eventos acotados y sin URLs/tokens. Además se detectó y reprodujo un defecto del harness: GNU sed retenía el marcador de captura por buffering. Con `sed -E`, el archivo permaneció en 0 bytes tras 1 segundo; con `sed -u -E`, el marcador de 32 bytes llegó antes de 1 segundo. El runner usa ahora `sed -u -E` y el guard estático lo exige.
+
+Commits recientes en la rama:
+- `653bd89`, `b037c82`: instrumentación de fuentes.
+- `df1fc3a`, `608e2e0`, `e799dab`: lint y guard estático.
+- `437bfb2`, `36f5391`: documentación.
+- `6df6281`, `1e4264d`: captura ADB sin buffering.
+- `5753d0d`, `d5afd38`: documentación de la corrección.
+
+### CI observado
+
+- Security baseline [43758128131](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128131): 8/8 trabajos superados.
+- CI general [43758128192](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128192): Source Gateway y Rescue Link superados; Flutter/iOS seguían en ejecución en la última consulta.
+- Android staging [43758128107](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128107): estado pending sin jobs publicados en la última consulta. No hay validación nueva del commit de captura `6df6281`.
+
+No se fusiona #61 hasta que la siguiente ejecución capture el viewport de la app correcta y demuestre fuentes/teselas, full-frame, idle y cero fallos reales offline. Después se requieren force-stop/reinicio y validación del APK exacto en OPPO. La ruta peatonal offline sí está demostrada en emulador; el mapa offline no.
