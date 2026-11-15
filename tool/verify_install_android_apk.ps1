@@ -223,9 +223,9 @@ try {
             throw 'OfflineSmoke requires the integration-test app to remain installed; refusing a fresh install without TileStore data.'
         }
         $preInstallDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
-        $preInstallTimeMatch = [regex]::Match($preInstallDump, 'firstInstallTime=(\S+)')
+        $preInstallTimeMatch = [regex]::Match($preInstallDump, '(?m)^\s*firstInstallTime=(.+)$')
         if (-not $preInstallTimeMatch.Success) { throw 'Could not read the pre-update firstInstallTime for the integration-test app.' }
-        $firstInstallTimeBefore = $preInstallTimeMatch.Groups[1].Value
+        $firstInstallTimeBefore = $preInstallTimeMatch.Groups[1].Value.Trim()
     }
     Invoke-Adb @('-s', $DeviceSerial, 'install', '-r', $ReleaseApkPath) | Out-Null
     $installedPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
@@ -235,8 +235,8 @@ try {
     $installedDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
     if ($installedDump -notmatch "versionCode=$ExpectedVersionCode\b") { throw 'Installed versionCode does not match the artifact manifest.' }
     if ($OfflineSmoke) {
-        $afterInstallTimeMatch = [regex]::Match($installedDump, 'firstInstallTime=(\S+)')
-        if (-not $afterInstallTimeMatch.Success -or $afterInstallTimeMatch.Groups[1].Value -ne $firstInstallTimeBefore) {
+        $afterInstallTimeMatch = [regex]::Match($installedDump, '(?m)^\s*firstInstallTime=(.+)$')
+        if (-not $afterInstallTimeMatch.Success -or $afterInstallTimeMatch.Groups[1].Value.Trim() -ne $firstInstallTimeBefore) {
             throw 'The release APK update did not preserve the existing app installation/data; offline TileStore continuity cannot be claimed.'
         }
         $Report.Add("PASS: install -r preserved firstInstallTime=$firstInstallTimeBefore and the prevalidated offline app data.")

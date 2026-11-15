@@ -333,6 +333,7 @@ def verify_android() -> None:
         "MAPBOX_MAP_LOADED",
         "MAPBOX_MAP_FULL_FRAME",
         "MAPBOX_MAP_IDLE",
+        "mapDeadline",
         "verify_android_map_screenshot.py",
     ):
         if marker not in release_device_text:
