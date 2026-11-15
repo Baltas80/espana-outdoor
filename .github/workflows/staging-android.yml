@@ -168,12 +168,33 @@ jobs:
             echo "commit=$GITHUB_SHA"
           } > build/android-staging-validation.txt
           echo "built=true" >> "$GITHUB_OUTPUT"
-      - name: Verify APK
+      - name: Verify APK and write device-validation manifest
         if: steps.build_apk.outputs.built == 'true'
+        shell: bash
         run: |
+          set -euo pipefail
           apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           test -n "$apk"
           python3 tool/verify_android_release.py --apk "$apk"
+          aapt="$(find "${ANDROID_HOME:-${ANDROID_SDK_ROOT}}/build-tools" -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          badging="$("$aapt" dump badging "$apk")"
+          application_id="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+          version_code="$(printf '%s\n' "$badging" | sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+          test -n "$application_id"
+          test -n "$version_code"
+          apk_sha256="$(sha256sum "$apk" | cut -d ' ' -f 1)"
+          source_commit="${{ github.event.pull_request.head.sha || github.sha }}"
+          {
+            echo "apk_sha256=$apk_sha256"
+            echo "application_id=$application_id"
+            echo "version_code=$version_code"
+            echo "source_commit=$source_commit"
+          } >> build/android-staging-validation.txt
+          echo "verified_apk_sha256=$apk_sha256"
+          echo "verified_application_id=$application_id"
+          echo "verified_version_code=$version_code"
+          echo "verified_source_commit=$source_commit"
       - name: Upload Android staging artifact and validation scope
         if: always()
         uses: actions/upload-artifact@v7.0.0
