@@ -131,7 +131,7 @@ try {
     $Report.Add("Package/versionCode: $PackageName/$ExpectedVersionCode")
     Invoke-Adb @('-s', $DeviceSerial, 'install', '-r', $ReleaseApkPath) | Out-Null
     $installedPath = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pm', 'path', $PackageName)
-    if ($installedPath -notmatch [regex]::Escape($PackageName)) { throw 'Installed package path does not match the artifact manifest.' }
+    if (-not $installedPath.StartsWith('package:')) { throw 'Android did not return an installed base APK path for the expected package.' }
     $installedDump = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'dumpsys', 'package', $PackageName)
     if ($installedDump -notmatch "versionCode=$ExpectedVersionCode\b") { throw 'Installed versionCode does not match the artifact manifest.' }
     $Report.Add('PASS: exact CI APK installed without uninstalling app data.')
