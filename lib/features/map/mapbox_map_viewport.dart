@@ -35,6 +35,9 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   CircleAnnotationManager? _circleManager;
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
+  bool _styleLoadedLogged = false;
+  bool _fullFrameLogged = false;
+  bool _mapIdleLogged = false;
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
     if (first.length != second.length) return false;
@@ -174,6 +177,24 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         pitch: 0,
       ),
       onMapCreated: _onMapCreated,
+      onStyleLoadedListener: (_) {
+        if (_styleLoadedLogged) return;
+        _styleLoadedLogged = true;
+        debugPrint('MAPBOX_MAP_STYLE_LOADED');
+      },
+      onRenderFrameFinishedListener: (event) {
+        if (_fullFrameLogged || event.renderMode != RenderMode.FULL) return;
+        _fullFrameLogged = true;
+        debugPrint('MAPBOX_MAP_FULL_FRAME');
+      },
+      onMapIdleListener: (_) {
+        if (_mapIdleLogged) return;
+        _mapIdleLogged = true;
+        debugPrint('MAPBOX_MAP_IDLE');
+      },
+      onMapLoadErrorListener: (event) {
+        debugPrint('MAPBOX_MAP_LOAD_ERROR type=${event.runtimeType}');
+      },
     );
   }
 }
