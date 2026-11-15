@@ -218,7 +218,7 @@ def verify_android() -> None:
     for marker in (
         "MAPBOX_OFFLINE_MAP_RENDERED",
         "TEST_PACKAGE_NAME",
-        "namespace =",
+        "namespace[[:space:]]*=",
         "am force-stop",
         "--no-pub",
         "timeout --signal=TERM",
