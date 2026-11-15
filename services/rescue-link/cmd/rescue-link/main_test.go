@@ -2,11 +2,20 @@ package main
 
 import (
     "bytes"
+    "context"
+    "crypto/rand"
+    "crypto/rsa"
+    "encoding/base64"
+    "encoding/json"
     "net/http"
     "net/http/httptest"
     "strings"
     "testing"
     "time"
+
+    "github.com/coreos/go-oidc/v3/oidc"
+    jose "github.com/go-jose/go-jose/v4"
+    "github.com/go-jose/go-jose/v4/jwt"
 )
 
 func TestTokenRoundTripAndHash(t *testing.T) {
@@ -70,3 +79,183 @@ func TestDecodeJSONRejectsTrailingData(t *testing.T) {
     }
 }
 
+
+
+func TestLoadConfigRequiresDedicatedRescueAudience(t *testing.T) {
+    setRescueConfigEnvironment(t)
+    t.Setenv("OIDC_AUDIENCE", "espana-outdoors-mobile")
+    t.Setenv("RESCUE_LINK_OIDC_AUDIENCE", "")
+
+    if _, err := loadConfig(); err == nil {
+        t.Fatal("expected dedicated Rescue Link resource-server audience to be required")
+    }
+}
+
+func TestLoadConfigUsesDedicatedRescueAudience(t *testing.T) {
+    setRescueConfigEnvironment(t)
+    t.Setenv("OIDC_AUDIENCE", "espana-outdoors-mobile")
+    t.Setenv("RESCUE_LINK_OIDC_AUDIENCE", "espana-outdoors-rescue-api")
+
+    cfg, err := loadConfig()
+    if err != nil {
+        t.Fatalf("loadConfig returned error: %v", err)
+    }
+    if cfg.oidcAudience != "espana-outdoors-rescue-api" {
+        t.Fatalf("Rescue Link audience = %q, want dedicated resource audience", cfg.oidcAudience)
+    }
+}
+
+func setRescueConfigEnvironment(t *testing.T) {
+    t.Helper()
+    t.Setenv("DATABASE_URL", "postgresql://espana:password@localhost:5432/espana_outdoor?sslmode=require")
+    t.Setenv("OIDC_ISSUER", "https://auth.example.test/realms/espana-outdoor")
+    t.Setenv("PUBLIC_SHARE_BASE_URL", "https://rescue.example.test")
+    t.Setenv("LOCATION_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
+    t.Setenv("RESCUE_MAX_TTL", "15m")
+    t.Setenv("RESCUE_RETENTION", "24h")
+    t.Setenv("RESCUE_CAPABILITY_TTL", "5m")
+    t.Setenv("RESCUE_MAX_RESPONDERS", "5")
+    t.Setenv("RESCUE_RATE_LIMIT_RPS", "2")
+    t.Setenv("RESCUE_RATE_LIMIT_BURST", "10")
+}
+
+func TestAuthenticateRejectsIDRefreshUntypedAndWrongAudienceTokens(t *testing.T) {
+    verifier, issuer, signingKey, cleanup := newRescueTestVerifier(t)
+    defer cleanup()
+
+    cases := []struct {
+        name      string
+        overrides map[string]any
+    }{
+        {name: "ID token", overrides: map[string]any{"typ": "ID"}},
+        {name: "refresh token", overrides: map[string]any{"typ": "Refresh"}},
+        {name: "missing token type", overrides: map[string]any{"typ": nil}},
+        {name: "wrong audience", overrides: map[string]any{"aud": "espana-outdoors-mobile"}},
+        {name: "missing audience", overrides: map[string]any{"aud": nil}},
+    }
+
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            rawToken := signRescueTestToken(t, signingKey, issuer, tc.overrides)
+            srv := &server{
+                cfg: config{oidcAudience: "espana-outdoors-rescue-api"},
+                verifier: verifier,
+            }
+            request := httptest.NewRequest(http.MethodPost, "/v1/rescue-links", nil)
+            request.Header.Set("Authorization", "Bearer "+rawToken)
+            response := httptest.NewRecorder()
+
+            if _, ok := srv.authenticate(response, request); ok {
+                t.Fatal("non-access or wrong-audience token was accepted")
+            }
+            if response.Code != http.StatusUnauthorized {
+                t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+            }
+        })
+    }
+}
+
+func TestAuthenticateAcceptsDedicatedAudienceWithMobileAuthorizedParty(t *testing.T) {
+    verifier, issuer, signingKey, cleanup := newRescueTestVerifier(t)
+    defer cleanup()
+
+    rawToken := signRescueTestToken(t, signingKey, issuer, map[string]any{
+        "aud": []string{"espana-outdoors-rescue-api", "account"},
+        "azp": "espana-outdoors-mobile",
+        "typ": "Bearer",
+        "realm_access": map[string]any{
+            "roles": []string{"rescue:volunteer"},
+        },
+    })
+    srv := &server{
+        cfg: config{oidcAudience: "espana-outdoors-rescue-api"},
+        verifier: verifier,
+    }
+    request := httptest.NewRequest(http.MethodPost, "/v1/rescue-links", nil)
+    request.Header.Set("Authorization", "Bearer "+rawToken)
+    response := httptest.NewRecorder()
+
+    principal, ok := srv.authenticate(response, request)
+    if !ok {
+        t.Fatalf("valid Rescue Link access token rejected: %s", response.Body.String())
+    }
+    if principal.Subject != "test-rescue-user" {
+        t.Fatalf("subject = %q, want verified subject", principal.Subject)
+    }
+    if _, ok := principal.Roles["rescue:volunteer"]; !ok {
+        t.Fatal("server-side Rescue Link role was not preserved")
+    }
+}
+
+func newRescueTestVerifier(t *testing.T) (*oidc.IDTokenVerifier, string, *rsa.PrivateKey, func()) {
+    t.Helper()
+
+    signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
+    if err != nil {
+        t.Fatalf("generate signing key: %v", err)
+    }
+    publicJWK := jose.JSONWebKey{
+        Key: signingKey.Public(),
+        KeyID: "rescue-test-key",
+        Algorithm: string(jose.RS256),
+        Use: "sig",
+    }
+
+    var server *httptest.Server
+    server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        switch r.URL.Path {
+        case "/.well-known/openid-configuration":
+            _ = json.NewEncoder(w).Encode(map[string]string{
+                "issuer": server.URL,
+                "jwks_uri": server.URL + "/keys",
+            })
+        case "/keys":
+            _ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{
+                Keys: []jose.JSONWebKey{publicJWK},
+            })
+        default:
+            http.NotFound(w, r)
+        }
+    }))
+
+    ctx := oidc.ClientContext(context.Background(), server.Client())
+    provider, err := oidc.NewProvider(ctx, server.URL)
+    if err != nil {
+        server.Close()
+        t.Fatalf("OIDC discovery failed: %v", err)
+    }
+
+    return provider.Verifier(&oidc.Config{SkipClientIDCheck: true}), server.URL, signingKey, server.Close
+}
+
+func signRescueTestToken(t *testing.T, signingKey *rsa.PrivateKey, issuer string, overrides map[string]any) string {
+    t.Helper()
+
+    signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: signingKey}, nil)
+    if err != nil {
+        t.Fatalf("create token signer: %v", err)
+    }
+
+    claims := map[string]any{
+        "iss": issuer,
+        "sub": "test-rescue-user",
+        "aud": "espana-outdoors-rescue-api",
+        "typ": "Bearer",
+        "iat": time.Now().Unix(),
+        "exp": time.Now().Add(5 * time.Minute).Unix(),
+    }
+    for name, value := range overrides {
+        if value == nil {
+            delete(claims, name)
+        } else {
+            claims[name] = value
+        }
+    }
+
+    rawToken, err := jwt.Signed(signer).Claims(claims).Serialize()
+    if err != nil {
+        t.Fatalf("serialize access token: %v", err)
+    }
+    return rawToken
+}

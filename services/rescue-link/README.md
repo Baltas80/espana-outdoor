@@ -22,7 +22,7 @@ Backend first-party para Rescue Link. La app móvil no confía en expiración lo
 |---|---|---|
 | DATABASE_URL | Sí | PostgreSQL |
 | OIDC_ISSUER | Sí | Issuer OIDC accesible por el servicio |
-| OIDC_AUDIENCE | Sí | Audience del access token |
+| RESCUE_LINK_OIDC_AUDIENCE | Sí | Audiencia dedicada del resource server Rescue Link, distinta de los clientes web y Android |
 | PUBLIC_SHARE_BASE_URL | Sí | URL pública HTTPS del enlace |
 | LOCATION_ENCRYPTION_KEY | Sí | Base64/hex de exactamente 32 bytes |
 | RESCUE_MAX_TTL | No | TTL máximo de un enlace, por defecto 15m |
@@ -37,6 +37,7 @@ Backend first-party para Rescue Link. La app móvil no confía en expiración lo
 
 ## Seguridad
 
+- Cada endpoint autenticado exige un access token OIDC firmado, vigente y emitido por `OIDC_ISSUER`, con `typ=Bearer` y `RESCUE_LINK_OIDC_AUDIENCE` presente en `aud`. La audiencia se valida independientemente de `azp`, que identifica el cliente público web o Android. Se rechazan ID tokens, refresh tokens, tokens sin tipo y tokens destinados a otra API.
 - Las coordenadas exactas se almacenan cifradas con AES-256-GCM.
 - Los tokens compartidos y las capacidades solo se almacenan como SHA-256.
 - La vista pública nunca devuelve coordenadas.

@@ -77,7 +77,7 @@ services:
     environment:
       DATABASE_URL: postgresql://espana:${POSTGRES_PASSWORD}@postgres:5432/espana_outdoor?sslmode=disable
       OIDC_ISSUER: ${OIDC_ISSUER:-http://keycloak:8080/realms/espana-outdoor}
-      OIDC_AUDIENCE: ${RESCUE_LINK_OIDC_AUDIENCE:-espana-outdoors-mobile}
+      RESCUE_LINK_OIDC_AUDIENCE: ${RESCUE_LINK_OIDC_AUDIENCE:?set in .env}
       PUBLIC_SHARE_BASE_URL: ${PUBLIC_SHARE_BASE_URL:?set in .env}
       LOCATION_ENCRYPTION_KEY: ${LOCATION_ENCRYPTION_KEY:?set in .env}
       RESCUE_MAX_TTL: ${RESCUE_MAX_TTL:-15m}

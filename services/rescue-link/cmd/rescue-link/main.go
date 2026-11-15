@@ -64,6 +64,7 @@ type config struct {
 
 type tokenClaims struct {
     Subject string `json:"sub"`
+    Type string `json:"typ"`
     RealmAccess struct {
         Roles []string `json:"roles"`
     } `json:"realm_access"`
@@ -177,7 +178,7 @@ func main() {
     s := &server{
         cfg: cfg,
         db: db,
-        verifier: provider.Verifier(&oidc.Config{ClientID: cfg.oidcAudience}),
+        verifier: provider.Verifier(&oidc.Config{SkipClientIDCheck: true}),
         publicShareBaseURL: shareURL,
         limiters: make(map[string]*limiterEntry),
         log: log,
@@ -277,7 +278,7 @@ func loadConfig() (config, error) {
     if err != nil { return config{}, err }
     issuer, err := requiredEnv("OIDC_ISSUER")
     if err != nil { return config{}, err }
-    audience, err := requiredEnv("OIDC_AUDIENCE")
+    audience, err := requiredEnv("RESCUE_LINK_OIDC_AUDIENCE")
     if err != nil { return config{}, err }
     publicShareBaseURL, err := requiredEnv("PUBLIC_SHARE_BASE_URL")
     if err != nil { return config{}, err }
@@ -558,6 +559,18 @@ func (s *server) sharePreview(w http.ResponseWriter, r *http.Request) {
     })
 }
 
+func containsAudience(audiences []string, expected string) bool {
+    if strings.TrimSpace(expected) == "" {
+        return false
+    }
+    for _, audience := range audiences {
+        if audience == expected {
+            return true
+        }
+    }
+    return false
+}
+
 func (s *server) authenticate(w http.ResponseWriter, r *http.Request) (principal, bool) {
     header := strings.TrimSpace(r.Header.Get("Authorization"))
     fields := strings.Fields(header)
@@ -565,20 +578,29 @@ func (s *server) authenticate(w http.ResponseWriter, r *http.Request) (principal
         writeError(w, http.StatusUnauthorized, "authentication required")
         return principal{}, false
     }
+
     token, err := s.verifier.Verify(r.Context(), fields[1])
-    if err != nil {
+    if err != nil || !containsAudience(token.Audience, s.cfg.oidcAudience) {
         writeError(w, http.StatusUnauthorized, "invalid authentication")
         return principal{}, false
     }
+
     var claims tokenClaims
-    if err = token.Claims(&claims); err != nil || claims.Subject == "" {
+    if err = token.Claims(&claims); err != nil ||
+        strings.TrimSpace(claims.Subject) == "" ||
+        claims.Type != "Bearer" {
         writeError(w, http.StatusUnauthorized, "invalid authentication")
         return principal{}, false
     }
+
     roles := make(map[string]struct{}, len(claims.RealmAccess.Roles))
-    for _, role := range claims.RealmAccess.Roles { roles[role] = struct{}{} }
+    for _, role := range claims.RealmAccess.Roles {
+        roles[role] = struct{}{}
+    }
     for _, access := range claims.ResourceAccess {
-        for _, role := range access.Roles { roles[role] = struct{}{} }
+        for _, role := range access.Roles {
+            roles[role] = struct{}{}
+        }
     }
     return principal{Subject: claims.Subject, Roles: roles}, true
 }

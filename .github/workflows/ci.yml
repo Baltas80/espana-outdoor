@@ -15,6 +15,23 @@ permissions:
   contents: read
 
 jobs:
+  rescue-link:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: services/rescue-link/go.mod
+          cache-dependency-path: services/rescue-link/go.sum
+      - name: Test Rescue Link
+        working-directory: services/rescue-link
+        run: go test -race ./...
+      - name: Vet Rescue Link
+        working-directory: services/rescue-link
+        run: go vet ./...
+
   source-gateway:
     runs-on: ubuntu-24.04
     steps:

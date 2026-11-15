@@ -21,9 +21,10 @@ This document is the deployment gate for the external services. It intentionally
 4. Configure the licensed offline map provider and populate `MAP_PMTILES_URL`/tile storage as required.
 5. Provision Valhalla Spain/required-region tiles from a licensed source and verify the dataset version.
 6. Configure the AEMET API credential and expiry metadata.
-7. Configure a dedicated Keycloak resource-server audience for Source Gateway (for example `espana-outdoors-api`) and map it into access tokens. Set `OIDC_REQUIRED_ROLE` under that API client. Configure the separate Rescue Link audience.
-8. Set `ALLOW_HTTP_DEV=false` in production; the local Compose exception must never be carried into production.
-7. Restrict database, Keycloak, Martin, Valhalla, NATS and monitoring ports to the private network. Only intended public HTTPS endpoints may be exposed.
+7. Configure a dedicated Keycloak resource-server audience for Source Gateway (for example `espana-outdoors-api`) and map it into access tokens. Set `OIDC_REQUIRED_ROLE` under that API client.
+8. Configure a different dedicated Rescue Link audience (for example `espana-outdoors-rescue-api`), map it into access tokens, and set `RESCUE_LINK_OIDC_AUDIENCE`. Do not reuse either public client ID or the Source Gateway audience.
+9. Set `ALLOW_HTTP_DEV=false` in production; the local Compose exception must never be carried into production.
+10. Restrict database, Keycloak, Martin, Valhalla, NATS and monitoring ports to the private network. Only intended public HTTPS endpoints may be exposed.
 
 ## Bring-up order
 
