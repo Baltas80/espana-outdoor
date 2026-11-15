@@ -131,7 +131,12 @@ def verify_android() -> None:
         raise SystemExit("TileStoreOptions.MAPBOX_ACCESS_TOKEN was removed from Maps SDK v11.")
     for label, fragment in {
         "walking-only offline routing tiles": '.tilesProfile("walking")',
-        "shared Maps and Navigation region descriptors": "descriptors(listOf(mapsDescriptor, navigationDescriptor))",
+        "independent Maps tile region descriptor": ".descriptors(listOf(mapsDescriptor))",
+        "independent Navigation tile region descriptor": ".descriptors(listOf(navigationDescriptor))",
+        "Maps offline region ID": 'val mapRegionId = "$regionId-maps"',
+        "walking routing offline region ID": 'val routingRegionId = "$regionId-routing-walking"',
+        "Maps resource accounting": '"mapCompletedResourceCount"',
+        "walking routing resource accounting": '"routingCompletedResourceCount"',
         "offline router origin": "RouterOrigin.OFFLINE",
     }.items():
         if fragment not in bridge:
