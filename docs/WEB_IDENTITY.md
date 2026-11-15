@@ -22,7 +22,8 @@ La interfaz no funcionará en producción hasta registrar el cliente público:
 3. Registrar exactamente los redirect URIs web anteriores y conservar el redirect URI Android `com.espanaoutdoors://oauth2redirect`.
 4. Configurar Web Origins exactamente como `https://espanaoutdoor.es` y `https://www.espanaoutdoor.es`; no utilizar comodines.
 5. Configurar el mapper de audiencia para que el access token incluya el valor esperado por `OIDC_AUDIENCE` en Source Gateway.
-6. Confirmar que el cliente puede solicitar `openid profile email` y que el proveedor emite `email_verified=true` solo tras verificar el correo.
+6. Habilitar el registro/autoregistro del realm si se ofrece creación de cuentas desde la pantalla web; configurar verificación de correo y los campos obligatorios del perfil. Si el registro público no se habilita, cambiar el texto de la interfaz para no prometer creación de cuentas.
+7. Confirmar que el cliente puede solicitar `openid profile email` y que el proveedor emite `email_verified=true` solo tras verificar el correo.
 
 No crear un client secret para la web ni copiar credenciales privadas a los archivos estáticos.
 
