@@ -175,6 +175,8 @@ def verify_android() -> None:
         "MAPBOX_OFFLINE_MAP_RENDERED",
         "unique_colors",
         "opaque_ratio",
+        "entropy_bits",
+        "dominant_ratio",
     )
     for marker in required_integration_evidence:
         if marker not in integration_text:
