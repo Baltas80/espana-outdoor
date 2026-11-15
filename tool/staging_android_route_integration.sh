@@ -69,6 +69,11 @@ run_route_phase() {
   local mode="$1"
   local phase_status=0
   echo "ROUTE_PHASE_START mode=$mode test_package=$TEST_PACKAGE_NAME app_package=$PACKAGE_NAME"
+  if [[ "$mode" == "offline" ]]; then
+    # Flutter integration_test output can be buffered by the host test runner.
+    # Use Android logcat as the screenshot-ready signal, not the host stdout pipe.
+    adb -s "$DEVICE_SERIAL" logcat -c
+  fi
   # Dependencies were already resolved with --enforce-lockfile by the workflow.
   # Avoid an implicit pub get between online and offline phases.
   timeout --signal=TERM --kill-after=15s 8m flutter test --no-pub \
@@ -87,17 +92,18 @@ run_route_phase() {
     # activity. A launcher/wallpaper PNG can have high entropy and must never
     # be accepted as Mapbox evidence.
     for attempt in $(seq 1 360); do
-      if grep -q 'MAPBOX_OFFLINE_SCREENSHOT_READY' "$TEST_LOG_PATH"; then
+      offline_logcat="$(adb -s "$DEVICE_SERIAL" logcat -d -s flutter:I 2>/dev/null || true)"
+      if grep -Fq 'MAPBOX_OFFLINE_SCREENSHOT_READY' <<<"$offline_logcat"; then
         foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -E 'mResumedActivity|topResumedActivity' | tail -n 1 || true)"
         if [[ -z "$foreground_activity" ]]; then
           foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys window windows 2>/dev/null | tr -d '\r' | grep -E 'mCurrentFocus|mFocusedApp' | tail -n 1 || true)"
         fi
+        # The offline MapWidget is created by the integration-test package,
+        # not by the separate release APK used by the later smoke test.
         case "$foreground_activity" in
-          *"$PACKAGE_NAME/"*) foreground_package="$PACKAGE_NAME" ;;
           *"$TEST_PACKAGE_NAME/"*) foreground_package="$TEST_PACKAGE_NAME" ;;
           *)
-            echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR foreground_package_mismatch expected=$PACKAGE_NAME observed=$(printf '%s' "$foreground_activity" | tr -s ' ' | cut -c1-240)" | tee -a "$TEST_LOG_PATH"
-            phase_status=1
+            echo "MAPBOX_OFFLINE_SCREENSHOT_WAITING_FOR_TEST_APP attempt=$attempt observed=$(printf '%s' "$foreground_activity" | tr -s ' ' | cut -c1-240)" | tee -a "$TEST_LOG_PATH"
             ;;
         esac
         if [[ -n "$foreground_package" ]]; then
@@ -109,8 +115,8 @@ run_route_phase() {
             echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR capture_failed=true" | tee -a "$TEST_LOG_PATH"
             phase_status=1
           fi
+          break
         fi
-        break
       fi
       if ! kill -0 "$phase_pid" 2>/dev/null; then
         break
