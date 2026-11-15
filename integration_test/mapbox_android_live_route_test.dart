@@ -342,6 +342,11 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   // flutter test runner. The host script captures the native platform view with
   // adb screencap while this test app is still alive.
   await tester.pump(const Duration(seconds: 2));
+  // The host polls Android logcat because flutter test may buffer its
+  // stdout until the integration test exits. This signal is emitted by the
+  // app process while the native MapWidget is still mounted.
+  debugPrint('MAPBOX_OFFLINE_SCREENSHOT_READY');
+  // Keep the marker in the host test output as a secondary diagnostic.
   // ignore: avoid_print
   print('MAPBOX_OFFLINE_SCREENSHOT_READY');
   // Keep the native view alive long enough for the host-side ADB capture.
