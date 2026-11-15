@@ -6,6 +6,7 @@ import android.os.Looper
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.common.MapboxOptions
 import com.mapbox.bindgen.Value
+import com.mapbox.common.NetworkRestriction
 import com.mapbox.common.TileRegionLoadOptions
 import com.mapbox.common.TileStore
 import com.mapbox.geojson.Point
@@ -253,6 +254,9 @@ class MapboxNavigationBridge(context: Context) {
             val mapsDescriptor = mapsOffline.createTilesetDescriptor(
                 TilesetDescriptorOptions.Builder()
                     .styleURI(styleUri)
+                    // Match the tile-pack descriptor to the density used by MapView.
+                    // Without this, Maps may request a different tile variant offline.
+                    .pixelRatio(appContext.resources.displayMetrics.density)
                     .minZoom(minZoom.toByte())
                     .maxZoom(maxZoom.toByte())
                     .build()
@@ -261,15 +265,31 @@ class MapboxNavigationBridge(context: Context) {
             val regionOptions = TileRegionLoadOptions.Builder()
                 .geometry(Polygon.fromLngLats(listOf(ring)))
                 .descriptors(listOf(mapsDescriptor, navigationDescriptor))
+                .networkRestriction(NetworkRestriction.NONE)
                 .build()
 
+            var latestTileProgress: Map<String, Long> = emptyMap()
             store.loadTileRegion(
                 regionId,
                 regionOptions,
-                { /* Native Mapbox download progress. */ }
+                { progress ->
+                    latestTileProgress = mapOf(
+                        "completedResourceCount" to progress.completedResourceCount,
+                        "completedResourceSize" to progress.completedResourceSize,
+                        "erroredResourceCount" to progress.erroredResourceCount,
+                        "requiredResourceCount" to progress.requiredResourceCount,
+                        "loadedResourceCount" to progress.loadedResourceCount,
+                        "loadedResourceSize" to progress.loadedResourceSize
+                    )
+                }
             ) { tileExpected ->
                 if (tileExpected.isValue) {
                     val downloadedRegion = tileExpected.value
+                    val erroredResources = latestTileProgress["erroredResourceCount"] ?: 0L
+                    val requiredResources = latestTileProgress["requiredResourceCount"] ?: 0L
+                    val completedResources = latestTileProgress["completedResourceCount"]
+                        ?: downloadedRegion?.completedResourceCount
+                        ?: 0L
                     if (
                         downloadedRegion == null ||
                         downloadedRegion.completedResourceCount <= 0 ||
@@ -280,6 +300,19 @@ class MapboxNavigationBridge(context: Context) {
                                 "OFFLINE_REGION_EMPTY",
                                 "Mapbox reported success without storing any offline resources.",
                                 null
+                            )
+                        }
+                        return@loadTileRegion
+                    }
+                    if (
+                        erroredResources > 0 ||
+                        (requiredResources > 0 && completedResources < requiredResources)
+                    ) {
+                        mainHandler.post {
+                            result.error(
+                                "OFFLINE_REGION_INCOMPLETE",
+                                "Mapbox did not complete all required offline resources.",
+                                latestTileProgress
                             )
                         }
                         return@loadTileRegion
@@ -310,7 +343,12 @@ class MapboxNavigationBridge(context: Context) {
                                 "mapTiles" to true,
                                 "routingProfile" to "walking",
                                 "completedResourceCount" to downloadedRegion.completedResourceCount,
-                                "completedResourceSize" to downloadedRegion.completedResourceSize
+                                "completedResourceSize" to downloadedRegion.completedResourceSize,
+                                "erroredResourceCount" to erroredResources,
+                                "requiredResourceCount" to requiredResources,
+                                "progressCompletedResourceCount" to completedResources,
+                                "loadedResourceCount" to (latestTileProgress["loadedResourceCount"] ?: 0L),
+                                "loadedResourceSize" to (latestTileProgress["loadedResourceSize"] ?: 0L)
                             )
                         )
                     }
