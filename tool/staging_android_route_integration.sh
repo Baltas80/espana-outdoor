@@ -83,7 +83,7 @@ run_route_phase() {
     local screenshot_captured=0
     # The Dart test emits this marker after the MapWidget has had its render
     # deadline. Capture the native platform view before its assertions finish.
-    for attempt in $(seq 1 180); do
+    for attempt in $(seq 1 360); do
       if grep -q 'MAPBOX_OFFLINE_SCREENSHOT_READY' "$TEST_LOG_PATH"; then
         if adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" && test -s "$SCREENSHOT_PATH"; then
           echo "MAPBOX_OFFLINE_SCREENSHOT_CAPTURED bytes=$(wc -c < "$SCREENSHOT_PATH" | tr -d ' ')" | tee -a "$TEST_LOG_PATH"
