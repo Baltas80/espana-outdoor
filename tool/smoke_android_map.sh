@@ -240,7 +240,26 @@ fi
 
 echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
-sleep 15
+
+# Wait for Mapbox's actual style load, full render frame and idle callbacks.
+# A visible native view or attribution alone is not proof that map tiles rendered.
+map_render_ready=0
+for attempt in $(seq 1 45); do
+  adb logcat -d -s flutter:I >"${diagnostics_dir}/espana-flutter-map-log.txt"
+  if grep -q 'MAPBOX_MAP_STYLE_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_FULL_FRAME' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_IDLE' "${diagnostics_dir}/espana-flutter-map-log.txt"; then
+    map_render_ready=1
+    break
+  fi
+  sleep 1
+done
+if test "${map_render_ready}" -ne 1; then
+  echo "FAIL: Mapbox did not report style-loaded, full-frame and idle within 45 seconds."
+  cat "${diagnostics_dir}/espana-flutter-map-log.txt" || true
+  exit 1
+fi
+sleep 5
 
 adb logcat -d >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
