@@ -27,7 +27,8 @@ on:
 
 concurrency:
   group: android-staging-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve an active emulator run and its evidence; newer commits queue.
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -75,6 +76,8 @@ jobs:
           bash -n tool/smoke_android_map.sh
           bash -n tool/staging_android_emulator_validation.sh
           bash -n tool/ensure_android_emulator_online.sh
+      - name: Test Android validation order and evidence policy
+        run: python3 tool/test_android_validation_order.py
       - name: Verify Mapbox runtime style and vector tile access
         if: env.MAPBOX_ACCESS_TOKEN != '' && github.actor != 'dependabot[bot]'
         run: python3 tool/verify_mapbox_runtime_access.py
