@@ -294,7 +294,7 @@ class MapboxNavigationBridge(context: Context) {
                         "loadedResourceSize" to progress.loadedResourceSize
                     )
                 }
-            ) map@{ mapExpected ->
+            ) map@ { mapExpected ->
                 if (!mapExpected.isValue) {
                     mainHandler.post {
                         result.error(
@@ -350,7 +350,7 @@ class MapboxNavigationBridge(context: Context) {
                             "loadedResourceSize" to progress.loadedResourceSize
                         )
                     }
-                ) routing@{ routingExpected ->
+                ) routing@ { routingExpected ->
                     if (!routingExpected.isValue) {
                         mainHandler.post {
                             result.error(
