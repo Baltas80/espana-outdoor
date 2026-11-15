@@ -165,8 +165,10 @@ func TestAuthenticateAcceptsDedicatedAudienceWithMobileAuthorizedParty(t *testin
         "aud": []string{"espana-outdoors-rescue-api", "account"},
         "azp": "espana-outdoors-mobile",
         "typ": "Bearer",
-        "realm_access": map[string]any{
-            "roles": []string{"rescue:volunteer"},
+        "resource_access": map[string]any{
+            "espana-outdoors-rescue-api": map[string]any{
+                "roles": []string{"rescue:volunteer"},
+            },
         },
     })
     srv := &server{
@@ -186,6 +188,52 @@ func TestAuthenticateAcceptsDedicatedAudienceWithMobileAuthorizedParty(t *testin
     }
     if _, ok := principal.Roles["rescue:volunteer"]; !ok {
         t.Fatal("server-side Rescue Link role was not preserved")
+    }
+}
+
+func TestAuthenticateDoesNotPromoteRealmOrUnrelatedClientRoles(t *testing.T) {
+    verifier, issuer, signingKey, cleanup := newRescueTestVerifier(t)
+    defer cleanup()
+
+    cases := []struct {
+        name    string
+        claims  map[string]any
+    }{
+        {
+            name: "realm role",
+            claims: map[string]any{
+                "realm_access": map[string]any{"roles": []string{"rescue:volunteer"}},
+            },
+        },
+        {
+            name: "unrelated client role",
+            claims: map[string]any{
+                "resource_access": map[string]any{
+                    "espana-outdoors-mobile": map[string]any{"roles": []string{"rescue:volunteer"}},
+                },
+            },
+        },
+    }
+
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            rawToken := signRescueTestToken(t, signingKey, issuer, tc.claims)
+            srv := &server{
+                cfg: config{oidcAudience: "espana-outdoors-rescue-api"},
+                verifier: verifier,
+            }
+            request := httptest.NewRequest(http.MethodPost, "/v1/rescue-links", nil)
+            request.Header.Set("Authorization", "Bearer "+rawToken)
+            response := httptest.NewRecorder()
+
+            principal, ok := srv.authenticate(response, request)
+            if !ok {
+                t.Fatalf("valid access token should authenticate before role authorization: %s", response.Body.String())
+            }
+            if _, allowed := principal.rescueRole(); allowed {
+                t.Fatal("role from realm or unrelated client must not authorize Rescue Link")
+            }
+        })
     }
 }
 
