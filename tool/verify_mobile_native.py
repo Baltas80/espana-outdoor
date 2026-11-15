@@ -223,6 +223,7 @@ def verify_android() -> None:
         "--no-pub",
         "timeout --signal=TERM",
         "ROUTE_PHASE_START",
+        "<REDACTED>",
     ):
         if marker not in staging_script:
             raise SystemExit(f"Android staging route harness is missing: {marker}")
@@ -232,7 +233,7 @@ def verify_android() -> None:
         if marker not in map_viewport:
             raise SystemExit(f"Mapbox viewport is missing render diagnostics: {marker}")
     smoke_script = (ROOT / "tool" / "smoke_android_map.sh").read_text(encoding="utf-8")
-    for marker in ("MAPBOX_MAP_STYLE_LOADED", "MAPBOX_MAP_FULL_FRAME", "MAPBOX_MAP_IDLE"):
+    for marker in ("MAPBOX_MAP_STYLE_LOADED", "MAPBOX_MAP_FULL_FRAME", "MAPBOX_MAP_IDLE", "<REDACTED>"):
         if marker not in smoke_script:
             raise SystemExit(f"Android map smoke does not wait for: {marker}")
     oppo_script = (ROOT / "tool" / "test_mapbox_oppo_routes.ps1").read_text(encoding="utf-8")
