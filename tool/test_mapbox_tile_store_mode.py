@@ -16,6 +16,8 @@ required = (
     "MapboxMapsOptions.tileStore = store",
     "MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY",
     ".tileStore(store)",
+    ".pixelRatio(appContext.resources.displayMetrics.density)",
+    ".networkRestriction(NetworkRestriction.NONE)",
 )
 for fragment in required:
     if fragment not in source:
