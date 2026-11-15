@@ -49,7 +49,7 @@ La validación debe realizarse sobre el APK construido desde el commit exacto ca
 7. Reiniciar el dispositivo y repetir la comprobación de persistencia, renderizado y routing offline.
 8. Restablecer la conectividad y comprobar recuperación sin duplicar ni corromper la región.
 
-Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba.
+Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba. El harness de emulador resuelve el package de la app de integración desde `namespace` de Gradle (distinto del application ID de staging), detiene ambos procesos antes de la fase offline, reutiliza las dependencias ya resueltas con `--no-pub` y limita cada fase a 8 minutos. El smoke de la pantalla de mapa espera `MAPBOX_MAP_STYLE_LOADED`, `MAPBOX_MAP_FULL_FRAME` y `MAPBOX_MAP_IDLE`; la existencia de una vista nativa o del logo de Mapbox no basta para declarar que las teselas se han renderizado.
 
 ## Validación del APK exacto en OPPO
 
