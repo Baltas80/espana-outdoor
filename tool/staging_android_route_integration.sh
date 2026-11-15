@@ -13,6 +13,7 @@ if [[ "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
 fi
 LOGCAT_PATH="$EVIDENCE_DIR/espana-outdoor-route-logcat.txt"
 TEST_LOG_PATH="$EVIDENCE_DIR/espana-outdoor-route-test-output.txt"
+SCREENSHOT_PATH="$EVIDENCE_DIR/espana-outdoor-offline-map.png"
 AIRPLANE_CHANGED=0
 ORIGINAL_AIRPLANE=""
 ORIGINAL_WIFI=""
@@ -66,6 +67,7 @@ bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"
 
 run_route_phase() {
   local mode="$1"
+  local phase_status=0
   echo "ROUTE_PHASE_START mode=$mode test_package=$TEST_PACKAGE_NAME app_package=$PACKAGE_NAME"
   # Dependencies were already resolved with --enforce-lockfile by the workflow.
   # Avoid an implicit pub get between online and offline phases.
@@ -74,8 +76,55 @@ run_route_phase() {
     -d "$DEVICE_SERIAL" \
     --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
     --dart-define=ROUTE_TEST_MODE="$mode" \
-    integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH"
-  echo "ROUTE_PHASE_PROCESS_EXIT mode=$mode"
+    integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
+  local phase_pid=$!
+
+  if [[ "$mode" == "offline" ]]; then
+    local screenshot_captured=0
+    # The Dart test emits this marker after the MapWidget has had its render
+    # deadline. Capture the native platform view before its assertions finish.
+    for attempt in $(seq 1 180); do
+      if grep -q 'MAPBOX_OFFLINE_SCREENSHOT_READY' "$TEST_LOG_PATH"; then
+        if adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" && test -s "$SCREENSHOT_PATH"; then
+          echo "MAPBOX_OFFLINE_SCREENSHOT_CAPTURED bytes=$(wc -c < "$SCREENSHOT_PATH" | tr -d ' ')" | tee -a "$TEST_LOG_PATH"
+          screenshot_captured=1
+        fi
+        break
+      fi
+      if ! kill -0 "$phase_pid" 2>/dev/null; then
+        break
+      fi
+      sleep 1
+    done
+    if [[ "$screenshot_captured" != "1" ]]; then
+      echo "WARNING: screenshot marker was not observed before test exit; attempting a diagnostic capture." | tee -a "$TEST_LOG_PATH"
+    fi
+  fi
+
+  if wait "$phase_pid"; then
+    :
+  else
+    phase_status=$?
+  fi
+
+  if [[ "$mode" == "offline" ]]; then
+    if [[ ! -s "$SCREENSHOT_PATH" ]]; then
+      adb -s "$DEVICE_SERIAL" exec-out screencap -p > "$SCREENSHOT_PATH" 2>/dev/null || true
+    fi
+    if [[ -s "$SCREENSHOT_PATH" ]]; then
+      if python3 tool/verify_android_map_screenshot.py "$SCREENSHOT_PATH" 2>&1 | tee -a "$TEST_LOG_PATH"; then
+        :
+      else
+        phase_status=1
+      fi
+    else
+      echo "MAPBOX_OFFLINE_SCREENSHOT_ERROR missing=true" | tee -a "$TEST_LOG_PATH"
+      phase_status=1
+    fi
+  fi
+
+  echo "ROUTE_PHASE_PROCESS_EXIT mode=$mode status=$phase_status"
+  return "$phase_status"
 }
 
 stop_integration_app() {
