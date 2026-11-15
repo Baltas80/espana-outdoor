@@ -224,6 +224,8 @@ jobs:
         id: android_map_smoke
         if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
+        env:
+          ANDROID_EMULATOR_CI: "true"
         with:
           api-level: 35
           target: google_apis
@@ -243,6 +245,8 @@ jobs:
         if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2.38.0
+        env:
+          ANDROID_EMULATOR_CI: "true"
         with:
           api-level: 35
           target: google_apis
