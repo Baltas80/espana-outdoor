@@ -10,6 +10,12 @@ $Adb = $AdbCommand
 $DeviceId = if ($env:ANDROID_SERIAL) { $env:ANDROID_SERIAL } else { 'da09ac8c' }
 $ExpectedModel = if ($env:EXPECTED_ANDROID_MODEL) { $env:EXPECTED_ANDROID_MODEL } else { 'CPH2009' }
 $PackageName = if ($env:ANDROID_APPLICATION_ID) { $env:ANDROID_APPLICATION_ID } else { 'com.espanaoutdoors.espana_outdoors' }
+$GradleFile = Join-Path $RepoRoot 'android\app\build.gradle.kts'
+$GradleText = Get-Content -LiteralPath $GradleFile -Raw
+if ($GradleText -notmatch '(?m)^\s*namespace\s*=\s*"([^"]+)"') {
+    throw 'Could not resolve the Flutter integration-test package from the Android Gradle namespace.'
+}
+$TestPackageName = $Matches[1]
 $ReportDir = Join-Path $RepoRoot 'build\mapbox-oppo-validation'
 $ReportPath = Join-Path $ReportDir 'validation-report.txt'
 $LogcatPath = Join-Path $ReportDir 'logcat.txt'
@@ -56,7 +62,7 @@ function Invoke-RouteIntegration([string] $Mode) {
     $Report.Add("Phase started: $Mode at $(Get-Date -Format o)")
     @{ MAPBOX_ACCESS_TOKEN = $env:MAPBOX_ACCESS_TOKEN; ROUTE_TEST_MODE = $Mode } |
         ConvertTo-Json -Compress | Set-Content -LiteralPath $DartDefineFile -Encoding ascii
-    $output = & flutter test -d $DeviceId "--dart-define-from-file=$DartDefineFile" 'integration_test/mapbox_android_live_route_test.dart' 2>&1
+    $output = & flutter test --no-pub --reporter expanded -d $DeviceId "--dart-define-from-file=$DartDefineFile" 'integration_test/mapbox_android_live_route_test.dart' 2>&1
     $exitCode = $LASTEXITCODE
     $output | ForEach-Object { $line = [string]$_; if ($line -notmatch 'MAPBOX_ACCESS_TOKEN|pk\.[A-Za-z0-9._-]+') { $Report.Add($line) } }
     if ($exitCode -ne 0) { throw "Mapbox integration phase '$Mode' failed with exit code $exitCode." }
@@ -112,7 +118,23 @@ try {
     Start-Sleep -Seconds 3
     $wifi = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
     if ($wifi -ne '0') { throw "Wi-Fi is still enabled (wifi_on=$wifi); offline test refused." }
-    Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
+    # Flutter installs the integration-test runner under Gradle's namespace,
+    # which is intentionally different from the staging/production application ID.
+    foreach ($package in @($TestPackageName, $PackageName) | Select-Object -Unique) {
+        Invoke-Adb @('-s', $DeviceId, 'shell', 'am', 'force-stop', $package) | Out-Null
+    }
+    Start-Sleep -Seconds 2
+    foreach ($package in @($TestPackageName, $PackageName) | Select-Object -Unique) {
+        $processOutput = & $Adb -s $DeviceId shell pidof $package 2>$null
+        $processExitCode = $LASTEXITCODE
+        if ($processExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace(($processOutput | Out-String).Trim())) {
+            throw "Integration process '$package' survived force-stop; offline relaunch refused."
+        }
+        if ($processExitCode -gt 1) {
+            throw "Could not verify that integration process '$package' stopped (adb exit $processExitCode)."
+        }
+    }
+    $Report.Add("Stopped integration-test namespace package '$TestPackageName' and app package '$PackageName' before offline phase.")
     Invoke-RouteIntegration 'offline'
     $airplaneNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'airplane_mode_on')
     $wifiNow = Invoke-Adb @('-s', $DeviceId, 'shell', 'settings', 'get', 'global', 'wifi_on')
