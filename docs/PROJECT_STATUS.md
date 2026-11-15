@@ -1,13 +1,13 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 14:23 CET**.
+Última revisión: **15/11/2026 14:51 CET**.
 
 - Rama de producción: main
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de código examinado antes de esta actualización: 4664692c9406222cd3a191455824712196ef27dc.
-- HEAD de la rama al inicio de esta actualización documental: cfb3ec6c7583790be32ad6fdf723f767aa4c3192.
+- HEAD de la rama PR #61 en esta revisión: `a0f60607ae452c5c3c3ad4d56a0f4c0d19b6f25b`.
+- Último commit de instrumentación: `a0f60607`, separa respuestas correctas, cancelaciones y errores reales de recursos Mapbox.
 - La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
@@ -68,23 +68,29 @@ Referencias oficiales:
 
 ### Validación actual de PR #61
 
-Ejecuciones del commit anterior `6a35844`:
-- [Android staging 43713796013](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796013): análisis/tests y APK release staging completados; el smoke falló al no recibir map-loaded/full-frame/idle. El routing independiente comenzó, pero el runner se apagó antes de producir evidencia.
-- [CI 43713796035](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796035): Flutter, iOS, Rescue Link y Source Gateway terminaron correctamente.
-- [Security baseline 43713796155](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796155): todos los trabajos terminaron correctamente.
+Último HEAD de la rama: `a0f60607ae452c5c3c3ad4d56a0f4c0d19b6f25b`.
 
-Workflows disparados por el HEAD con preflight e instrumentación nuevos:
-- [Android staging 43719251447](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251447): quedó pendiente y sin jobs al sincronizar la rama; no se usa como evidencia.
-- [CI 43719251310](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251310): cancelada por la ejecución posterior al sincronizar la rama; Source Gateway pasó antes de la cancelación.
-- [Security baseline 43719251313](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251313): todos los trabajos terminaron correctamente.
+Ejecución anterior completada sobre el commit `cff6fa33f5489dc886c6bf2ea1a208e707959256`:
+- [Android staging 43719466740](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466740): preflight Mapbox, análisis/tests Flutter y compilación/verificación del APK superados. El manifiesto confirma `validation_scope=runtime-capable-artifact`, application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5 y SHA-256 `58da00fc3f81a59f3d0fce51e03914f1c81fc022227e3408cbc83610ab32a3c9`.
+- El emulador alcanzó red validada y la app emitió `MAPBOX_MAP_STYLE_LOADED`; no emitió `MAPBOX_MAP_LOADED`, `MAPBOX_MAP_FULL_FRAME` ni `MAPBOX_MAP_IDLE`. Solo se observaron frames parciales. Logcat registró misses `NOT_FOUND` en CACHE/TILE_STORE y eventos cancelados de ResourceLoader. Estos eventos no demuestran por sí solos una denegación HTTP ni un fallo de conectividad.
+- La fase `online_offline_routing` comenzó, pero el runner recibió una señal de apagado a las 13:47:33Z. No produjo evidencia de ruta online/offline. Los pasos de subida de PNG/Logcat quedaron omitidos, por lo que no existe captura de esa ejecución para inspección.
+- [CI 43719466760](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466760): 4/4 jobs superados (Source Gateway, Rescue Link, Flutter e iOS).
+- [Security baseline 43719466752](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466752): 8/8 jobs superados.
 
-Workflows del HEAD sincronizado `cd17eb3`:
-- [Android staging 43719412769](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412769): pendiente/queued en la última consulta.
-- [CI 43719412779](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412779): pendiente en la última consulta.
-- [Security baseline 43719412729](https://github.com/Baltas80/espana-outdoor/actions/runs/43719412729): en ejecución; los primeros trabajos de Go, secret scan y dependencias no mostraban fallos.
+Corrección de instrumentación en `a0f60607`:
+- `MAPBOX_RESOURCE_OK` identifica respuestas correctas y su origen.
+- `MAPBOX_RESOURCE_CANCELLED` separa cancelaciones/misses de caché de errores reales.
+- `MAPBOX_RESOURCE_FAILURE` queda reservado para respuestas con error no canceladas.
+- Los contadores de éxito, cancelación y error se incluyen en los eventos map-loaded/idle.
+Esta instrumentación mejora el diagnóstico; no corrige ni certifica por sí misma el renderizado.
+
+Workflows del HEAD `a0f60607`:
+- [CI 43721536211](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536211): en ejecución al actualizar este documento.
+- [Security baseline 43721536262](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536262): en cola.
+- [Android staging 43721536277](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536277): en ejecución.
 
 Evidencia histórica, no aceptación del HEAD actual:
-- La ejecución 43667786016 obtuvo una ruta nueva con origen OFFLINE en modo avión (1.109,662 m; 66 puntos), pero la captura del mapa no acreditó renderizado completo.
+- La ejecución 43667786016 obtuvo una ruta nueva con origen OFFLINE en modo avión (1.109,662 m; 66 puntos), pero la captura visual no acreditó renderizado completo.
 - No existe todavía una ejecución que complete descarga, persistencia, ruta offline y mapa visual aceptado en el mismo HEAD.
 
 ### Puertas obligatorias antes de aceptar la PR #61
@@ -148,7 +154,7 @@ El procedimiento preparado verifica el hash/package/versionCode/commit del APK c
 
 ## Hoja de ruta priorizada
 
-1. Completar Android staging/CI del HEAD 4cdc3335 e inspeccionar logs y capturas reales.
+1. Completar Android staging/CI del HEAD `a0f60607` e inspeccionar respuestas Mapbox, logs y capturas reales.
 2. Corregir cualquier fallo del smoke online/offline; exigir también idle en la prueba offline.
 3. Obtener ruta nueva OFFLINE y mapa visible después de descarga/cierre/avión.
 4. Revisar la PR #61 y fusionarla solo cuando los controles de emulador y CI pasen.
