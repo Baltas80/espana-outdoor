@@ -63,6 +63,8 @@ jobs:
         run: python3 tool/test_patch_mapbox_resource_expiry.py
       - name: Test Android emulator network guard
         run: python3 tool/test_android_emulator_network_guard.py
+      - name: Verify shared Mapbox TileStore mode
+        run: python3 tool/test_mapbox_tile_store_mode.py
       - name: Check staging endpoints
         shell: bash
         run: |
