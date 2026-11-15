@@ -346,7 +346,7 @@ def verify_android() -> None:
         "MAPBOX_MAP_IDLE",
         "mapDeadline",
         "verify_android_map_screenshot.py",
-        "dumpsys activity",
+        "'dumpsys', 'activity', 'activities",
         "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
         "--foreground-package",
     ):
