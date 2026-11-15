@@ -6,7 +6,7 @@
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de la rama PR #61 en esta revisión: `6469d1c32e9757f62f8cff9384e04e0f39ac6a81`.
+- HEAD de la rama PR #61 en esta revisión: `d1a9f0909aa1781cde1969f88ce18512e560a9f5`.
 - Últimos cambios: `7cca9e1` mueve la captura del viewport offline a ADB host-side para evitar el canal screenshot no registrado de integration_test; `8421e58` separa los misses CACHE/TILE_STORE de errores reales; `10fe733` captura PNG antes de cerrar el test; `a3a653d` añade validador PNG sin dependencias; `0f1b795` incorpora self-test y artefacto; `6469d1c` documenta el procedimiento.
 - La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
 
@@ -31,11 +31,18 @@
 - La instrumentación distingue lookup misses de errores reales.
 - El workflow ejecuta el self-test del decodificador y adjunta el PNG al artefacto de routing.
 
-### CI del HEAD 6469d1
+### CI del HEAD 6469d1 y corrección posterior
 
-- [Android staging 43735239658](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239658): en ejecución.
-- [CI 43735239624](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239624): en ejecución.
-- [Security baseline 43735239630](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239630): en ejecución.
+- [Android staging 43735239658](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239658): falló en `verify_mobile_native.py` antes de compilar. El validador estático seguía buscando `MAPBOX_OFFLINE_MAP_RENDERED` en el Dart test, aunque el marcador pasó al validador PNG host-side. El self-test del decodificador sí pasó.
+- [CI 43735239624](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239624): Source Gateway y Rescue Link pasaron; Flutter falló en la misma comprobación estática; iOS seguía en curso al inspeccionar.
+- [Security baseline 43735239630](https://github.com/Baltas80/espana-outdoor/actions/runs/43735239630): 8/8 trabajos superados.
+
+El commit `d1a9f09` actualiza el verificador para buscar el marcador y las métricas en `tool/verify_android_map_screenshot.py`, exige captura ADB en el harness y verifica que el PNG se conserve como artefacto. El gate se versiona como v3 y limita la dimensión/píxeles para evitar PNG descomprimidos excesivos.
+
+Nuevas ejecuciones del HEAD `d1a9f09`:
+- [Android staging 43735433990](https://github.com/Baltas80/espana-outdoor/actions/runs/43735433990): en ejecución.
+- [CI 43735433995](https://github.com/Baltas80/espana-outdoor/actions/runs/43735433995): en ejecución.
+- [Security baseline 43735434081](https://github.com/Baltas80/espana-outdoor/actions/runs/43735434081): en ejecución.
 
 La corrección del harness todavía no está validada en runtime. La PR #61 sigue abierta; el mapa offline no está aceptado y no se ha probado el APK candidato en OPPO en este ciclo.
 
