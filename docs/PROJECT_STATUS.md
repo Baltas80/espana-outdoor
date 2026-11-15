@@ -198,3 +198,12 @@ La ruta offline peatonal queda demostrada en emulador; el mapa offline no. No fu
 La revisión del run 43752643079 mostró que el host veía `MAPBOX_OFFLINE_SCREENSHOT_READY` cuando la actividad de integración ya había abandonado el primer plano. La tubería del test pasaba por `sed` antes de `tee`; GNU sed con salida redirigida puede retener el marcador en un búfer de bloque. Se reprodujo localmente con un proceso que imprimía el marcador y esperaba 5 segundos: con `sed -E`, el log seguía en 0 bytes tras 1 segundo; con `sed -u -E`, el log contenía los 32 bytes del marcador tras 1 segundo.
 
 Se cambia la tubería del runner a `sed -u -E` para que el host capture el PNG mientras el integration app sigue en primer plano. El guard `tool/test_android_validation_order.py` exige que el modo no-buffered permanezca. Esta corrección resuelve el fallo de sincronización de la captura; **no** resuelve ni disimula los 14 fallos offline de teselas ni acredita el renderizado. La próxima ejecución debe producir una captura del paquete correcto y permitir distinguir visualmente el viewport aunque el test termine fallando.
+
+
+## Actualización CI 15/11/2026 — Flutter completo
+
+En [CI 43758128192](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128192), el job Flutter completó análisis, tests focalizados y suite completa correctamente; Source Gateway y Rescue Link también pasaron. Android release build e iOS seguían en ejecución en la última consulta.
+
+[Security baseline 43758128131](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128131): 8/8 trabajos superados.
+
+[Android staging 43758128107](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128107): pending sin jobs publicados. No se ha ejecutado todavía el nuevo cambio de captura `sed -u` en emulador.
