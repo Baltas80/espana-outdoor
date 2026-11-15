@@ -73,7 +73,7 @@ void main() {
         'geometry_points=${onlineRoute.points.length}',
       );
 
-      await _navigationChannel.invokeMethod<void>(
+      final download = await _navigationChannel.invokeMethod<Map<Object?, Object?>>(
         'downloadOfflineRegion',
         {
           'regionId': _regionId,
@@ -82,6 +82,19 @@ void main() {
           'minZoom': 8,
           'maxZoom': 15,
         },
+      );
+      expect(download, isNotNull);
+      expect(download?['mapTiles'], isTrue);
+      expect(download?['routingProfile'], 'walking');
+      expect(
+        download?['completedResourceCount'],
+        greaterThan(0),
+        reason: 'The downloaded region must contain completed Mapbox resources.',
+      );
+      expect(
+        download?['completedResourceSize'],
+        greaterThan(0),
+        reason: 'The downloaded region must persist non-empty resource bytes.',
       );
       // Native downloadOfflineRegion completes only after the TileStore
       // callback succeeds and the persistent completion marker is committed.
