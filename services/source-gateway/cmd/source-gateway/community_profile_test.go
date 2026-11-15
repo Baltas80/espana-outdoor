@@ -48,12 +48,12 @@ func (s *memoryCommunityProfileStore) updateDisplayName(_ context.Context, subje
 
 func newCommunityProfileTestServer(t *testing.T, claims map[string]any) (*server, string, *memoryCommunityProfileStore, func()) {
     t.Helper()
-    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-mobile")
-    token := signTestIDTokenWithClaims(t, signingKey, issuer, "espana-outdoors-mobile", claims)
+    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-api")
+    token := signTestAccessTokenWithClaims(t, signingKey, issuer, "espana-outdoors-api", claims)
     store := &memoryCommunityProfileStore{}
     srv := &server{
         cfg: config{
-            oidcAudience: "espana-outdoors-mobile",
+            oidcAudience: "espana-outdoors-api",
             rateLimit: 100,
             rateBurst: 100,
             allowedOrigins: map[string]struct{}{"https://espanaoutdoor.es": {}},
@@ -217,12 +217,34 @@ func TestMyProfileRejectsMissingTokenType(t *testing.T) {
     }
 }
 
-func TestMyProfileRejectsWrongAudience(t *testing.T) {
-    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-mobile")
+func TestMyProfileAcceptsAPIAudienceWithDifferentAuthorizedParty(t *testing.T) {
+    srv, token, store, cleanup := newCommunityProfileTestServer(t, map[string]any{
+        "sub": "user-api-audience",
+        "aud": []string{"espana-outdoors-api", "account"},
+        "azp": "espana-outdoors-mobile",
+        "typ": "Bearer",
+    })
     defer cleanup()
-    token := signTestIDToken(t, signingKey, issuer, "another-client")
+
+    request := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+    request.Header.Set("Authorization", "Bearer "+token)
+    response := httptest.NewRecorder()
+    srv.myProfile(response, request)
+
+    if response.Code != http.StatusOK {
+        t.Fatalf("expected 200 for API audience and separate authorized party, got %d: %s", response.Code, response.Body.String())
+    }
+    if store.lastSubject != "user-api-audience" {
+        t.Fatalf("profile subject = %q, want verified access-token subject", store.lastSubject)
+    }
+}
+
+func TestMyProfileRejectsWrongAudience(t *testing.T) {
+    verifier, issuer, signingKey, cleanup := newTestOIDCVerifier(t, "espana-outdoors-api")
+    defer cleanup()
+    token := signTestAccessToken(t, signingKey, issuer, "another-client")
     srv := &server{
-        cfg: config{oidcAudience: "espana-outdoors-mobile", rateLimit: 10, rateBurst: 10},
+        cfg: config{oidcAudience: "espana-outdoors-api", rateLimit: 10, rateBurst: 10},
         verifier: verifier,
         profiles: &memoryCommunityProfileStore{},
         limiters: make(map[string]*limiterEntry),
