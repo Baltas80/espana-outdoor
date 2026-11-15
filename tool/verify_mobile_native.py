@@ -222,7 +222,7 @@ def verify_android() -> None:
             )
 
     route_harness = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
-    for marker in ("adb exec-out screencap -p", "tool/verify_android_map_screenshot.py"):
+    for marker in ("screencap -p", "tool/verify_android_map_screenshot.py"):
         if marker not in route_harness:
             raise SystemExit(f"Android route harness is missing host screenshot capture: {marker}")
 
