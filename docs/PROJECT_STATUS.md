@@ -255,3 +255,8 @@ Commits: `6191113f0cdcf5b3c2a79a5b1242fced39d65e1e`, `71a5f7110ce66ae4e0d89178d2
 El HEAD actual es `9e3a768fcea431f784cc562e293ee025f9b5a2e0`; comparación con `main`: 197 commits por delante y 4 por detrás. No hay ejecuciones Actions asociadas a este HEAD en la última consulta. La validación local/CI del nuevo mecanismo y de las dos TileRegions queda pendiente.
 
 La PR #61 permanece en draft. No fusionar hasta obtener en un mismo HEAD: contadores Maps/Navigation independientes, ruta nueva offline, full frame, idle, cero fallos reales, PNG verificado, reapertura/reinicio y validación del APK exacto en OPPO.
+
+
+## Sincronización documental con main — 15/11/2026
+
+Se revisó el commit de main `669c8c48dbad05e3d115793e84b2c0b3faca22ea`, cuyo único archivo cambiado desde el merge base es este documento. Su corrección de aceptación (un TileRegion agregado no demuestra teselas Maps) está incorporada y ampliada en esta rama: regiones Maps/Navigation independientes, resultados de emulador del HEAD anterior y corrección del disparador de captura por logcat. Al sincronizar la ascendencia se conserva esta versión de estado, que incluye la evidencia más reciente de PR #61; no se descartan cambios de código de main porque no existen otros archivos divergentes.
