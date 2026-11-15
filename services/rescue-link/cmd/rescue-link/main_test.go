@@ -110,6 +110,7 @@ func setRescueConfigEnvironment(t *testing.T) {
     t.Setenv("DATABASE_URL", "postgresql://espana:password@localhost:5432/espana_outdoor?sslmode=require")
     t.Setenv("ALLOW_HTTP_DEV", "false")
     t.Setenv("OIDC_ISSUER", "https://auth.example.test/realms/espana-outdoor")
+    t.Setenv("RESCUE_LINK_OIDC_AUDIENCE", "espana-outdoors-rescue-api")
     t.Setenv("PUBLIC_SHARE_BASE_URL", "https://rescue.example.test")
     t.Setenv("LOCATION_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
     t.Setenv("RESCUE_MAX_TTL", "15m")
