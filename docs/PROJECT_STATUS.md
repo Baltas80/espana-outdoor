@@ -1,13 +1,14 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 13:24 CET**.
+Última revisión: **15/11/2026 14:23 CET**.
 
 - Rama de producción: main
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
-- PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61)
+- PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de la rama PR #61: ecd4df1321c296c7cef2c876e350e67d32f01b85 (actualización documental); HEAD de código validado: 4cdc3335a5bfc177aeb8fb0fb4aa5bab0c9fd5c1
-- Comparación de PR #61: 121 commits por delante y 1 por detrás de main.
+- HEAD de código examinado antes de esta actualización: 4664692c9406222cd3a191455824712196ef27dc.
+- HEAD de la rama al inicio de esta actualización documental: cfb3ec6c7583790be32ad6fdf723f767aa4c3192.
+- La rama está 132 commits por delante y 1 por detrás de main; el único commit pendiente de sincronización es el despliegue de Pages de main.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -42,34 +43,44 @@ Versiones fijadas:
 - Common: 24.35.0-ndk27
 - Android NDK: 28.2.13676358
 
-### Corrección de configuración Mapbox en el HEAD actual
+### Corrección de configuración Mapbox y diagnóstico del último smoke
 
-El diagnóstico de Android staging [43709265025](https://github.com/Baltas80/espana-outdoor/actions/runs/43709265025) mostró que la red del emulador estaba validada, pero el mapa no llegaba a emitir MAPBOX_MAP_LOADED, MAPBOX_MAP_FULL_FRAME ni MAPBOX_MAP_IDLE. Logcat registró misses NOT_FOUND en TileStore; la fase de routing terminó interrumpida por apagado del runner y no produjo evidencia offline en esa ejecución.
+La ejecución Android staging [43713796013](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796013) utilizó el APK release staging construido desde el commit `6a35844a670d51530661f77745aba22758dee871`. El artefacto `android-staging-apk` se generó con `validation_scope=runtime-capable-artifact`, application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5 y SHA-256 `b3caa9a2534cd67d4da57aae8561ff24d96c19243cfdc26e8ebd01fe4c481398`. Los dos secretos Mapbox estaban disponibles.
 
-La causa de configuración localizada fue TileStoreUsageMode.READ_AND_UPDATE aplicado globalmente al mapa de exploración. La documentación oficial de Mapbox especifica que este modo convierte las solicitudes en solicitudes de tile packs y no es recomendable para mapas de exploración libre. READ_ONLY consulta los packs descargados y, si una tesela no está en un pack, permite el fallback a la solicitud online de tesela individual.
+La red del emulador quedó validada. La aplicación arrancó y emitió `MAPBOX_MAP_STYLE_LOADED`, pero no emitió `MAPBOX_MAP_LOADED`, `MAPBOX_MAP_FULL_FRAME` ni `MAPBOX_MAP_IDLE` dentro de 45 segundos. Logcat registró misses `NOT_FOUND` en cache/TileStore y solicitudes posteriores canceladas. La instrumentación anterior no imprimía la clase segura del mensaje de error, por lo que todavía no se podía distinguir una denegación HTTP de un problema de carga/renderizado.
 
-En el HEAD 4cdc3335:
-- Maps usa explícitamente TileStoreUsageMode.READ_ONLY.
-- Navigation conserva el mismo TileStore mediante RoutingTilesOptions.
-- tool/test_mapbox_tile_store_mode.py impide reintroducir el modo global READ_AND_UPDATE.
-- tool/verify_mobile_native.py exige el modo correcto.
-- Android staging ejecuta el guard antes de compilar.
-- docs/MAP_OFFLINE.md documenta el motivo y enlaza la documentación oficial.
+La fase independiente de routing llegó a iniciarse, pero el runner recibió una señal de apagado durante esa fase. Esa ejecución no produjo evidencia nueva de ruta online/offline.
 
-Referencias:
+La corrección de configuración aplicada en la rama PR #61 mantiene un único TileStore persistente compartido por Maps y Navigation. Maps usa `TileStoreUsageMode.READ_ONLY`; Navigation conserva el mismo store mediante `RoutingTilesOptions`. La documentación oficial indica que READ_ONLY consulta primero los tile packs y permite fallback a solicitudes individuales online, mientras que READ_AND_UPDATE convierte las solicitudes en tile-pack requests y no es apropiado para un mapa de exploración libre.
+
+En los commits posteriores al APK anterior se han incorporado:
+- `tool/verify_mapbox_runtime_access.py`: preflight de estilo Outdoors, TileJSON y una tesela vectorial real de Córdoba; solo registra códigos HTTP y bytes, nunca URL/token.
+- `tool/test_mapbox_runtime_access.py`: pruebas de éxito, token no público, HTTP 401 sin filtrar el token y respuesta de tesela vacía.
+- `staging-android.yml`: ejecuta el preflight cuando el secreto runtime está disponible; Dependabot lo omite porque no recibe secretos.
+- `mapbox_map_viewport.dart`: clasifica errores Mapbox por HTTP/autorización/TLS/DNS/red sin imprimir mensajes ni URLs.
+- `mapbox_android_live_route_test.dart`: exige map-loaded, full frame, idle, ausencia de errores reales de recursos y el gate de píxeles.
+
+Estos cambios están en el HEAD posterior al APK anterior y requieren una nueva ejecución. No se consideran validados hasta que terminen los workflows disparados por el nuevo HEAD.
+
+Referencias oficiales:
 - [Mapbox TileStoreUsageMode](https://docs.mapbox.com/android/maps/api/11.18.2/mapbox-maps-android/com.mapbox.maps/-tile-store-usage-mode/)
 - [Mapbox offline concepts](https://docs.mapbox.com/android/maps/guides/offline/concepts/)
 
 ### Validación actual de PR #61
 
-Ejecuciones del HEAD 4cdc3335:
-- [Android staging 43713534618](https://github.com/Baltas80/espana-outdoor/actions/runs/43713534618): en curso; el guard de red, el nuevo guard de TileStore, la verificación del proyecto Android, NDK, dependencias y lockfile ya pasaron. Análisis/tests Flutter siguen ejecutándose.
-- [CI 43713534747](https://github.com/Baltas80/espana-outdoor/actions/runs/43713534747): Source Gateway y Rescue Link pasaron; Flutter e iOS siguen ejecutándose.
-- [Security baseline 43713534650](https://github.com/Baltas80/espana-outdoor/actions/runs/43713534650): todos los trabajos observados terminaron correctamente.
+Ejecuciones del commit anterior `6a35844`:
+- [Android staging 43713796013](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796013): análisis/tests y APK release staging completados; el smoke falló al no recibir map-loaded/full-frame/idle. El routing independiente comenzó, pero el runner se apagó antes de producir evidencia.
+- [CI 43713796035](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796035): Flutter, iOS, Rescue Link y Source Gateway terminaron correctamente.
+- [Security baseline 43713796155](https://github.com/Baltas80/espana-outdoor/actions/runs/43713796155): todos los trabajos terminaron correctamente.
+
+Workflows disparados por el HEAD con preflight e instrumentación nuevos:
+- [Android staging 43719251447](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251447): pendiente en la última consulta.
+- [CI 43719251310](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251310): en ejecución.
+- [Security baseline 43719251313](https://github.com/Baltas80/espana-outdoor/actions/runs/43719251313): en ejecución.
 
 Evidencia histórica, no aceptación del HEAD actual:
 - La ejecución 43667786016 obtuvo una ruta nueva con origen OFFLINE en modo avión (1.109,662 m; 66 puntos), pero la captura del mapa no acreditó renderizado completo.
-- Las ejecuciones posteriores no completaron la combinación de descarga, persistencia, ruta y mapa visual en el mismo HEAD.
+- No existe todavía una ejecución que complete descarga, persistencia, ruta offline y mapa visual aceptado en el mismo HEAD.
 
 ### Puertas obligatorias antes de aceptar la PR #61
 
@@ -77,7 +88,7 @@ Evidencia histórica, no aceptación del HEAD actual:
 2. Emulador con red validada: ruta online y descarga de Córdoba con style pack, teselas y recursos peatonales persistidos.
 3. Cierre forzado/reinicio del proceso; activar modo avión y deshabilitar Wi-Fi.
 4. Ruta nueva con origen nativo OFFLINE, no una respuesta cacheada de la ruta online.
-5. Mapa offline con style, full frame, idle, cero errores de carga y captura que supere el gate de píxeles.
+5. Preflight HTTP del estilo, TileJSON y tesela vectorial correcto; mapa offline con style-loaded, map-loaded, full frame e idle, cero errores reales de recursos y captura que supere el gate de píxeles.
 6. Inspeccionar y conservar PNG, Logcat redactado, manifiesto y hash del APK.
 7. Instalar el APK candidato exacto en el OPPO físico y repetir la persistencia tras reinicio.
 
