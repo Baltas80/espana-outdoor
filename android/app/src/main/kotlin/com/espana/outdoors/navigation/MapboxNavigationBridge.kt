@@ -54,14 +54,7 @@ class MapboxNavigationBridge(context: Context) {
         // Maps SDK v11 reads TileStore credentials from MapboxOptions.
         // The global token is set above, before this persistent TileStore is created.
         tileStore = store
-        // This same TileStore is used by Maps and Navigation for every offline region.
-        MapboxMapsOptions.tileStore = store
-        // The main map supports free panning. READ_ONLY reads downloaded tile packs first,
-        // then falls back to individual online tiles outside downloaded regions.
-        // READ_AND_UPDATE is tile-pack-only and is intended for constrained navigation
-        // viewports; using it globally leaves arbitrary map viewports without tiles.
-        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
-
+        // Navigation receives this same TileStore explicitly through RoutingTilesOptions.
         val routingTilesOptions = RoutingTilesOptions.Builder()
             .tileStore(store)
             .tilesProfile("walking")
@@ -71,6 +64,20 @@ class MapboxNavigationBridge(context: Context) {
                 .routingTilesOptions(routingTilesOptions)
                 .build()
         )
+
+        // Apply Maps SDK globals after Navigation bootstrap and before constructing
+        // OfflineManager or any MapView. Maps API objects snapshot these options at
+        // construction, so the map must see the exact persistent store used above.
+        // READ_ONLY serves downloaded tile packs first and falls back to individual
+        // online tiles outside downloaded regions; free panning remains supported.
+        MapboxMapsOptions.tileStore = store
+        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
+        check(MapboxMapsOptions.tileStore === store) {
+            "Maps SDK did not retain the shared offline TileStore."
+        }
+        check(MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY) {
+            "Maps SDK TileStore usage mode must remain READ_ONLY."
+        }
         offlineManager = OfflineManager()
         configuredToken = accessToken
     }

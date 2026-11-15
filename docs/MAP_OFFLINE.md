@@ -297,3 +297,22 @@ Commits: `6191113f0cdcf5b3c2a79a5b1242fced39d65e1e`, `71a5f7110ce66ae4e0d89178d2
 El HEAD actual es `9e3a768fcea431f784cc562e293ee025f9b5a2e0`; comparación con `main`: 197 commits por delante y 4 por detrás. No hay ejecuciones Actions asociadas a este HEAD en la última consulta. La validación local/CI del nuevo mecanismo y de las dos TileRegions queda pendiente.
 
 La PR #61 permanece en draft. No fusionar hasta obtener en un mismo HEAD: contadores Maps/Navigation independientes, ruta nueva offline, full frame, idle, cero fallos reales, PNG verificado, reapertura/reinicio y validación del APK exacto en OPPO.
+
+
+## Diagnóstico Android reproducible — 15/11/2026
+
+La ejecución [43763778048](https://github.com/Baltas80/espana-outdoor/actions/runs/43763778048), sobre el commit `4a443cff`, aporta esta evidencia:
+
+- Ruta peatonal online: correcta (`767,757 m`, 55 puntos).
+- Descarga separada: Maps 29 recursos / 32.892.088 bytes; Navigation 4 recursos / 9.955.518 bytes; cero errores comunicados por ambos descriptores.
+- Ruta peatonal nueva con origen `OFFLINE`: correcta (`1.109,662 m`, 66 puntos).
+- Renderizado offline: fallido. El estilo llegó a cargarse, pero se registraron 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`; no llegaron `map_loaded`, `full_frame` ni `idle`.
+- La captura no se aceptó porque el host no detectó el marcador de Flutter en el filtro de Logcat. El marcador anterior se emitía desde Dart; ahora se envía mediante un método nativo limitado a builds debuggable.
+
+Cambios de diagnóstico en el HEAD siguiente:
+
+- Reaplicar y comprobar la instancia global de `MapboxMapsOptions.tileStore` después de inicializar Navigation y antes de crear `OfflineManager`, ya que Maps toma estas opciones durante la construcción de sus objetos.
+- Registrar coordenadas z/x/y de las teselas solicitadas, sin registrar URLs ni tokens, para comparar el viewport con la cobertura del TileRegion.
+- Capturar la señal desde el tag nativo `EspanaOfflineTest` y verificar la actividad de integración antes de guardar el PNG.
+
+**Estado:** estas medidas mejoran la comprobación de identidad/configuración y la evidencia; no demuestran todavía que Maps esté leyendo los paquetes. La aceptación sigue exigiendo un PNG auténtico, carga completa del mapa y cero fallos de recursos en modo avión.

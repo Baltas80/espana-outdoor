@@ -1,5 +1,6 @@
 package com.example.espana_outdoors
 
+import android.content.pm.ApplicationInfo
 import android.util.Log
 import com.espana.outdoors.navigation.MapboxNavigationBridge
 import io.flutter.embedding.android.FlutterActivity
@@ -38,6 +39,14 @@ class MainActivity : FlutterActivity() {
                                 )
                                 result.error("NAVIGATION_INIT_FAILED", "Mapbox Navigation initialization failed.", null)
                             }
+                    }
+                }
+                "markOfflineScreenshotReady" -> {
+                    if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                        Log.i("EspanaOfflineTest", "MAPBOX_OFFLINE_SCREENSHOT_READY")
+                        result.success(null)
+                    } else {
+                        result.notImplemented()
                     }
                 }
                 "requestRoute" -> navigationBridge.requestRoute(call.arguments, result)

@@ -100,6 +100,8 @@ def verify_android() -> None:
     activity_text = expected_activity.read_text(encoding="utf-8")
     if "com.espanaoutdoors/navigation" not in activity_text or '"configure" ->' not in activity_text:
         raise SystemExit("MainActivity is missing the Mapbox Navigation startup channel.")
+    if '"markOfflineScreenshotReady" ->' not in activity_text or '"EspanaOfflineTest"' not in activity_text:
+        raise SystemExit("MainActivity is missing the debug-only native screenshot-ready signal.")
 
     bridge_path = kotlin_root / "com" / "espana" / "outdoors" / "navigation" / "MapboxNavigationBridge.kt"
     if not bridge_path.is_file():
@@ -141,6 +143,15 @@ def verify_android() -> None:
     }.items():
         if fragment not in bridge:
             raise SystemExit(f"Native Mapbox bridge is missing: {label}")
+    navigation_create_index = bridge.find("navigation = MapboxNavigationProvider.create(")
+    maps_store_index = bridge.rfind("MapboxMapsOptions.tileStore = store")
+    offline_manager_index = bridge.find("offlineManager = OfflineManager()")
+    if not (0 <= navigation_create_index < maps_store_index < offline_manager_index):
+        raise SystemExit(
+            "Apply the shared Maps TileStore after Navigation bootstrap and before OfflineManager construction."
+        )
+    if "check(MapboxMapsOptions.tileStore === store)" not in bridge:
+        raise SystemExit("Native bridge must assert that Maps retains the shared TileStore instance.")
     if '"message" to failure.message' in bridge:
         raise SystemExit("Native Mapbox failure messages must not expose request URLs or tokens.")
 
@@ -206,6 +217,8 @@ def verify_android() -> None:
         "RenderMode.FULL",
         "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
         "MAPBOX_OFFLINE_SCREENSHOT_READY",
+        "markOfflineScreenshotReady",
+        "tile_id=",
     )
     for marker in required_integration_evidence:
         if marker not in integration_text:
@@ -246,6 +259,7 @@ def verify_android() -> None:
         "tool/verify_android_map_screenshot.py",
         "dumpsys activity activities",
         "MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND",
+        "EspanaOfflineTest:I",
         "--foreground-package",
     ):
         if marker not in route_harness:

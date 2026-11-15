@@ -287,11 +287,13 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             final safeId = event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_');
             final key = '${safeId}:${event.type.name}:${event.loaded ?? false}';
             sourceDataCounts[key] = (sourceDataCounts[key] ?? 0) + 1;
+            final tile = event.tileID;
+            final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
             if (sourceDataEventCount <= 40) {
               // ignore: avoid_print
               print(
                 'MAPBOX_SOURCE_DATA id=$safeId type=${event.type.name} '
-                'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
+                'loaded=${event.loaded ?? false} tile_id=$tileId',
               );
             }
           },
@@ -345,7 +347,7 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   // The host polls Android logcat because flutter test may buffer its
   // stdout until the integration test exits. This signal is emitted by the
   // app process while the native MapWidget is still mounted.
-  debugPrint('MAPBOX_OFFLINE_SCREENSHOT_READY');
+  await _navigationChannel.invokeMethod<void>('markOfflineScreenshotReady');
   // Keep the marker in the host test output as a secondary diagnostic.
   // ignore: avoid_print
   print('MAPBOX_OFFLINE_SCREENSHOT_READY');

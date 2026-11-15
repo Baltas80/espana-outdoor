@@ -92,7 +92,7 @@ run_route_phase() {
     # activity. A launcher/wallpaper PNG can have high entropy and must never
     # be accepted as Mapbox evidence.
     for attempt in $(seq 1 360); do
-      offline_logcat="$(adb -s "$DEVICE_SERIAL" logcat -d -s flutter:I 2>/dev/null || true)"
+      offline_logcat="$(adb -s "$DEVICE_SERIAL" logcat -d -s EspanaOfflineTest:I 2>/dev/null || true)"
       if grep -Fq 'MAPBOX_OFFLINE_SCREENSHOT_READY' <<<"$offline_logcat"; then
         foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | tr -d '\r' | grep -E 'mResumedActivity|topResumedActivity' | tail -n 1 || true)"
         if [[ -z "$foreground_activity" ]]; then
