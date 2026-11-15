@@ -174,6 +174,7 @@ def verify_android() -> None:
         "onResourceRequestListener",
         "MAPBOX_MAP_PARTIAL_FRAME",
         "MAPBOX_RESOURCE_FAILURE",
+        "MAPBOX_RESOURCE_LOOKUP_MISS",
         "MAPBOX_MAP_LOADED",
         "MAPBOX_MAP_FULL_FRAME",
         "MAPBOX_MAP_IDLE",
@@ -195,21 +196,35 @@ def verify_android() -> None:
         "onRenderFrameFinishedListener",
         "RenderMode.FULL",
         "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
-        "MAPBOX_OFFLINE_MAP_RENDERED",
-        "unique_colors",
-        "opaque_ratio",
-        "entropy_bits",
-        "dominant_ratio",
-        "MAPBOX_OFFLINE_RENDER_GATE version=2",
-        "greaterThan(24)",
-        "greaterThan(1.2)",
-        "lessThan(0.85)",
+        "MAPBOX_OFFLINE_SCREENSHOT_READY",
     )
     for marker in required_integration_evidence:
         if marker not in integration_text:
             raise SystemExit(
                 f"Android offline integration test is missing evidence marker: {marker}"
             )
+
+    screenshot_validator = ROOT / "tool" / "verify_android_map_screenshot.py"
+    screenshot_validator_text = screenshot_validator.read_text(encoding="utf-8")
+    required_screenshot_evidence = (
+        "MAPBOX_OFFLINE_MAP_RENDERED",
+        "MAPBOX_OFFLINE_SCREENSHOT_METRICS",
+        "MAPBOX_OFFLINE_RENDER_GATE version=3",
+        "unique_colors",
+        "opaque_ratio",
+        "entropy_bits",
+        "dominant_ratio",
+    )
+    for marker in required_screenshot_evidence:
+        if marker not in screenshot_validator_text:
+            raise SystemExit(
+                f"Android host screenshot validator is missing evidence marker: {marker}"
+            )
+
+    route_harness = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
+    for marker in ("adb exec-out screencap -p", "tool/verify_android_map_screenshot.py"):
+        if marker not in route_harness:
+            raise SystemExit(f"Android route harness is missing host screenshot capture: {marker}")
 
     pubspec = (ROOT / "pubspec.yaml").read_text(encoding="utf-8")
     if "mapbox_maps_flutter: 3.34.1" not in pubspec:
@@ -238,6 +253,8 @@ def verify_android() -> None:
                     raise SystemExit(f"Android staging is missing bounded/reproducible artifact validation: {marker}")
             if workflow.count("uses: reactivecircus/android-emulator-runner@") != 1:
                 raise SystemExit("Android staging must reuse one emulator boot for map and routing validation.")
+            if "espana-outdoor-offline-map.png" not in workflow:
+                raise SystemExit("Android staging must retain the offline native map screenshot artifact.")
             if "script: bash tool/staging_android_emulator_validation.sh" not in workflow:
                 raise SystemExit("Android staging must run the independent map/routing validation orchestrator.")
             validation_script = ROOT / "tool" / "staging_android_emulator_validation.sh"
