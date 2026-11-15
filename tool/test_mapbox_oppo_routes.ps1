@@ -87,8 +87,24 @@ try {
     $Report.Add("Device verified: $brand $model ($DeviceId)")
     $Report.Add("Original connectivity: airplane=$OriginalAirplane wifi=$OriginalWifi")
 
-    & flutter pub get
-    if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
+    & flutter pub get --enforce-lockfile
+    if ($LASTEXITCODE -ne 0) { throw 'flutter pub get --enforce-lockfile failed.' }
+    $pythonCommand = if ($env:PYTHON) { $env:PYTHON } elseif (Get-Command python -ErrorAction SilentlyContinue) { (Get-Command python).Source } elseif (Get-Command py -ErrorAction SilentlyContinue) { (Get-Command py).Source } else { $null }
+    if (-not $pythonCommand) { throw 'Python 3 is required for the Mapbox compatibility patch checks.' }
+    if ((Split-Path -Leaf $pythonCommand) -eq 'py.exe') {
+        & $pythonCommand -3 tool/test_patch_mapbox_resource_expiry.py
+        if ($LASTEXITCODE -ne 0) { throw 'Mapbox resource-expiry patch tests failed.' }
+        & $pythonCommand -3 tool/patch_mapbox_resource_expiry.py
+        if ($LASTEXITCODE -ne 0) { throw 'Mapbox resource-expiry patch failed.' }
+        & $pythonCommand -3 tool/verify_mapbox_lock.py
+    } else {
+        & $pythonCommand tool/test_patch_mapbox_resource_expiry.py
+        if ($LASTEXITCODE -ne 0) { throw 'Mapbox resource-expiry patch tests failed.' }
+        & $pythonCommand tool/patch_mapbox_resource_expiry.py
+        if ($LASTEXITCODE -ne 0) { throw 'Mapbox resource-expiry patch failed.' }
+        & $pythonCommand tool/verify_mapbox_lock.py
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Mapbox lockfile verification failed.' }
     Invoke-RouteIntegration 'online_and_download'
 
     Set-AirplaneMode $true
