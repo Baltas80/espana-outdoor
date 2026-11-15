@@ -108,7 +108,8 @@ jobs:
         run: test -n "${MAPBOX_DOWNLOADS_TOKEN:-}" || { echo "Missing MAPBOX_DOWNLOADS_TOKEN (Downloads:Read)."; exit 1; }
       - name: Report Android build skipped for Dependabot without Mapbox Maven credentials
         if: github.actor == 'dependabot[bot]' && env.MAPBOX_DOWNLOADS_TOKEN == ''
-        run: echo "Android native build skipped: Dependabot cannot access MAPBOX_DOWNLOADS_TOKEN; Dart analysis and tests still run." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Android native build skipped: Dependabot cannot access MAPBOX_DOWNLOADS_TOKEN; Dart analysis and tests still run." >> "$GITHUB_STEP_SUMMARY"
       - name: Android release build
         id: android_build
         if: env.MAPBOX_DOWNLOADS_TOKEN != '' || github.actor != 'dependabot[bot]'
