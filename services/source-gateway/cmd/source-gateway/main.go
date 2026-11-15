@@ -322,7 +322,7 @@ func validateDatabaseURL(raw string, allowHTTPDev bool) error {
     case "require", "verify-ca", "verify-full":
         return nil
     case "", "disable":
-        if isLoopbackHost(parsed.Hostname()) || (allowHTTPDev && strings.EqualFold(parsed.Hostname(), "postgres")) {
+        if allowHTTPDev && (isLoopbackHost(parsed.Hostname()) || strings.EqualFold(parsed.Hostname(), "postgres")) {
             return nil
         }
     }
