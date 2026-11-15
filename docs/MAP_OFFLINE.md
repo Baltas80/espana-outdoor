@@ -24,6 +24,20 @@ La solicitud nativa de ruta tiene un timeout explícito de 45 segundos; el test 
 
 La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
+## Preparación de red del emulador CI
+
+Las fases online del smoke visual y de integración llaman a
+`tool/ensure_android_emulator_online.sh` antes de abrir la aplicación. El
+preflight es exclusivo de `ANDROID_EMULATOR_CI=true`: desactiva el modo avión,
+habilita Wi-Fi/datos cuando están disponibles y espera a que Android publique
+una red predeterminada con capacidades `INTERNET` y `VALIDATED`. Si no aparece
+en 90 segundos, falla antes de atribuir el problema a Mapbox y adjunta un
+diagnóstico acotado de ConnectivityService. La fase offline activa después el
+modo avión de forma explícita. El script no se ejecuta sobre el OPPO físico.
+
+La prueba determinista `tool/test_android_emulator_network_guard.py` cubre el
+modo no-CI, la recuperación de radios y el rechazo de una red no validada.
+
 ## Reglas
 
 - Mantener Mapbox como único motor de representación cartográfica.
