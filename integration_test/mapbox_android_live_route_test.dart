@@ -221,6 +221,8 @@ Future<void> _expectOfflineMapRendered(
   expect(screenshot, isNotEmpty);
   final metrics = await _inspectRenderedPixels(screenshot);
   // ignore: avoid_print
+  print('MAPBOX_OFFLINE_RENDER_GATE version=2 entropy_min=1.2 dominant_max=0.85');
+  // ignore: avoid_print
   print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
     'style_loaded=${styleLoaded.isCompleted} '
@@ -295,6 +297,9 @@ Future<(int, double, double, double)> _inspectRenderedPixels(List<int> screensho
       );
       final width = frame.image.width;
       final height = frame.image.height;
+      if (width < 300 || height < 300) {
+        throw const FormatException('Offline map screenshot viewport is too small.');
+      }
       final minX = (width * 0.08).round();
       final maxX = (width * 0.92).round();
       final minY = (height * 0.12).round();
