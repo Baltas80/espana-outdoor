@@ -677,14 +677,12 @@ func (s *server) authenticate(w http.ResponseWriter, r *http.Request) (principal
         return principal{}, false
     }
 
-    roles := make(map[string]struct{}, len(claims.RealmAccess.Roles))
-    for _, role := range claims.RealmAccess.Roles {
+    // Rescue Link permissions are client roles from its own resource server only.
+    // Never promote realm roles or roles granted to unrelated OIDC clients.
+    rescueAccess := claims.ResourceAccess[s.cfg.oidcAudience]
+    roles := make(map[string]struct{}, len(rescueAccess.Roles))
+    for _, role := range rescueAccess.Roles {
         roles[role] = struct{}{}
-    }
-    for _, access := range claims.ResourceAccess {
-        for _, role := range access.Roles {
-            roles[role] = struct{}{}
-        }
     }
     return principal{Subject: claims.Subject, Roles: roles}, true
 }
