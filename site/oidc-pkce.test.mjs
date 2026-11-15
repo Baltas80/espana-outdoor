@@ -32,14 +32,14 @@ test("state tokens are random and callback comparison is strict", () => {
 test("authorization URL uses code flow and S256 without a client secret", () => {
   const url = buildAuthorizationUrl({
     authorizationEndpoint: `${issuer}/protocol/openid-connect/auth`,
-    clientId: "espana-outdoors-mobile",
+    clientId: "espana-outdoors-web",
     redirectUri,
     state: "a".repeat(43),
     codeChallenge: "b".repeat(43),
   });
   assert.equal(url.searchParams.get("response_type"), "code");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(url.searchParams.get("client_id"), "espana-outdoors-mobile");
+  assert.equal(url.searchParams.get("client_id"), "espana-outdoors-web");
   assert.equal(url.searchParams.get("scope"), "profile email");
   assert.equal(url.searchParams.get("scope").split(" ").includes("openid"), false);
   assert.equal(url.searchParams.has("client_secret"), false);
@@ -91,7 +91,7 @@ test("token exchange sends PKCE fields and accepts only a bearer access token", 
   let captured;
   const result = await exchangeAuthorizationCode({
     tokenEndpoint: `${issuer}/protocol/openid-connect/token`,
-    clientId: "espana-outdoors-mobile",
+    clientId: "espana-outdoors-web",
     redirectUri,
     code: "authorization-code",
     codeVerifier: "v".repeat(43),
@@ -117,7 +117,7 @@ test("token exchange sends PKCE fields and accepts only a bearer access token", 
   await assert.rejects(
     exchangeAuthorizationCode({
       tokenEndpoint: `${issuer}/protocol/openid-connect/token`,
-      clientId: "espana-outdoors-mobile",
+      clientId: "espana-outdoors-web",
       redirectUri,
       code: "authorization-code",
       codeVerifier: "v".repeat(43),
