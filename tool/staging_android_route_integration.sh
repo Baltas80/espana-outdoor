@@ -5,7 +5,7 @@ DEVICE_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.espanaoutdoors.espana_outdoors}"
 # Flutter's integration-test runner is installed under the Android Gradle
 # namespace, which is intentionally different from the staging application ID.
-TEST_PACKAGE_NAME="$(sed -nE 's/^[[:space:]]*namespace[[:space:]]*=[[:space:]]*"([^"]+)".*/\\1/p' android/app/build.gradle.kts | head -n 1)"
+TEST_PACKAGE_NAME="$(sed -nE 's/^[[:space:]]*namespace[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' android/app/build.gradle.kts | head -n 1)"
 EVIDENCE_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 LOGCAT_PATH="$EVIDENCE_DIR/espana-outdoor-route-logcat.txt"
 TEST_LOG_PATH="$EVIDENCE_DIR/espana-outdoor-route-test-output.txt"
