@@ -207,3 +207,20 @@ En [CI 43758128192](https://github.com/Baltas80/espana-outdoor/actions/runs/4375
 [Security baseline 43758128131](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128131): 8/8 trabajos superados.
 
 [Android staging 43758128107](https://github.com/Baltas80/espana-outdoor/actions/runs/43758128107): pending sin jobs publicados. No se ha ejecutado todavía el nuevo cambio de captura `sed -u` en emulador.
+
+
+## Corrección de falso positivo: TileRegion separados — 15/11/2026
+
+La inspección de `MapboxNavigationBridge.kt` encontró un defecto de validación en la implementación anterior: Maps y Navigation se descargaban en un único `TileRegion`, se sumaban sus recursos y el puente devolvía `mapTiles=true` incondicionalmente. Por tanto, el resultado anterior `33/33`, 42.847.606 bytes demostraba recursos combinados persistidos, pero **no demostraba que el descriptor de Maps hubiera almacenado teselas vectoriales**. La ruta offline sí estaba demostrada por separado.
+
+La rama cambia a dos regiones persistentes dentro del mismo TileStore:
+- `<regionId>-maps`: solo `mapsDescriptor`.
+- `<regionId>-routing-walking`: solo `navigationDescriptor`.
+
+Cada región debe informar recursos completados y bytes mayores que cero, cero errores y, cuando Mapbox comunica el total requerido, completarlo. Los marcadores de persistencia se escriben con `commit()` solo después de que ambas regiones pasen. `hasOfflineRegion` comprueba ambos IDs, sus recursos y sus marcadores. El resultado nativo expone contadores/bytes separados y `mapTiles`/`routingTiles` ya no se asignan por un agregado.
+
+La UI y el integration test exigen recursos no vacíos para Maps y Navigation por separado. Las regiones legacy con ID combinado no se eliminan ni se consideran verificadas; el usuario deberá repetir la descarga para generar los dos IDs nuevos. Esto evita aceptar falsos positivos y no destruye datos existentes.
+
+La siguiente ejecución dará una respuesta concluyente:
+- Si `OFFLINE_MAP_REGION_EMPTY/INCOMPLETE` ocurre, el descriptor de Maps no está almacenando el paquete esperado.
+- Si ambas regiones contienen recursos pero los eventos `sourceDataLoaded` siguen fallando en modo avión, el problema estará en el matching entre tileset/viewport/TileStore, no en la descarga de routing.
