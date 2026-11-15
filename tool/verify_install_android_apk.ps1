@@ -79,8 +79,8 @@ function Launch-And-Capture([string]$Phase) {
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'am', 'force-stop', $PackageName) | Out-Null
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'monkey', '-p', $PackageName, '1') | Out-Null
     Start-Sleep -Seconds 10
-    $pid = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pidof', $PackageName)
-    if (-not $pid) { throw "Release APK process did not remain alive ($Phase)." }
+    $processId = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'pidof', $PackageName)
+    if (-not $processId) { throw "Release APK process did not remain alive ($Phase)." }
     $remoteXml = '/sdcard/espana-outdoor-release-window.xml'
     Invoke-Adb @('-s', $DeviceSerial, 'shell', 'uiautomator', 'dump', $remoteXml) | Out-Null
     $xmlText = Invoke-Adb @('-s', $DeviceSerial, 'shell', 'cat', $remoteXml)
