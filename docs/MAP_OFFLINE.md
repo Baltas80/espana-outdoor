@@ -205,3 +205,26 @@ python3 tool/test_patch_mapbox_resource_expiry.py
 ```
 
 All CI, Android staging, and release-candidate workflows apply the patch after dependency resolution. It is idempotent and fails closed if the upstream parser changes unexpectedly. It modifies only the resolved Pub cache copy; it does not alter the committed dependency source or lockfile. Remove this workaround when Mapbox ships a parser that maps out-of-range expiry sentinels to `null`.
+
+## Prioridad y preservación de evidencia en CI (15/11/2026)
+
+El orquestador `tool/staging_android_emulator_validation.sh` ejecuta primero
+`staging_android_route_integration.sh`: ruta online, descarga de Córdoba,
+desconexión real del emulador, nueva ruta peatonal offline y renderizado del
+viewport offline con captura ADB. Después ejecuta el smoke online del APK
+release. Ambas fases informan su resultado por separado; un fallo normal de
+una fase no omite la otra.
+
+Este orden prioriza la prueba que cubre descarga, TileStore y navegación offline.
+El smoke del APK release sigue siendo independiente y no se considera sustituido
+por la prueba de integración.
+
+El workflow Android staging usa ahora `cancel-in-progress: false`: los nuevos
+commits de la misma referencia esperan a que termine la ejecución activa, en
+lugar de cancelar un emulador y perder sus artefactos de diagnóstico. Esta
+política reduce cancelaciones por concurrencia, pero no evita fallos de
+infraestructura del runner ni convierte una ejecución interrumpida en evidencia
+válida.
+
+La modificación está protegida por `tool/test_android_validation_order.py`.
+No cambia los criterios de aceptación del mapa offline descritos arriba.
