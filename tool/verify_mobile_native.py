@@ -165,9 +165,22 @@ def verify_android() -> None:
     if not integration_test.is_file():
         raise SystemExit("The Android online/offline Mapbox integration test is missing.")
     integration_text = integration_test.read_text(encoding="utf-8")
-    for marker in ("RouterOrigin.OFFLINE", "onMapLoadedListener", "MAPBOX_OFFLINE_MAP_RENDERED"):
+    required_integration_evidence = (
+        "RouterOrigin.OFFLINE",
+        "MAPBOX_ROUTE_VALIDATION source=offline",
+        "onStyleLoadedListener",
+        "onRenderFrameFinishedListener",
+        "RenderMode.FULL",
+        "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
+        "MAPBOX_OFFLINE_MAP_RENDERED",
+        "unique_colors",
+        "opaque_ratio",
+    )
+    for marker in required_integration_evidence:
         if marker not in integration_text:
-            raise SystemExit(f"Android offline integration test is missing evidence marker: {marker}")
+            raise SystemExit(
+                f"Android offline integration test is missing evidence marker: {marker}"
+            )
 
     pubspec = (ROOT / "pubspec.yaml").read_text(encoding="utf-8")
     if "mapbox_maps_flutter: 3.34.1" not in pubspec:
