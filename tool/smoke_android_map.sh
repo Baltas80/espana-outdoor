@@ -5,7 +5,11 @@ apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
 
 if [[ "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
-  bash "$(dirname "${BASH_SOURCE[0]}")/prepare_android_emulator_ci.sh"
+  script_dir="$(dirname "${BASH_SOURCE[0]}")"
+  bash "${script_dir}/prepare_android_emulator_ci.sh"
+  if [[ "${offline_mode}" != "offline" ]]; then
+    bash "${script_dir}/ensure_android_emulator_online.sh"
+  fi
 fi
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
