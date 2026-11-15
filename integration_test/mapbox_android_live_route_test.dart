@@ -211,8 +211,10 @@ Future<void> _expectOfflineMapRendered(
     }
   }
 
-  // Capture evidence even when the native renderer fails to emit a complete
-  // frame, so the failed workflow still retains a screenshot for diagnosis.
+  // Android embeds Mapbox in a native platform view. The integration-test
+  // binding requires Flutter surface conversion before capturing that view.
+  // Do this even on a failed render so the workflow retains diagnostic pixels.
+  await binding.convertFlutterSurfaceToImage();
   await tester.pump(const Duration(seconds: 2));
   final screenshot = await binding.takeScreenshot('mapbox-offline-map-rendered');
   expect(screenshot, isNotEmpty);
