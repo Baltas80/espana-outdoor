@@ -29,10 +29,10 @@ HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
 ### PR #61 — nueva implementación Mapbox Navigation
 
 Rama: `feat/mapbox-offline-routing-final-20261114`  
-HEAD observado: `5549aefb13072bf6e6c722dbd5025191a64aad00`  
+HEAD observado: `0af48daaeafc7940ab77fa40dbedf59cf5eb8da4`  
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)
 
-La rama está 61 commits por delante y 0 por detrás de main según la comparación observada tras incorporar el commit documental 179a961. Incluye:
+La rama está 75 commits por delante y 0 por detrás de main según la comparación observada tras incorporar el commit documental 179a961. Incluye:
 
 - Mapbox Navigation Android 3.35.0 / Native 324.35.0, Maps 11.35.0 y Common 24.35.0 en variante `common-ndk27`.
 - TileStore persistente compartido entre Maps y Navigation.
@@ -58,7 +58,7 @@ Ejecución de revalidación **43676480595**:
 - Smoke nativo del mapa completado.
 - El paso de integración de rutas permaneció en ejecución durante una espera anormalmente larga y el endpoint de logs no proporcionó un log descargable; la ejecución fue cancelada al actualizar el código.
 - Se añadió timeout de 45 s a la solicitud nativa, prueba unitaria de timeout, límite de 30 min al paso de emulador y 60 min al job Android.
-- Nueva ejecución **43680940651** sobre HEAD `5549aef`: Android staging estaba en el paso de compilación APK en la última consulta; Security baseline **43680940665** terminó correctamente.
+- Ejecución **43680940651** sobre HEAD `5549aef` fue cancelada al actualizar el harness y los scripts físicos. No hay una ejecución nueva asociada al HEAD `0af48da`; debe dispararse CI sobre el estado final. Security baseline **43680940665** terminó correctamente para el commit anterior.
 
 Por tanto, existe evidencia de routing offline en emulador, pero la aceptación visual está pendiente. La captura anterior no debe usarse como prueba de mapa renderizado.
 
@@ -123,7 +123,7 @@ Issue [#63](https://github.com/Baltas80/espana-outdoor/issues/63).
 
 El script `tool/test_mapbox_oppo_routes.ps1` está en la rama de PR #61, no en main. Ejecuta `flutter test` y valida el test app de integración debug; no instala por sí mismo el APK release exacto de CI. Debe ampliarse para aceptar una ruta de APK, verificar SHA-256/package/versionCode, instalar ese artefacto y separar el smoke release de la prueba de integración debug.
 
-No hay una nueva prueba física del OPPO acreditada en este estado.
+El procedimiento físico está documentado en `docs/MAP_OFFLINE.md` y issue #63, pero no hay una nueva prueba del OPPO acreditada en este estado.
 
 ## Backend, routing y despliegue
 
