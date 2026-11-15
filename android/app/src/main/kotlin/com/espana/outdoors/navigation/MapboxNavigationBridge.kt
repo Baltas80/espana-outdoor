@@ -55,7 +55,11 @@ class MapboxNavigationBridge(context: Context) {
         tileStore = store
         // This same TileStore is used by Maps and Navigation for every offline region.
         MapboxMapsOptions.tileStore = store
-        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_AND_UPDATE
+        // The main map supports free panning. READ_ONLY reads downloaded tile packs first,
+        // then falls back to individual online tiles outside downloaded regions.
+        // READ_AND_UPDATE is tile-pack-only and is intended for constrained navigation
+        // viewports; using it globally leaves arbitrary map viewports without tiles.
+        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
 
         val routingTilesOptions = RoutingTilesOptions.Builder()
             .tileStore(store)
