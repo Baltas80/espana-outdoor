@@ -704,6 +704,14 @@ func (s *server) verifiedClaims(w http.ResponseWriter, r *http.Request) (map[str
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
         return nil, false
     }
+    // Keycloak access tokens carry typ=Bearer in the JWT payload. ID tokens
+    // and refresh tokens are not API credentials, even when they share the
+    // same issuer, signature and frontend-client audience.
+    tokenType, ok := claims["typ"].(string)
+    if !ok || tokenType != "Bearer" {
+        s.writeError(w, http.StatusUnauthorized, "invalid authentication")
+        return nil, false
+    }
     if err := validateTemporalClaims(claims, time.Now().UTC()); err != nil {
         s.writeError(w, http.StatusUnauthorized, "invalid authentication")
         return nil, false
