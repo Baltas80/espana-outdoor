@@ -3,6 +3,10 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+
+if [[ "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  bash "$(dirname "${BASH_SOURCE[0]}")/prepare_android_emulator_ci.sh"
+fi
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
