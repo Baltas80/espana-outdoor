@@ -7,6 +7,10 @@ PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.espanaoutdoors.espana_outdoors}"
 # namespace, which is intentionally different from the staging application ID.
 TEST_PACKAGE_NAME="$(sed -nE 's/^[[:space:]]*namespace[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' android/app/build.gradle.kts | head -n 1)"
 EVIDENCE_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+
+if [[ "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  bash "$(dirname "${BASH_SOURCE[0]}")/prepare_android_emulator_ci.sh"
+fi
 LOGCAT_PATH="$EVIDENCE_DIR/espana-outdoor-route-logcat.txt"
 TEST_LOG_PATH="$EVIDENCE_DIR/espana-outdoor-route-test-output.txt"
 AIRPLANE_CHANGED=0
