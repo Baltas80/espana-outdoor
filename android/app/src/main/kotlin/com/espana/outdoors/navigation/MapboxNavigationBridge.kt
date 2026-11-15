@@ -265,6 +265,22 @@ class MapboxNavigationBridge(context: Context) {
                 { /* Native Mapbox download progress. */ }
             ) { tileExpected ->
                 if (tileExpected.isValue) {
+                    val downloadedRegion = tileExpected.value
+                    if (
+                        downloadedRegion == null ||
+                        downloadedRegion.completedResourceCount <= 0 ||
+                        downloadedRegion.completedResourceSize <= 0
+                    ) {
+                        mainHandler.post {
+                            result.error(
+                                "OFFLINE_REGION_EMPTY",
+                                "Mapbox reported success without storing any offline resources.",
+                                null
+                            )
+                        }
+                        return@loadTileRegion
+                    }
+
                     // A force-stop/reboot test must not race an asynchronous
                     // SharedPreferences write. Persist the completion marker
                     // to disk before reporting success to Dart.
@@ -288,7 +304,9 @@ class MapboxNavigationBridge(context: Context) {
                             mapOf(
                                 "regionId" to regionId,
                                 "mapTiles" to true,
-                                "routingProfile" to "walking"
+                                "routingProfile" to "walking",
+                                "completedResourceCount" to downloadedRegion.completedResourceCount,
+                                "completedResourceSize" to downloadedRegion.completedResourceSize
                             )
                         )
                     }
@@ -319,10 +337,14 @@ class MapboxNavigationBridge(context: Context) {
                 }
                 return@getAllTileRegions
             }
-            val exists = expected.value.orEmpty().any { it.id == regionId } &&
-                appContext.getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
-                    .getBoolean("offline:$regionId", false)
-            mainHandler.post { result.success(exists) }
+            val region = expected.value.orEmpty().firstOrNull { it.id == regionId }
+            val hasStoredResources = region != null &&
+                region.completedResourceCount > 0 &&
+                region.completedResourceSize > 0
+            val hasCompletionMarker = appContext
+                .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
+                .getBoolean("offline:$regionId", false)
+            mainHandler.post { result.success(hasStoredResources && hasCompletionMarker) }
         }
     }
 
