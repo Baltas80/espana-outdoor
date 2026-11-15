@@ -266,3 +266,34 @@ La UI y el integration test exigen recursos no vacíos para Maps y Navigation po
 La siguiente ejecución dará una respuesta concluyente:
 - Si `OFFLINE_MAP_REGION_EMPTY/INCOMPLETE` ocurre, el descriptor de Maps no está almacenando el paquete esperado.
 - Si ambas regiones contienen recursos pero los eventos `sourceDataLoaded` siguen fallando en modo avión, el problema estará en el matching entre tileset/viewport/TileStore, no en la descarga de routing.
+
+
+## Actualización 15/11/2026 22:19 CET — captura offline basada en logcat
+
+### Evidencia revisada del run 43758128107 (HEAD `e799dab1f2ab03fb018bf627f9ac7642dcf0cb7c`)
+
+Se descargaron y revisaron los artefactos de Android staging:
+
+- Ruta online nueva: 767,757 m / 55 puntos.
+- Descarga legacy combinada: 33/33 recursos, cero errores, 42.847.606 bytes.
+- Modo avión + Wi-Fi desactivado: ruta nueva con origen nativo `offline`, 1.109,662 m / 66 puntos.
+- El mapa offline no renderizó: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`; 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`.
+- La captura del test de integración no se obtuvo porque, al leer el marcador de stdout, el launcher ya estaba en primer plano. El PNG del smoke release muestra la app real, pero solo fondo/agua sin cartografía viaria suficiente.
+
+La descarga 33/33 pertenece al código anterior a la separación de TileRegions y no demuestra recursos Maps independientes. El nuevo código con `<regionId>-maps` y `<regionId>-routing-walking` todavía no tiene ejecución de emulador.
+
+### Corrección del disparador de captura
+
+Se detectó que `sed -u` no garantiza que el propio proceso `flutter test` vacíe stdout antes de terminar. El nuevo procedimiento:
+
+1. Limpia logcat justo antes de la fase offline.
+2. La app emite `MAPBOX_OFFLINE_SCREENSHOT_READY` con `debugPrint` desde el proceso Android.
+3. El host observa `adb logcat -d -s flutter:I`, no usa stdout de Flutter como disparador.
+4. La captura solo se acepta si el paquete derivado del namespace de integración está en primer plano.
+5. El marcador stdout se conserva como diagnóstico secundario.
+
+Commits: `6191113f0cdcf5b3c2a79a5b1242fced39d65e1e`, `71a5f7110ce66ae4e0d89178d2bf87042cf32752`, `9e3a768fcea431f784cc562e293ee025f9b5a2e0`.
+
+El HEAD actual es `9e3a768fcea431f784cc562e293ee025f9b5a2e0`; comparación con `main`: 197 commits por delante y 4 por detrás. No hay ejecuciones Actions asociadas a este HEAD en la última consulta. La validación local/CI del nuevo mecanismo y de las dos TileRegions queda pendiente.
+
+La PR #61 permanece en draft. No fusionar hasta obtener en un mismo HEAD: contadores Maps/Navigation independientes, ruta nueva offline, full frame, idle, cero fallos reales, PNG verificado, reapertura/reinicio y validación del APK exacto en OPPO.
