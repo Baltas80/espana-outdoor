@@ -1,13 +1,13 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 17:18 CET**.
+Última revisión: **15/11/2026 17:42 CET**.
 
 - Rama de producción: main
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de la rama PR #61 en esta revisión: `d1a9f0909aa1781cde1969f88ce18512e560a9f5`.
-- Últimos cambios: `7cca9e1` mueve la captura del viewport offline a ADB host-side para evitar el canal screenshot no registrado de integration_test; `8421e58` separa los misses CACHE/TILE_STORE de errores reales; `10fe733` captura PNG antes de cerrar el test; `a3a653d` añade validador PNG sin dependencias; `0f1b795` incorpora self-test y artefacto; `6469d1c` documenta el procedimiento.
+- HEAD de la rama PR #61 en esta revisión: `ccf6f217bacdbba83f527849b2f5a012a8ea993c`.
+- Últimos cambios: `7cca9e1` mueve la captura offline a ADB host-side; `8421e58` separa misses CACHE/TILE_STORE; `10fe733` captura PNG antes de cerrar el test; `a3a653d` añade validador PNG sin dependencias; `0f1b795` incorpora self-test/artefacto; `d1a9f09` corrige el guard estático; `23126c1` valida scripts shell; `4405332` alinea MapWidget.pixelRatio con densidad nativa; `cb2d545` añade guard de paridad; `ccf6f21` exige la paridad en CI.
 - La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
 
 ## Actualización de validación — 15/11/2026 17:18 CET
@@ -45,6 +45,40 @@ Nuevas ejecuciones del HEAD `d1a9f09`:
 - [Security baseline 43735434081](https://github.com/Baltas80/espana-outdoor/actions/runs/43735434081): en ejecución.
 
 La corrección del harness todavía no está validada en runtime. La PR #61 sigue abierta; el mapa offline no está aceptado y no se ha probado el APK candidato en OPPO en este ciclo.
+
+## Actualización de validación — 15/11/2026 17:42 CET
+
+### Evidencia anterior inspeccionada: Android staging 43729815996 (HEAD 6f8df39)
+
+- APK runtime-capable generado; artefacto ID `14168162393`, application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5.
+- SHA-256: `2fb9b04a14553fe80650ca78e2e79142bc7d891760e8916a468919f8a4aa6c4d`.
+- Ruta online: 767,757 m / 55 puntos.
+- Descarga Córdoba: 33/33 recursos, 0 errores, 42.847.606 bytes.
+- Con modo avión y Wi-Fi deshabilitado, Navigation calculó una ruta nueva `source=offline`: 1.109,662 m / 66 puntos.
+- El test falló después en `convertFlutterSurfaceToImage` por `MissingPluginException`; no se obtuvo PNG offline. La ruta nativa sí se había devuelto.
+- La captura del smoke UI release era online y mostraba un viewport incompleto; no emitió map-loaded/full-frame/idle. Los misses DATABASE/CACHE/TILE_STORE eran búsquedas locales, no errores HTTP demostrados.
+
+### Cambios del harness y de cartografía en el HEAD actual
+
+- La prueba ya no invoca el canal screenshot no registrado. Emite `MAPBOX_OFFLINE_SCREENSHOT_READY`; el host captura con `adb exec-out screencap -p` mientras el test app sigue vivo.
+- `tool/verify_android_map_screenshot.py` decodifica PNG sin dependencias externas, aplica el gate de color/entropía/opacidad y conserva la captura como artefacto incluso si fallan las aserciones.
+- La instrumentación distingue `MAPBOX_RESOURCE_LOOKUP_MISS` de `MAPBOX_RESOURCE_FAILURE`.
+- Hallazgo de paridad: el descriptor Android usa `resources.displayMetrics.density`, mientras que Mapbox Flutter documenta `MapOptions.pixelRatio` con valor predeterminado 1.0. `MapWidget` ahora pasa `MediaQuery.devicePixelRatioOf(context)` y el mismo modo de rasterización de glyphs usado por el style pack. Es una causa plausible de que TileStore descargue una variante y MapView solicite otra; queda pendiente demostrarlo en el nuevo render.
+- El test estático exige esa paridad y el workflow valida los cuatro scripts Bash con `bash -n`.
+
+### CI del HEAD ccf6f21
+
+- [Android staging 43736481727](https://github.com/Baltas80/espana-outdoor/actions/runs/43736481727): preflight Mapbox, guard TileStore, validador PNG, sintaxis shell, análisis y tests Flutter superados; compilación APK en curso al cierre de esta revisión.
+- [CI 43736481670](https://github.com/Baltas80/espana-outdoor/actions/runs/43736481670): Source Gateway y Rescue Link superados; suite Flutter completa superada; Android release build e iOS tests en curso.
+- [Security baseline 43736481662](https://github.com/Baltas80/espana-outdoor/actions/runs/43736481662): 8/8 trabajos superados.
+
+### Limitaciones de validación física y producción
+
+- La auditoría de `tool/verify_install_android_apk.ps1` encontró que `-OfflineSmoke` no descarga Córdoba en el TileStore de la instalación release antes de activar modo avión, no exige map-loaded/FULL/idle y no compara el SHA-256 del `base.apk` instalado. El procedimiento físico está incompleto; issue #63 registra los cambios necesarios.
+- La prueba de integración debug y el APK release tienen application IDs/almacenamiento separados; no se debe asumir que comparten la región descargada.
+- El paso `Check staging endpoints` solo valida que las variables existan y usen HTTPS; no ejecuta health checks ni confirma que Valhalla, Source Gateway, Rescue Link o Keycloak respondan.
+- La disponibilidad HTTP independiente de los dominios de producción no se ha podido verificar desde este entorno.
+- La PR #61 sigue abierta. No se ha aceptado renderizado offline ni se ha probado el APK candidato en el OPPO.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
