@@ -15,7 +15,7 @@ First-party gateway for official live data. Provider credentials stay on the ser
 
 The gateway has two distinct OIDC controls:
 
-1. `OIDC_AUDIENCE` is the expected audience/client identifier accepted by the token verifier.
+1. `OIDC_AUDIENCE` is the resource-server/API audience that must be present in every accepted access token. It is separate from the public web/mobile client ID.
 2. `OIDC_REQUIRED_ROLE` is the exact application permission required by protected gateway endpoints.
 
 For authorization, the required role is accepted **only** from:
@@ -35,7 +35,7 @@ Missing or malformed authorization claims fail closed with HTTP 403. Authorizati
 | Variable | Required | Purpose |
 |---|---:|---|
 | `OIDC_ISSUER` | yes | OIDC issuer used to validate product access tokens |
-| `OIDC_AUDIENCE` | yes | Expected access-token audience and client key for resource-scoped roles |
+| `OIDC_AUDIENCE` | yes | Resource-server/API audience and key for roles under `resource_access[OIDC_AUDIENCE]` |
 | `OIDC_REQUIRED_ROLE` | yes | Exact role required under `resource_access[OIDC_AUDIENCE].roles` |
 | `AEMET_API_KEY` | yes | AEMET provider credential, runtime only |
 | `AEMET_API_KEY_EXPIRES_AT` | yes | RFC3339 expiry used for startup/health monitoring |
