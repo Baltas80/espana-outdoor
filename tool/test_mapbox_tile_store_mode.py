@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard the Mapbox Maps/Navigation shared TileStore mode.
+"""Guard the shared Mapbox TileStore configuration and source diagnostics.
 
 The app map supports free panning. READ_ONLY checks downloaded tile packs and
 falls back to individual online tiles when a tile is not in a pack. A global
@@ -30,11 +30,14 @@ required_viewport = (
     "MediaQuery.devicePixelRatioOf(context)",
     "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
     "fontFamily: 'sans-serif'",
+    "onSourceAddedListener:",
+    "onSourceDataLoadedListener:",
+    "MAPBOX_SOURCE_DATA",
 )
 for fragment in required_viewport:
     if fragment not in viewport:
         raise SystemExit(
-            f"Flutter MapWidget options must match the native offline descriptor: {fragment}"
+            f"Flutter MapWidget configuration/diagnostics missing: {fragment}"
         )
 
 if "TileStoreUsageMode.READ_AND_UPDATE" in source:
@@ -44,20 +47,21 @@ if "TileStoreUsageMode.READ_AND_UPDATE" in source:
         "regions without online individual-tile fallback."
     )
 
-
 INTEGRATION_TEST = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
 integration_test = INTEGRATION_TEST.read_text(encoding="utf-8")
-if "onSourceDataLoadedListener:" not in integration_test or "source_data_events=" not in integration_test:
-    raise SystemExit("Android offline integration must report Mapbox source metadata/tile loading.")
-if "onSourceAddedListener:" not in viewport or "onSourceDataLoadedListener:" not in viewport:
-    raise SystemExit("Production MapWidget must expose bounded Mapbox source diagnostics.")
-if "onSourceDataLoadedListener:" not in integration_test or "source_data_events=" not in integration_test:
-    raise SystemExit("Android offline integration must report Mapbox source metadata/tile loading.")
-if "mapboxMapOptionsForPixelRatio(" not in integration_test:
-    raise SystemExit("Offline MapWidget must use the production MapOptions helper.")
-if "WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio" not in integration_test:
-    raise SystemExit("Offline MapWidget must use the actual Android display pixel ratio.")
+for fragment in (
+    "mapboxMapOptionsForPixelRatio(",
+    "WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio",
+    "onSourceAddedListener:",
+    "onSourceDataLoadedListener:",
+    "source_data_events=",
+):
+    if fragment not in integration_test:
+        raise SystemExit(
+            f"Android offline integration is missing required diagnostic/configuration: {fragment}"
+        )
 
 print("mapbox_maps_tile_store=shared")
 print("mapbox_maps_tile_store_usage=READ_ONLY")
+print("mapbox_source_diagnostics=enabled")
 print("navigation_routing_tile_store=shared")
