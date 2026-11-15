@@ -76,7 +76,7 @@ run_route_phase() {
     -d "$DEVICE_SERIAL" \
     --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
     --dart-define=ROUTE_TEST_MODE="$mode" \
-    integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
+    integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -u -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
   local phase_pid=$!
 
   local screenshot_captured=0
