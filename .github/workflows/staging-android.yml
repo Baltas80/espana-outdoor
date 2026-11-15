@@ -58,6 +58,8 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+      - name: Test Mapbox resource expiry patch
+        run: python3 tool/test_patch_mapbox_resource_expiry.py
       - name: Check staging endpoints
         shell: bash
         run: |
@@ -97,6 +99,8 @@ jobs:
           test -f "$sdk_root/ndk/28.2.13676358/source.properties"
       - name: Dependencies (enforce committed lockfile)
         run: flutter pub get --enforce-lockfile
+      - name: Patch Mapbox resource expiry sentinel
+        run: python3 tool/patch_mapbox_resource_expiry.py
       - name: Verify Mapbox Flutter dependency lock
         if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/mapbox-offline-routing-final-20261114'
         run: python3 tool/verify_mapbox_lock.py
