@@ -239,7 +239,8 @@ jobs:
           script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
       - name: Android online and offline route integration
         id: android_route_integration
-        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        # Keep route evidence independent from the visual smoke; both diagnose different failure modes.
+        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
