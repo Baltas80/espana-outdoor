@@ -228,9 +228,20 @@ def verify_android() -> None:
             if "MAPBOX_DOWNLOADS_TOKEN" not in workflow or "VALHALLA_BASE_URL" not in workflow:
                 raise SystemExit(f"{name} must preserve Mapbox Maven credentials and Valhalla routing configuration.")
         if name == "staging-android.yml":
-            for marker in ("timeout-minutes: 60", "timeout-minutes: 30", "apk_sha256=", "application_id=", "version_code=", "source_commit="):
+            for marker in ("timeout-minutes: 60", "timeout-minutes: 45", "apk_sha256=", "application_id=", "version_code=", "source_commit="):
                 if marker not in workflow:
                     raise SystemExit(f"Android staging is missing bounded/reproducible artifact validation: {marker}")
+            if workflow.count("uses: reactivecircus/android-emulator-runner@") != 1:
+                raise SystemExit("Android staging must reuse one emulator boot for map and routing validation.")
+            if "script: bash tool/staging_android_emulator_validation.sh" not in workflow:
+                raise SystemExit("Android staging must run the independent map/routing validation orchestrator.")
+            validation_script = ROOT / "tool" / "staging_android_emulator_validation.sh"
+            if not validation_script.is_file():
+                raise SystemExit("The single-emulator validation orchestrator is missing.")
+            validation_text = validation_script.read_text(encoding="utf-8")
+            for marker in ("smoke_android_map.sh", "staging_android_route_integration.sh", "ANDROID_VALIDATION_PHASE_RESULT"):
+                if marker not in validation_text:
+                    raise SystemExit(f"Android validation orchestrator is missing independent phase marker: {marker}")
 
     staging_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
     for marker in (
