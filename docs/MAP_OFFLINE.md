@@ -4,6 +4,26 @@
 
 Mapbox Maps SDK (`mapbox_maps_flutter`) es el motor elegido para la aplicación. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado durante la compilación. No se debe mantener un catálogo cartográfico paralelo.
 
+## Configuración compartida del TileStore
+
+Android inicializa un único `TileStore` persistente y lo entrega tanto a
+Navigation (`RoutingTilesOptions`) como a Maps (`MapboxMapsOptions.tileStore`).
+Maps usa explícitamente `TileStoreUsageMode.READ_ONLY`: primero lee tile packs
+descargados y, cuando el usuario se desplaza fuera de una región, permite la
+solicitud online de teselas individuales.
+
+No usar `READ_AND_UPDATE` como modo global del mapa de exploración. Ese modo
+convierte las solicitudes en solicitudes de tile packs y está pensado para
+viewports/recorridos predefinidos donde los packs ya están disponibles. En un
+mapa de exploración libre puede impedir el fallback de teselas individuales
+fuera de las regiones descargadas. La descarga offline explícita sigue usando
+`OfflineManager.loadStylePack` y `TileStore.loadTileRegion`; `READ_ONLY`
+permite leer esos recursos cuando no hay red.
+
+Referencias oficiales:
+- [TileStoreUsageMode](https://docs.mapbox.com/android/maps/api/11.18.2/mapbox-maps-android/com.mapbox.maps/-tile-store-usage-mode/)
+- [Conceptos de mapas offline](https://docs.mapbox.com/android/maps/guides/offline/concepts/)
+
 ## Dos capacidades distintas
 
 ### Mapas y teselas offline
