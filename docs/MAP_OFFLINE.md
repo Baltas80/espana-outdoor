@@ -32,6 +32,15 @@ En `main`, la pantalla `OfflinePage` usa `OfflineManager` y `TileStore.createDef
 
 La prueba anterior de Córdoba fue reportada como funcional sin conexión en un OPPO. Debe tratarse como evidencia histórica de una prueba de concepto, no como certificación del APK actual.
 
+The Maps tileset descriptor explicitly uses the Android display density
+(`resources.displayMetrics.density`) so its tile variant matches the MapView
+request. The tile-region download records completed/required/errored resource
+counts and refuses to mark a region ready when the SDK reports failed or
+incomplete resources. The CI integration test emits these counts and captures
+the offline viewport before asserting resource failures, preserving useful
+evidence on a failed render.
+
+
 ### Cálculo de rutas offline
 
 En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
