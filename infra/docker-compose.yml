@@ -43,6 +43,8 @@ services:
     environment:
       OIDC_ISSUER: ${OIDC_ISSUER:?set in .env}
       OIDC_AUDIENCE: ${OIDC_AUDIENCE:?set in .env}
+      OIDC_REQUIRED_ROLE: ${OIDC_REQUIRED_ROLE:?set in .env}
+      DATABASE_URL: ${DATABASE_URL:?set in .env}
       AEMET_API_KEY: ${AEMET_API_KEY:?set in .env}
       AEMET_API_KEY_EXPIRES_AT: ${AEMET_API_KEY_EXPIRES_AT:?set in .env}
       AEMET_BASE_URL: ${AEMET_BASE_URL:-https://opendata.aemet.es/opendata/api}
@@ -52,8 +54,10 @@ services:
       CACHE_STALE_TTL: ${CACHE_STALE_TTL:-40m}
       RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-2}
       RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-10}
-      ALLOW_HTTP_DEV: "false"
+      ALLOW_HTTP_DEV: ${ALLOW_HTTP_DEV:-false}
     depends_on:
+      postgres:
+        condition: service_healthy
       keycloak:
         condition: service_started
     ports:
@@ -73,7 +77,7 @@ services:
     environment:
       DATABASE_URL: postgresql://espana:${POSTGRES_PASSWORD}@postgres:5432/espana_outdoor?sslmode=disable
       OIDC_ISSUER: ${OIDC_ISSUER:-http://keycloak:8080/realms/espana-outdoor}
-      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-espana-outdoors-mobile}
+      OIDC_AUDIENCE: ${RESCUE_LINK_OIDC_AUDIENCE:-espana-outdoors-mobile}
       PUBLIC_SHARE_BASE_URL: ${PUBLIC_SHARE_BASE_URL:?set in .env}
       LOCATION_ENCRYPTION_KEY: ${LOCATION_ENCRYPTION_KEY:?set in .env}
       RESCUE_MAX_TTL: ${RESCUE_MAX_TTL:-15m}
