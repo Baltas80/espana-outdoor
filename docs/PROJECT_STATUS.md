@@ -1,13 +1,13 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 14:51 CET**.
+Última revisión: **15/11/2026 16:21 CET**.
 
 - Rama de producción: main
 - HEAD observado de main: 2288290b3fb233fe5e0d124f0b38008a31b0cd25
 - PR Android offline: [#61](https://github.com/Baltas80/espana-outdoor/pull/61), abierta y lista para revisión.
 - Rama PR #61: feat/mapbox-offline-routing-final-20261114
-- HEAD de la rama PR #61 en esta revisión: `a0f60607ae452c5c3c3ad4d56a0f4c0d19b6f25b`.
-- Último commit de instrumentación: `a0f60607`, separa respuestas correctas, cancelaciones y errores reales de recursos Mapbox.
+- HEAD de la rama PR #61 en esta revisión: `7462e07aeba1b942ca5494e082db88e9d422a973`.
+- Últimos cambios: `d744e3c` añade pixelRatio de pantalla al descriptor de teselas y registra/comprueba recursos completados; `7a4c544` conserva captura/diagnóstico antes de fallar el test visual; `33a4fe1` añade guard estático; `7462e07` documenta el cambio.
 - La rama se sincronizó con main mediante el merge commit `cd17eb3016878ec24c16b2f5fbe29b450d7df48a`, que incorpora la corrección de GitHub Pages `2288290`; la comparación posterior quedó en 134 commits por delante y 0 por detrás.
 
 Este documento separa código integrado, pruebas automatizadas, emulador, dispositivo físico y servicios externos. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
@@ -68,30 +68,46 @@ Referencias oficiales:
 
 ### Validación actual de PR #61
 
-Último HEAD de la rama: `a0f60607ae452c5c3c3ad4d56a0f4c0d19b6f25b`.
+Último HEAD de la rama: `7462e07aeba1b942ca5494e082db88e9d422a973`.
 
-Ejecución anterior completada sobre el commit `cff6fa33f5489dc886c6bf2ea1a208e707959256`:
-- [Android staging 43719466740](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466740): preflight Mapbox, análisis/tests Flutter y compilación/verificación del APK superados. El manifiesto confirma `validation_scope=runtime-capable-artifact`, application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5 y SHA-256 `58da00fc3f81a59f3d0fce51e03914f1c81fc022227e3408cbc83610ab32a3c9`.
-- El emulador alcanzó red validada y la app emitió `MAPBOX_MAP_STYLE_LOADED`; no emitió `MAPBOX_MAP_LOADED`, `MAPBOX_MAP_FULL_FRAME` ni `MAPBOX_MAP_IDLE`. Solo se observaron frames parciales. Logcat registró misses `NOT_FOUND` en CACHE/TILE_STORE y eventos cancelados de ResourceLoader. Estos eventos no demuestran por sí solos una denegación HTTP ni un fallo de conectividad.
-- La fase `online_offline_routing` comenzó, pero el runner recibió una señal de apagado a las 13:47:33Z. No produjo evidencia de ruta online/offline. Los pasos de subida de PNG/Logcat quedaron omitidos, por lo que no existe captura de esa ejecución para inspección.
-- [CI 43719466760](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466760): 4/4 jobs superados (Source Gateway, Rescue Link, Flutter e iOS).
-- [Security baseline 43719466752](https://github.com/Baltas80/espana-outdoor/actions/runs/43719466752): 8/8 jobs superados.
+#### Ejecución 43721600584 — evidencia descargada e inspeccionada
 
-Corrección de instrumentación en `a0f60607`:
-- `MAPBOX_RESOURCE_OK` identifica respuestas correctas y su origen.
-- `MAPBOX_RESOURCE_CANCELLED` separa cancelaciones/misses de caché de errores reales.
-- `MAPBOX_RESOURCE_FAILURE` queda reservado para respuestas con error no canceladas.
-- Los contadores de éxito, cancelación y error se incluyen en los eventos map-loaded/idle.
-Esta instrumentación mejora el diagnóstico; no corrige ni certifica por sí misma el renderizado.
+[Android staging 43721600584](https://github.com/Baltas80/espana-outdoor/actions/runs/43721600584) terminó con fallo en el paso `Android map and routing validation`; no fue una señal de apagado del runner. El APK release staging sí se compiló y verificó:
 
-Workflows del HEAD `a0f60607`:
-- [CI 43721536211](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536211): en ejecución al actualizar este documento.
-- [Security baseline 43721536262](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536262): en cola.
-- [Android staging 43721536277](https://github.com/Baltas80/espana-outdoor/actions/runs/43721536277): en ejecución.
+- Artefacto más reciente inspeccionado: `android-staging-apk` (ID 14166905123).
+- `validation_scope=runtime-capable-artifact`; ambos tokens Mapbox disponibles durante compilación.
+- Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5.
+- Commit fuente `9ef418802ff48e5d5af26f002e3392da55e1b660`.
+- SHA-256 verificado sobre el APK descargado: `56e6ad734787d96953ad9f7ce55efa23a912f5cf216b273c2169aea079e188ca`.
+
+El artefacto de routing (ID 14166726097) contiene la salida completa del integration test:
+- Ruta online nueva: 767,757 m, 546,18 s y 55 puntos.
+- Descarga de región Córdoba: el test recibió confirmación `MAPBOX_OFFLINE_REGION_READY`.
+- Después de activar modo avión y relanzar el test app, TileStore confirmó la región y Navigation devolvió una ruta nueva `source=offline`: 1.109,662 m, 721,761 s y 66 puntos.
+- La prueba de renderizado del mapa offline falló al recibir nueve errores `IN_OFFLINE_MODE/NETWORK/TILE/other`. Por tanto, el routing peatonal offline sí quedó demostrado en ese test app y esa ejecución, pero la cartografía visible offline no.
+- El test falló antes de llegar a la captura; el artefacto de mapa no se generó. No existe PNG válido de ese intento.
+
+La conclusión es más precisa que el diagnóstico anterior: el test descarga una región, la vuelve a consultar tras relanzar el test app y calcula una ruta offline nueva; sin embargo, el Maps SDK solicita teselas que no encuentra en los tile packs mientras la red está deshabilitada. No se ha demostrado que todos los recursos del descriptor de mapas se hayan descargado ni que coincidan con la variante solicitada por MapView.
+
+#### Corrección añadida al HEAD 7462e07
+
+- `MapboxNavigationBridge.kt` incluye el pixel ratio del dispositivo en `TilesetDescriptorOptions`, siguiendo el patrón de los ejemplos oficiales del SDK.
+- El tile-region download declara `NetworkRestriction.NONE`, recoge completed/required/errored resource counts y no marca la región como lista si el SDK reporta errores o recursos incompletos.
+- `mapbox_android_live_route_test.dart` imprime el progreso de descarga y difiere las aserciones de recursos hasta después de intentar guardar la captura y métricas. Así se conserva evidencia visual en un fallo.
+- `tool/test_mapbox_tile_store_mode.py` protege el pixel ratio y la restricción de red mediante una prueba estática.
+
+Estos cambios son una corrección fundamentada y una mejora de diagnóstico; todavía no están validados en runtime.
+
+#### Workflows del nuevo HEAD 7462e07
+
+- [Android staging 43729733156](https://github.com/Baltas80/espana-outdoor/actions/runs/43729733156): en cola al actualizar este documento.
+- [Security baseline 43729733143](https://github.com/Baltas80/espana-outdoor/actions/runs/43729733143): en cola.
+- [CI 43729733176](https://github.com/Baltas80/espana-outdoor/actions/runs/43729733176): en cola.
 
 Evidencia histórica, no aceptación del HEAD actual:
 - La ejecución 43667786016 obtuvo una ruta nueva con origen OFFLINE en modo avión (1.109,662 m; 66 puntos), pero la captura visual no acreditó renderizado completo.
-- No existe todavía una ejecución que complete descarga, persistencia, ruta offline y mapa visual aceptado en el mismo HEAD.
+
+No existe todavía una ejecución que complete descarga, persistencia, ruta offline y mapa visual aceptado en el mismo HEAD. La prueba anterior acredita routing peatonal offline en el integration test app, no en la UI release ni en el OPPO físico.
 
 ### Puertas obligatorias antes de aceptar la PR #61
 
@@ -154,7 +170,7 @@ El procedimiento preparado verifica el hash/package/versionCode/commit del APK c
 
 ## Hoja de ruta priorizada
 
-1. Completar Android staging/CI del HEAD `a0f60607` e inspeccionar respuestas Mapbox, logs y capturas reales.
+1. Completar Android staging/CI del HEAD `7462e07` e inspeccionar progreso de descarga, respuestas Mapbox, logs y captura offline.
 2. Corregir cualquier fallo del smoke online/offline; exigir también idle en la prueba offline.
 3. Obtener ruta nueva OFFLINE y mapa visible después de descarga/cierre/avión.
 4. Revisar la PR #61 y fusionarla solo cuando los controles de emulador y CI pasen.
