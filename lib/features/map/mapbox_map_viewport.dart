@@ -61,6 +61,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _fullFrameLogged = false;
   bool _mapIdleLogged = false;
   int _partialFrameCount = 0;
+  int _resourceSuccessCount = 0;
+  int _resourceCancellationCount = 0;
   int _resourceFailureCount = 0;
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
@@ -211,6 +213,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         _mapLoadedLogged = true;
         debugPrint(
           'MAPBOX_MAP_LOADED partial_frames=$_partialFrameCount '
+          'resource_successes=$_resourceSuccessCount '
+          'resource_cancellations=$_resourceCancellationCount '
           'resource_failures=$_resourceFailureCount',
         );
       },
@@ -237,25 +241,59 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         _mapIdleLogged = true;
         debugPrint(
           'MAPBOX_MAP_IDLE partial_frames=$_partialFrameCount '
+          'resource_successes=$_resourceSuccessCount '
+          'resource_cancellations=$_resourceCancellationCount '
           'resource_failures=$_resourceFailureCount',
         );
       },
       onResourceRequestListener: (event) {
         final response = event.response;
         final error = response?.error;
-        if (error == null && !event.cancelled) return;
-        _resourceFailureCount++;
-        // Never log request URLs or response messages: Mapbox URLs can contain
-        // the public access token. Type/reason/source are sufficient to
-        // distinguish connectivity, server, rate-limit and cancellation cases.
-        if (_resourceFailureCount <= 20) {
+        final kind = event.request.kind;
+        final dataSource = event.dataSource;
+        final responseSource = response?.source ?? 'unknown';
+
+        // A cancelled cache/TileStore lookup is not itself a failed network
+        // request. Keep it separate so diagnostics do not confuse expected
+        // offline misses with failed HTTP resource loads.
+        if (event.cancelled) {
+          _resourceCancellationCount++;
+          if (_resourceCancellationCount <= 20) {
+            debugPrint(
+              'MAPBOX_RESOURCE_CANCELLED kind=$kind '
+              'data_source=$dataSource '
+              'reason=${error?.reason ?? 'cancelled'} '
+              'response_source=$responseSource '
+              'size=${response?.size ?? 0}',
+            );
+          }
+          return;
+        }
+
+        if (error != null) {
+          _resourceFailureCount++;
+          if (_resourceFailureCount <= 20) {
+            // Never log request URLs or response messages: Mapbox URLs can
+            // contain the public access token. The error class is sufficient.
+            debugPrint(
+              'MAPBOX_RESOURCE_FAILURE kind=$kind '
+              'data_source=$dataSource '
+              'reason=${error.reason} '
+              'failure_class=${_mapboxFailureClass(error.message)} '
+              'response_source=$responseSource '
+              'size=${response?.size ?? 0}',
+            );
+          }
+          return;
+        }
+
+        _resourceSuccessCount++;
+        if (_resourceSuccessCount <= 20) {
           debugPrint(
-            'MAPBOX_RESOURCE_FAILURE kind=${event.request.kind} '
-            'data_source=${event.dataSource} '
-            'reason=${error?.reason ?? 'cancelled'} '
-            'failure_class=${_mapboxFailureClass(error?.message)} '
-            'response_source=${response?.source ?? 'unknown'} '
-            'size=${response?.size ?? 0} cancelled=${event.cancelled}',
+            'MAPBOX_RESOURCE_OK kind=$kind '
+            'data_source=$dataSource '
+            'response_source=$responseSource '
+            'size=${response?.size ?? 0}',
           );
         }
       },
