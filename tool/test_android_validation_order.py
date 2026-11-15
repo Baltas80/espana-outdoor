@@ -47,12 +47,22 @@ route_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_tex
 integration_test = (ROOT / "integration_test" / "mapbox_android_live_route_test.dart").read_text(encoding="utf-8")
 if "adb -s \"$DEVICE_SERIAL\" logcat -c" not in route_script:
     raise SystemExit("Clear stale Android logcat before waiting for the offline screenshot marker.")
-if "logcat -d -s flutter:I" not in route_script or "offline_logcat" not in route_script:
-    raise SystemExit("Capture synchronization must poll the app process logcat, not buffered host stdout.")
+if "logcat -d -s EspanaOfflineTest:I" not in route_script or "offline_logcat" not in route_script:
+    raise SystemExit("Capture synchronization must poll the dedicated native test logcat tag, not buffered host stdout.")
+if "logcat -d -s flutter:I" in route_script:
+    raise SystemExit("Do not poll Flutter stdout for the native screenshot-ready signal.")
 if 'grep -q \'MAPBOX_OFFLINE_SCREENSHOT_READY\' "$TEST_LOG_PATH"' in route_script:
     raise SystemExit("Do not use flutter test stdout as the screenshot trigger; it may be buffered until exit.")
-if "debugPrint('MAPBOX_OFFLINE_SCREENSHOT_READY')" not in integration_test:
-    raise SystemExit("The integration app must emit its screenshot-ready marker to Android logcat.")
+if "invokeMethod<void>('markOfflineScreenshotReady')" not in integration_test:
+    raise SystemExit("The integration app must invoke the native screenshot-ready signal.")
+main_activity = (ROOT / "android" / "app" / "src" / "main" / "kotlin" / "com" / "example" / "espana_outdoors" / "MainActivity.kt").read_text(encoding="utf-8")
+for marker in (
+    '"markOfflineScreenshotReady" ->',
+    'ApplicationInfo.FLAG_DEBUGGABLE',
+    'Log.i("EspanaOfflineTest", "MAPBOX_OFFLINE_SCREENSHOT_READY")',
+):
+    if marker not in main_activity:
+        raise SystemExit(f"MainActivity is missing the debug-only native screenshot signal: {marker}")
 if '*"$TEST_PACKAGE_NAME/"*' not in route_script:
     raise SystemExit("Offline screenshot capture must verify the integration-test package is foregrounded.")
 
