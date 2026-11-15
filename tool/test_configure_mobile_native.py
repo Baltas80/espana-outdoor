@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from configure_mobile_native import configure_release_signing
+from configure_mobile_native import configure_application_id, configure_release_signing
 
 
 KOTLIN_GRADLE = """plugins {
@@ -37,6 +37,92 @@ android {
 
 
 class ConfigureReleaseSigningTests(unittest.TestCase):
+    def test_existing_dynamic_application_id_is_preserved(self) -> None:
+        source = """val applicationIdValue = System.getenv("ANDROID_APPLICATION_ID")
+android {
+    defaultConfig {
+        applicationId = applicationIdValue
+    }
+}
+"""
+        result = configure_application_id(
+            Path("build.gradle.kts"),
+            source,
+            "com.espanaoutdoors.espana_outdoors.staging",
+        )
+        self.assertIn("applicationId = applicationIdValue", result)
+        self.assertNotIn(
+            'applicationId = "com.espanaoutdoors.espana_outdoors.staging"',
+            result,
+        )
+
+    def test_kotlin_dsl_inserts_missing_application_id(self) -> None:
+        source = """android {
+    defaultConfig {
+        minSdk = 24
+    }
+}
+"""
+        result = configure_application_id(
+            Path("build.gradle.kts"), source, "com.espanaoutdoors.espana_outdoors"
+        )
+        self.assertIn(
+            'applicationId = "com.espanaoutdoors.espana_outdoors"',
+            result,
+        )
+
+    def test_groovy_dsl_inserts_missing_application_id(self) -> None:
+        source = """android {
+    defaultConfig {
+        minSdkVersion 24
+    }
+}
+"""
+        result = configure_application_id(
+            Path("build.gradle"), source, "com.espanaoutdoors.espana_outdoors"
+        )
+        self.assertIn(
+            'applicationId "com.espanaoutdoors.espana_outdoors"',
+            result,
+        )
+
+    def test_application_id_replaces_generated_variable(self) -> None:
+        source = """android {
+    defaultConfig {
+        applicationId = generatedApplicationId
+    }
+}
+"""
+        result = configure_application_id(
+            Path("build.gradle.kts"), source, "com.espanaoutdoors.espana_outdoors"
+        )
+        self.assertEqual(result.count("applicationId"), 1)
+        self.assertIn(
+            'applicationId = "com.espanaoutdoors.espana_outdoors"',
+            result,
+        )
+
+    def test_missing_default_config_fails_closed(self) -> None:
+        with self.assertRaises(SystemExit):
+            configure_application_id(
+                Path("build.gradle.kts"),
+                "android { }",
+                "com.espanaoutdoors.espana_outdoors",
+            )
+
+    def test_duplicate_application_id_declarations_fail_closed(self) -> None:
+        source = """android {
+    defaultConfig {
+        applicationId = "com.example.one"
+        applicationId = "com.example.two"
+    }
+}
+"""
+        with self.assertRaises(SystemExit):
+            configure_application_id(
+                Path("build.gradle.kts"), source, "com.espanaoutdoors.espana_outdoors"
+            )
+
     def test_kotlin_dsl_requires_release_key_in_production(self) -> None:
         result = configure_release_signing(
             Path("build.gradle.kts"), KOTLIN_GRADLE

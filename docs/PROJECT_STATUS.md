@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 06:20 CET**. Rama de referencia: `main`, HEAD observado: `8acb12a32cff5c557147045552683551f6eb58f6`.
+Última revisión: **15/11/2026 06:20 CET**. Rama de referencia: `main`. HEAD funcional observado antes de la actualización documental: `8acb12a32cff5c557147045552683551f6eb58f6`; actualización documental posterior integrada en `179a961c345d3d5c5d6f409856ec255e5d697c6d`.
 
 Este documento distingue código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -29,7 +29,7 @@ HEAD de referencia: `8acb12a32cff5c557147045552683551f6eb58f6`.
 ### PR #61 — nueva implementación Mapbox Navigation
 
 Rama: `feat/mapbox-offline-routing-final-20261114`  
-HEAD observado: `4519a342034449456c5bfd291ac23db06c8db202`  
+HEAD observado: `cb347a7d7d686492c1c948a8532beb8941c9f6f9`  
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)
 
 La rama está 55 commits por delante y 0 por detrás de main según la comparación observada. Incluye:
@@ -39,7 +39,7 @@ La rama está 55 commits por delante y 0 por detrás de main según la comparaci
 - Descarga de style pack, teselas visibles y recursos de routing peatonal para Córdoba.
 - Routing nativo peatonal con origen explícito `online` o `offline`.
 - Valhalla conservado para BTT, cicloturismo y map matching GPX online.
-- Verificadores de Gradle/Mapbox, prueba del parche de expiración y controles de captura Android.
+- Verificadores de Gradle/Mapbox, prueba del parche de expiración, controles de captura Android y timeout nativo de 45 s para las solicitudes de ruta.
 - Workflows de solo lectura; no deben persistir credenciales Git.
 
 ### Evidencia automatizada observada
@@ -56,8 +56,9 @@ Ejecución Android staging **43667786016**:
 Ejecución de revalidación **43676480595**:
 - APK staging y verificación completados.
 - Smoke nativo del mapa completado.
-- La prueba de integración online/offline seguía en ejecución en la última consulta; todavía no hay conclusión ni artefacto final de evidencia.
-- Security baseline **43676480606** terminó correctamente.
+- El paso de integración de rutas permaneció en ejecución durante una espera anormalmente larga y el endpoint de logs no proporcionó un log descargable.
+- Se añadió timeout de 45 s a la solicitud nativa, prueba unitaria de timeout, límite de 30 min al paso de emulador y 60 min al job Android.
+- La nueva ejecución asociada al HEAD `cb347a7` aún debe confirmarse; Security baseline **43676480606** terminó correctamente.
 
 Por tanto, existe evidencia de routing offline en emulador, pero la aceptación visual está pendiente. La captura anterior no debe usarse como prueba de mapa renderizado.
 

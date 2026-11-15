@@ -8,6 +8,32 @@ test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
 test -n "${package_name}"
 
+diagnostics_dir="${RUNNER_TEMP:-/tmp}"
+window_file="${diagnostics_dir}/espana-window.xml"
+logcat_file="${diagnostics_dir}/espana-outdoor-map-logcat.txt"
+screenshot_file="${diagnostics_dir}/espana-outdoor-map.png"
+activity_file="${diagnostics_dir}/espana-outdoor-activity.txt"
+
+capture_failure_diagnostics() {
+  local status=$?
+  trap - EXIT
+  if test "${status}" -ne 0; then
+    adb logcat -d >"${logcat_file}" 2>/dev/null || true
+    adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
+    adb shell dumpsys activity activities >"${activity_file}" 2>/dev/null || true
+    echo "=== Android bootstrap and crash diagnostics ==="
+    if test -s "${logcat_file}"; then
+      grep -Ei "APP_BOOTSTRAP|EspanaOutdoorBootstrap|FATAL EXCEPTION|Fatal signal|AndroidRuntime|MapboxException|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 250 || true
+    fi
+    echo "diagnostic_logcat=${logcat_file}"
+    echo "diagnostic_screenshot=${screenshot_file}"
+    echo "diagnostic_activity=${activity_file}"
+    echo "diagnostic_window=${window_file}"
+  fi
+  exit "${status}"
+}
+trap capture_failure_diagnostics EXIT
+
 echo "Installing ${package_name}"
 adb wait-for-device
 adb install -r "${apk_path}"
@@ -150,7 +176,6 @@ if test "${offline_mode}" = "offline"; then
   launch_app
 fi
 
-window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 ui_dump "${window_file}"
 if ! grep -q '<hierarchy' "${window_file}"; then
   echo "FAIL: UIAutomator did not return a hierarchy."
@@ -217,8 +242,6 @@ echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
 sleep 15
 
-logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
-screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
 adb logcat -d >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"

@@ -140,8 +140,8 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       final service = ref.read(routingServiceProvider);
       if (service == null) {
         throw StateError(
-          'Valhalla no está configurado en esta compilación. '
-          'Falta VALHALLA_BASE_URL.',
+          'No hay un motor de rutas configurado para este perfil. '
+          'Comprueba MAPBOX_ACCESS_TOKEN y VALHALLA_BASE_URL.',
         );
       }
 
@@ -175,7 +175,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
       return 'No se puede conectar con el servicio de rutas. Comprueba la conexión.';
     }
     if (message.contains('TimeoutException')) {
-      return 'Valhalla ha tardado demasiado en responder. Inténtalo de nuevo.';
+      return 'El motor de rutas ha tardado demasiado en responder. Inténtalo de nuevo.';
     }
     return message;
   }
@@ -323,7 +323,7 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                       const LinearProgressIndicator(),
                       const SizedBox(height: 4),
                       Text(
-                      'Calculando ruta ${_profileLabel.toLowerCase()} con Valhalla…',
+                      'Calculando ruta ${_profileLabel.toLowerCase()}…',
                     ),
                     ],
                     if (_error != null) ...[
@@ -373,8 +373,18 @@ class _RoutePlannerPageState extends ConsumerState<RoutePlannerPage> {
                           _route!.descentMeters == null) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Desnivel no disponible: el servidor Valhalla no '
-                          'ha devuelto datos de elevación para esta ruta.',
+                          'El motor de rutas no ha devuelto datos de elevación para esta ruta.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                      if (_route!.source != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _route!.source == 'offline'
+                              ? 'Ruta calculada sin conexión'
+                              : _route!.source == 'valhalla'
+                                  ? 'Ruta calculada con Valhalla'
+                                  : 'Ruta calculada con Mapbox',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
