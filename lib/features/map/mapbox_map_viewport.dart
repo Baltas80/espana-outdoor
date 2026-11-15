@@ -24,6 +24,11 @@ MapOptions mapboxMapOptionsForPixelRatio(double pixelRatio) {
   );
 }
 
+String _safeMapboxSourceId(String value) {
+  final safe = value.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_');
+  return safe.length > 96 ? safe.substring(0, 96) : safe;
+}
+
 String _mapboxFailureClass(String? message) {
   final value = (message ?? '').toLowerCase();
   final status = RegExp(
@@ -86,6 +91,9 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   int _resourceCancellationCount = 0;
   int _resourceLookupMissCount = 0;
   int _resourceFailureCount = 0;
+  int _sourceAddedCount = 0;
+  int _sourceDataEventCount = 0;
+  final Map<String, int> _sourceDataCounts = <String, int>{};
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
     if (first.length != second.length) return false;
@@ -251,7 +259,10 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           'resource_successes=$_resourceSuccessCount '
           'resource_cancellations=$_resourceCancellationCount '
           'resource_lookup_misses=$_resourceLookupMissCount '
-          'resource_failures=$_resourceFailureCount',
+          'resource_failures=$_resourceFailureCount '
+          'source_added=$_sourceAddedCount '
+          'source_data_events=$_sourceDataEventCount '
+          'source_summary=${_sourceDataCounts.entries.take(8).map((entry) => '${entry.key}:${entry.value}').join(',')}',
         );
       },
       onRenderFrameFinishedListener: (event) {
@@ -282,6 +293,24 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           'resource_lookup_misses=$_resourceLookupMissCount '
           'resource_failures=$_resourceFailureCount',
         );
+      },
+      onSourceAddedListener: (event) {
+        _sourceAddedCount++;
+        if (_sourceAddedCount <= 16) {
+          debugPrint('MAPBOX_SOURCE_ADDED id=${_safeMapboxSourceId(event.id)}');
+        }
+      },
+      onSourceDataLoadedListener: (event) {
+        _sourceDataEventCount++;
+        final sourceId = _safeMapboxSourceId(event.id);
+        final key = '${sourceId}:${event.type.name}:${event.loaded ?? false}';
+        _sourceDataCounts[key] = (_sourceDataCounts[key] ?? 0) + 1;
+        if (_sourceDataEventCount <= 40) {
+          debugPrint(
+            'MAPBOX_SOURCE_DATA id=$sourceId type=${event.type.name} '
+            'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
+          );
+        }
       },
       onResourceRequestListener: (event) {
         final response = event.response;
