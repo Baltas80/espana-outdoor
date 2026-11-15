@@ -60,6 +60,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _mapLoadedLogged = false;
   bool _fullFrameLogged = false;
   bool _mapIdleLogged = false;
+  bool _mapOptionsLogged = false;
   int _partialFrameCount = 0;
   int _resourceSuccessCount = 0;
   int _resourceCancellationCount = 0;
@@ -194,9 +195,29 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         ),
       );
     }
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    if (!_mapOptionsLogged) {
+      _mapOptionsLogged = true;
+      debugPrint(
+        'MAPBOX_MAP_OPTIONS pixel_ratio=$devicePixelRatio '
+        'glyphs=ideographs_local font=sans-serif',
+      );
+    }
     return MapWidget(
       key: const ValueKey('espana-outdoor-mapbox-shared-viewport'),
       styleUri: mapboxStyleUri,
+      // Must match Android resources.displayMetrics.density used by
+      // TilesetDescriptorOptions. MapOptions' default pixelRatio is 1.0;
+      // a mismatch makes the MapView request a tile-pack variant that the
+      // offline region did not download.
+      mapOptions: MapOptions(
+        pixelRatio: devicePixelRatio,
+        glyphsRasterizationOptions: GlyphsRasterizationOptions(
+          rasterizationMode:
+              GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+          fontFamily: 'sans-serif',
+        ),
+      ),
       viewport: CameraViewportState(
         center: Point(coordinates: widget.initialCenter),
         zoom: widget.initialZoom,
