@@ -31,7 +31,10 @@ if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: 
     raise SystemExit("The smoke must validate the screenshot before reporting PASS.")
 
 print("android_map_smoke_foreground_gate=true")
-network_call = 'bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"'
+script_dir = 'script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"'
+network_call = 'bash "${script_dir}/ensure_android_emulator_online.sh"'
+if script_dir not in source or source.index(script_dir) > source.index(network_call):
+    raise SystemExit("The smoke script must resolve its own directory before invoking the network preflight.")
 launch_call = source.rfind("\nlaunch_app\n\nif test")
 if launch_call < 0 or source.index(network_call) > launch_call:
     raise SystemExit("Online network preflight must run before launching the Mapbox smoke.")
