@@ -14,7 +14,9 @@ source = BRIDGE.read_text(encoding="utf-8")
 
 required = (
     "MapboxMapsOptions.tileStore = store",
-    "MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY",
+    "MapboxMapsOptions.tileStoreUsageMode = requestedUsageMode",
+    '"READ_ONLY" -> TileStoreUsageMode.READ_ONLY',
+    '"READ_AND_UPDATE" -> TileStoreUsageMode.READ_AND_UPDATE',
     ".tileStore(store)",
     "val mapPixelRatio = appContext.resources.displayMetrics.density",
     ".pixelRatio(mapPixelRatio)",
@@ -102,12 +104,10 @@ destroy_body = source.split("fun destroy()", 1)[1].split("private companion obje
 if "delete" in destroy_body or "removeTileRegion" in destroy_body:
     raise SystemExit("Destroying the navigation bridge must not delete persistent offline regions.")
 
-if "TileStoreUsageMode.READ_AND_UPDATE" in source:
-    raise SystemExit(
-        "Do not set READ_AND_UPDATE globally: it converts free-pan map requests "
-        "to tile-pack-only requests and can leave viewports outside downloaded "
-        "regions without online individual-tile fallback."
-    )
+if 'tileStoreUsageModeName: String = "READ_ONLY"' not in source:
+    raise SystemExit("Production Mapbox TileStore mode must default to READ_ONLY.")
+if '"READ_AND_UPDATE" -> TileStoreUsageMode.READ_AND_UPDATE' not in source:
+    raise SystemExit("The controlled offline diagnostic mode must remain available.")
 
 NATIVE_VERIFIER = ROOT / "tool" / "verify_mobile_native.py"
 native_verifier = NATIVE_VERIFIER.read_text(encoding="utf-8")
@@ -159,6 +159,7 @@ for fragment in (
         )
 
 print("mapbox_maps_tile_store=shared")
-print("mapbox_maps_tile_store_usage=READ_ONLY")
+print("mapbox_maps_tile_store_usage_default=READ_ONLY")
+print("mapbox_offline_experiment_mode=READ_AND_UPDATE")
 print("mapbox_source_diagnostics=enabled")
 print("navigation_routing_tile_store=shared")
