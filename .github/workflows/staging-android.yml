@@ -368,11 +368,15 @@ jobs:
             ${{ runner.temp }}/primary/espana-mapbox-diagnostics.txt
             ${{ runner.temp }}/primary/espana-window.xml
             ${{ runner.temp }}/primary/espana-window-post-map.xml
+            ${{ runner.temp }}/primary/espana-system-dialog.xml
+            ${{ runner.temp }}/primary/espana-map-page-check.txt
             ${{ runner.temp }}/primary/espana-outdoor-map.png
             ${{ runner.temp }}/standard/espana-outdoor-map-logcat.txt
             ${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt
             ${{ runner.temp }}/standard/espana-window.xml
             ${{ runner.temp }}/standard/espana-window-post-map.xml
+            ${{ runner.temp }}/standard/espana-system-dialog.xml
+            ${{ runner.temp }}/standard/espana-map-page-check.txt
             ${{ runner.temp }}/standard/espana-outdoor-map.png
           if-no-files-found: ignore
       - name: Require Mapbox Standard A/B APK
