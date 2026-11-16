@@ -8,7 +8,7 @@ Este documento separa código integrado, pruebas automatizadas, validación de e
 
 ### Integraciones y seguridad
 - PR #68 (seguridad backend), #70 (Keycloak/PostgreSQL) y #71 (Community API Android y lockfile inmutable) están integradas.
-- PR #74 (Gitleaks) se ha fusionado mediante squash en [`2c25aba`](https://github.com/Baltas80/espana-outdoor/commit/2c25aba102ab2f7c1b530a0d4dd0392491ca7625). CI general [43868955850](https://github.com/Baltas80/espana-outdoor/actions/runs/43868955850) y Security baseline [43868955929](https://github.com/Baltas80/espana-outdoor/actions/runs/43868955929, 8/8) terminaron correctamente en su HEAD. Gitleaks mantiene reglas por defecto y cinco excepciones históricas exactas commit+ruta; no hay allowlists globales.
+- PR #74 (Gitleaks) se ha fusionado mediante squash en [`2c25aba`](https://github.com/Baltas80/espana-outdoor/commit/2c25aba102ab2f7c1b530a0d4dd0392491ca7625). CI general [43868955850](https://github.com/Baltas80/espana-outdoor/actions/runs/43868955850) y Security baseline [43868955929](https://github.com/Baltas80/espana-outdoor/actions/runs/43868955929 (8/8)) terminaron correctamente en su HEAD. Gitleaks mantiene reglas por defecto y cinco excepciones históricas exactas commit+ruta; no hay allowlists globales.
 - Cloudflare Pages publicó el preview de la rama #74 [b08395c2](https://b08395c2.espana-outdoor.pages.dev). Es un preview, no un despliegue de producción.
 - El Android staging de la antigua rama #74 [43868955899](https://github.com/Baltas80/espana-outdoor/actions/runs/43868955899) seguía en `in_progress` en la última lectura, detenido en `Android map native smoke`; la descarga de logs devolvió `BlobNotFound`. No se usa como criterio para aceptar la corrección Gitleaks.
 
