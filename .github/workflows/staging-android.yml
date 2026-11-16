@@ -72,6 +72,8 @@ jobs:
         run: python3 tool/test_mapbox_runtime_access.py
       - name: Test Android map screenshot decoder
         run: python3 tool/verify_android_map_screenshot.py --self-test
+      - name: Test native offline map log verifier
+        run: python3 tool/test_verify_android_offline_map_log.py
       - name: Validate Android shell harness syntax
         run: |
           bash -n tool/staging_android_route_integration.sh
