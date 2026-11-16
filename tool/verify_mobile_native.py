@@ -116,6 +116,9 @@ def verify_android() -> None:
         "global Mapbox runtime token": "MapboxOptions.accessToken = accessToken",
         "strict online/offline source": "RouterOrigin.ONLINE",
         "synchronous offline metadata persistence": ".commit()",
+        "style-pack resource validation": "OFFLINE_STYLE_PACK_INCOMPLETE",
+        "style-pack persistence verification": 'mapsOffline.getStylePack(styleUri)',
+        "style-pack completion marker": '"offline:$regionId:stylePack"',
     }.items():
         if fragment not in bridge:
             raise SystemExit(f"Native Mapbox bridge is missing: {label}")
@@ -214,6 +217,9 @@ def verify_android() -> None:
         "onRenderFrameFinishedListener",
         "RenderMode.FULL",
         "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
+        "MAPBOX_TILESTORE_POST_MAP_WIDGET",
+        "offline TileStore misses are fatal in READ_AND_UPDATE": "offline_tile_store_miss",
+        "style pack is asserted after MapWidget creation": "stylePackPresent",
         "MAPBOX_OFFLINE_SCREENSHOT_READY",
         "markOfflineScreenshotReady",
         "tile_id=",
