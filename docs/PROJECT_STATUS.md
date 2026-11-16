@@ -345,3 +345,12 @@ La revisión de la API oficial de Mapbox confirma que `MapboxMapsOptions` se apl
 La nueva guarda `tool/test_mapbox_tile_store_mode.py` exige el orden: asignación inicial del TileStore < Navigation bootstrap < reaplicación < OfflineManager. Esto es una corrección de orden documentada, no una causa raíz demostrada todavía. La siguiente ejecución debe comprobar si disminuyen los misses `DATABASE/TILE_STORE` y desaparecen los errores `IN_OFFLINE_MODE/NETWORK/TILE`.
 
 Commits: `037b71a` (configuración nativa) y `94c6ce3` (guarda de orden). Las 12 comprobaciones estáticas cruzadas sobre los archivos actuales de la rama pasan en el entorno de revisión; no sustituyen la CI ni la ejecución Android.
+
+## Sincronización de PR #61 y verificación de descriptor — 16/11/2026
+
+La rama de PR #61 se ha sincronizado con `main` mediante un merge commit no destructivo: `607524fdbb01464eec427444e47d8ceeb40e9b1c`. El merge base ahora es el HEAD de `main` `7716a11c4684e14f53957824483c7e23583b0740`; se conservaron los 43 archivos de la PR y se integraron los cambios documentales recientes de `main` en este archivo.
+
+El último incremento de código añade `verifyOfflineRegion` (solo debug), que consulta `tileRegionContainsDescriptors` a través de `MapboxMapsOptions.tileStore`, compara identidad con el TileStore de Navigation, exige `READ_ONLY` y verifica el mismo pixel ratio/descriptor guardado al descargar. La integración ejecuta esa comprobación antes de desconectar y tras force-stop/reapertura. La prueba sigue siendo diagnóstica: no sustituye callbacks de mapa completos, cero errores de teselas, PNG válido ni reinicio físico.
+
+La siguiente ejecución debe validar el nuevo HEAD sincronizado. Hasta entonces, la última evidencia funcional sigue siendo la del run 43774889122 sobre el código anterior: ruta peatonal nueva offline correcta, mapa no renderizado (14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`). No aceptar el mapa offline ni fusionar por el mero hecho de sincronizar la rama.
+
