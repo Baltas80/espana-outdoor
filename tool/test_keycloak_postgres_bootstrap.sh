@@ -4,7 +4,7 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${POSTGRES_TEST_IMAGE:-postgres:18}"
+IMAGE="${POSTGRES_TEST_IMAGE:-postgis/postgis:18-3.6}"
 CONTAINER="espana-keycloak-db-test-${GITHUB_RUN_ID:-local}-$$"
 INITIAL_PASSWORD="initial-keycloak-test-password"
 ROTATED_PASSWORD="rotated-keycloak-test-password"
@@ -23,9 +23,11 @@ docker run --detach \
   --volume "$ROOT/infra/postgres/init:/docker-entrypoint-initdb.d:ro" \
   "$IMAGE" >/dev/null
 
+# Require TCP readiness: the initdb temporary server accepts only Unix sockets
+# and must not be mistaken for the final server after all init scripts complete.
 ready=false
 for _ in $(seq 1 60); do
-  if docker exec "$CONTAINER" pg_isready --username espana --dbname espana_outdoor >/dev/null 2>&1; then
+  if docker exec "$CONTAINER" pg_isready --host 127.0.0.1 --username espana --dbname espana_outdoor >/dev/null 2>&1; then
     ready=true
     break
   fi
