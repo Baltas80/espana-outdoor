@@ -226,6 +226,7 @@ jobs:
           fi
       - name: Build Mapbox Standard A/B APK
         id: build_standard_apk
+        continue-on-error: true
         if: success() && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
         shell: bash
         run: |
@@ -282,7 +283,7 @@ jobs:
             echo "validation_scope=runtime-capable-artifact"
           } > build/standard/android-staging-validation.txt
       - name: Upload Android staging APK
-        if: success() && steps.build_apk.outputs.built == 'true'
+        if: always() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
@@ -359,4 +360,11 @@ jobs:
             ${{ runner.temp }}/standard/espana-window-post-map.xml
             ${{ runner.temp }}/standard/espana-outdoor-map.png
           if-no-files-found: ignore
+      - name: Require Mapbox Standard A/B APK
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/standard/app/outputs/flutter-apk/app-release.apk
+          test -s build/standard/android-staging-validation.txt
 
