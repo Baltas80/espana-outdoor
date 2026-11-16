@@ -77,9 +77,10 @@ String _safeTileIdFromResourceUrl(String rawUrl) {
 }
 
 double _tileYToLatitude(int y, double scale) {
-  return math.atan(math.sinh(math.pi * (1 - (2 * y / scale)))) *
-      180 /
-      math.pi;
+  // Inverse Web Mercator without a non-existent dart:math sinh helper.
+  final radians = 2 * math.atan(math.exp(math.pi * (1 - (2 * y / scale)))) -
+      math.pi / 2;
+  return radians * 180 / math.pi;
 }
 
 bool _tileBoundsFullyCoveredByOfflineRegion(TileID tile) {
