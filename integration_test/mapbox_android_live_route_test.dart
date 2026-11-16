@@ -63,7 +63,7 @@ String _safeTileIdFromResourceUrl(String rawUrl) {
   for (var index = segments.length - 3; index >= 0; index--) {
     final zoom = int.tryParse(segments[index]);
     final x = int.tryParse(segments[index + 1]);
-    final yMatch = RegExp(r'^(\\d+)').firstMatch(segments[index + 2]);
+    final yMatch = RegExp(r'^(\d+)').firstMatch(segments[index + 2]);
     final y = yMatch == null ? null : int.tryParse(yMatch.group(1)!);
     if (zoom == null || x == null || y == null || zoom < 0 || zoom > 22) {
       continue;
