@@ -14,7 +14,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker run --detach --rm \
+docker run --detach \
   --name "$CONTAINER" \
   --env POSTGRES_USER=espana \
   --env POSTGRES_DB=espana_outdoor \
