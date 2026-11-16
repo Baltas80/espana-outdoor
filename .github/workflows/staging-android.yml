@@ -279,6 +279,7 @@ jobs:
             echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "flutter=$flutter_version"
             echo "mapbox_runtime_token=available"
+            echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=mapbox://styles/mapbox/standard"
             echo "validation_scope=runtime-capable-artifact"
           } > build/standard/android-staging-validation.txt
