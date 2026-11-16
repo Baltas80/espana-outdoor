@@ -603,7 +603,7 @@ class MapboxNavigationBridge(context: Context) {
 
             descriptorStore.tileRegionContainsDescriptors(mapRegionId, listOf(mapDescriptor)) { descriptorExpected ->
                 val descriptorCheckCompleted = descriptorExpected.isValue
-                val descriptorPresent = descriptorCheckCompleted && descriptorExpected.value
+                val descriptorPresent = descriptorCheckCompleted && descriptorExpected.value == true
                 mainHandler.post {
                     result.success(
                         mapOf(
