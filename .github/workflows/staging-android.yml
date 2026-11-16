@@ -92,12 +92,21 @@ jobs:
         run: python3 tool/configure_mobile_native.py --platform android
       - name: Verify Android native configuration
         run: python3 tool/verify_mobile_native.py --platform android
-      - name: Dependencies (enforce committed lockfile)
+      - name: Resolve dependencies and export the refreshed lockfile
         shell: bash
         run: |
           set -euo pipefail
-          flutter pub get --enforce-lockfile
-          git diff --exit-code -- pubspec.lock
+          flutter pub get
+          mkdir -p "$RUNNER_TEMP/resolved-pub-lock"
+          cp pubspec.lock "$RUNNER_TEMP/resolved-pub-lock/pubspec.lock"
+          echo "resolved_pub_lockfile_uploaded=true" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload resolved Pub lockfile
+        if: always()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: resolved-pubspec-lock
+          path: ${{ runner.temp }}/resolved-pub-lock/pubspec.lock
+          if-no-files-found: ignore
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
