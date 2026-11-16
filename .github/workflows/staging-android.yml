@@ -41,6 +41,8 @@ env:
 jobs:
   android-staging:
     runs-on: ubuntu-latest
+    outputs:
+      apk_built: ${{ steps.build_apk.outputs.built }}
     # Install staging previews side-by-side with the production package.
     # Never overwrite the user's installed app with a runner-specific debug signature.
     env:
@@ -151,26 +153,68 @@ jobs:
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+          apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$apk"
+          aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
+          test -x "$aapt_path"
+          badging="$("$aapt_path" dump badging "$apk")"
+          application_id="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_code="$(sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_name="$(sed -n "s/^package:.*versionName='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          test -n "$application_id"
+          test -n "$version_code"
+          source_commit="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            source_commit="${{ github.event.pull_request.head.sha }}"
+          fi
+          apk_sha256="$(sha256sum "$apk" | cut -d ' ' -f1)"
+          apk_size_bytes="$(stat -c '%s' "$apk")"
+          flutter_version="$(flutter --version | head -n 1)"
+          app_version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
           mkdir -p build
           {
             echo "profile=staging"
+            echo "build_variant=release"
+            echo "application_id=$application_id"
+            echo "version_code=$version_code"
+            echo "version_name=$version_name"
+            echo "app_version=$app_version"
+            echo "apk_file=$(basename "$apk")"
+            echo "apk_size_bytes=$apk_size_bytes"
+            echo "apk_sha256=$apk_sha256"
+            echo "source_commit=$source_commit"
+            echo "workflow_commit=$GITHUB_SHA"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "flutter=$flutter_version"
             echo "mapbox_runtime_token=$mapbox_runtime"
             if [[ "$mapbox_runtime" == "available" ]]; then
               echo "validation_scope=runtime-capable-artifact"
             else
               echo "validation_scope=compile-only-no-mapbox-runtime"
             fi
-            echo "commit=$GITHUB_SHA"
           } > build/android-staging-validation.txt
           echo "built=true" >> "$GITHUB_OUTPUT"
       - name: Verify APK
         if: steps.build_apk.outputs.built == 'true'
         run: |
+          set -euo pipefail
           apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          manifest="build/android-staging-validation.txt"
           test -n "$apk"
+          test -s "$manifest"
           python3 tool/verify_android_release.py --apk "$apk"
+          expected_sha="$(sed -n 's/^apk_sha256=//p' "$manifest")"
+          actual_sha="$(sha256sum "$apk" | cut -d ' ' -f1)"
+          test -n "$expected_sha"
+          test "$expected_sha" = "$actual_sha"
+          grep -Fxq "workflow_commit=$GITHUB_SHA" "$manifest"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            grep -Fxq "source_commit=${{ github.event.pull_request.head.sha }}" "$manifest"
+          fi
       - name: Upload Android staging APK
-        if: always() && steps.build_apk.outputs.built == 'true'
+        if: success() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
@@ -229,6 +273,8 @@ jobs:
   # return to --enforce-lockfile.
   refresh-pub-lockfile:
     if: >-
+      always() &&
+      needs.android-staging.outputs.apk_built == 'true' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'fix/android-community-api-build-define-20261116'
