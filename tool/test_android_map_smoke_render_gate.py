@@ -142,6 +142,8 @@ for marker in (
     "--build-dir=build/standard",
     '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
     "build/standard/android-staging-validation.txt",
+    "mapbox_runtime_token=available",
+    "mapbox_downloads_token=available",
     "mapbox_style_uri=mapbox://styles/mapbox/standard",
 ):
     if marker not in standard_build:
