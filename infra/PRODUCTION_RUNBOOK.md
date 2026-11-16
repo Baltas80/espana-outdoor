@@ -30,6 +30,8 @@ This document is the deployment gate for the external services. It intentionally
 
 ## Bring-up order
 
+The Postgres entrypoint runs `infra/postgres/init/99-ensure-keycloak-db.sh` only when the data directory is initialized for the first time. It idempotently creates the `keycloak` role/database and synchronizes the role password with `KEYCLOAK_DB_PASSWORD`. If a persistent volume already exists, adding this file does not rerun initialization: apply the equivalent role/database SQL as a controlled migration before starting Keycloak. Never delete a production volume to force initialization.
+
 1. `postgres` and database initialization
 2. `keycloak`
 3. `source-gateway`
