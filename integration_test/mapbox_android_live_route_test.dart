@@ -468,13 +468,14 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   print('MAPBOX_OFFLINE_SCREENSHOT_READY');
   // Keep the native view alive long enough for the host-side ADB capture.
   await Future<void>.delayed(const Duration(seconds: 8));
+  final observedTileIds = observedZoom13Tiles.toList()..sort();
+  final uncoveredTileIds = uncoveredZoom13Tiles.toList()..sort();
   // ignore: avoid_print
   print(
     'MAPBOX_VIEWPORT_TILE_COVERAGE zoom=13 '
-    'observed=${observedZoom13Tiles.length} '
-    'uncovered=${uncoveredZoom13Tiles.length} '
-    'tiles=${observedZoom13Tiles.toList()..sort()} '
-    'uncovered_tiles=${uncoveredZoom13Tiles.toList()..sort()}',
+    'observed=${observedTileIds.length} '
+    'uncovered=${uncoveredTileIds.length} '
+    'tiles=$observedTileIds uncovered_tiles=$uncoveredTileIds',
   );
   // ignore: avoid_print
   print(
