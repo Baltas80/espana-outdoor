@@ -136,6 +136,13 @@ launch_app() {
   wait_outside_anr
 }
 
+if [[ "${offline_mode}" == "online" && "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  echo "Verifying a validated internet connection before the online Mapbox smoke."
+  bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"
+elif [[ "${offline_mode}" == "online" ]]; then
+  echo "ANDROID_EMULATOR_NETWORK preflight=skipped reason=not_ci_emulator"
+fi
+
 launch_app
 
 if test "${offline_mode}" = "offline"; then
