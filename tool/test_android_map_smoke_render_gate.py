@@ -9,7 +9,11 @@ SMOKE = ROOT / "tool" / "smoke_android_map.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
+MAPBOX_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
 source = SMOKE.read_text(encoding="utf-8")
+if not MAPBOX_VIEWPORT.is_file():
+    raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
+mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
 network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
@@ -39,6 +43,27 @@ for job, minutes in (
 android_job = job_block(workflow, "android-staging")
 if "timeout-minutes: 75" not in android_job:
     raise SystemExit("Android staging job must have a 75-minute upper bound.")
+
+# A/B style selection is a staging-only build input. The default and all PR
+# builds remain Outdoors; Standard can be selected explicitly on workflow_dispatch.
+for marker in (
+    "mapbox_style_variant",
+    "type: choice",
+    "default: outdoors-v12",
+    "mapbox://styles/mapbox/standard",
+    '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI"',
+    'echo "mapbox_style_uri=$MAPBOX_STYLE_URI"',
+):
+    if marker not in workflow:
+        raise SystemExit(f"Android staging workflow is missing controlled style selection: {marker}")
+if "defaultValue: 'mapbox://styles/mapbox/outdoors-v12'" not in mapbox_viewport:
+    raise SystemExit("Production Mapbox style default must remain Outdoors v12.")
+if "'MAPBOX_STYLE_URI'" not in mapbox_viewport or "String.fromEnvironment(" not in mapbox_viewport:
+    raise SystemExit("Shared Mapbox viewport must accept a compile-time style override.")
+if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_viewport:
+    raise SystemExit("Mapbox diagnostic output must identify the selected style URI.")
+if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
+    raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
 
 required = (
     "ensure_android_emulator_online.sh",
