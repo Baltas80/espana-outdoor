@@ -88,8 +88,9 @@ class MapboxNavigationBridge(context: Context) {
         // Reapply and verify after Navigation bootstrap in case the Navigation
         // provider changed global Maps options. OfflineManager and the later Flutter
         // MapWidget must still use the exact same persistent store.
-        // READ_ONLY serves downloaded tile packs first and falls back to individual
-        // online tiles outside downloaded regions; free panning remains supported.
+        // Production defaults to READ_ONLY for free panning and individual-tile
+        // online fallback. The integration test can request READ_AND_UPDATE before
+        // MapWidget construction to isolate tile-pack retrieval in airplane mode.
         MapboxMapsOptions.tileStore = store
         MapboxMapsOptions.tileStoreUsageMode = requestedUsageMode
         check(MapboxMapsOptions.tileStore === store) {
