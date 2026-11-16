@@ -149,3 +149,23 @@ El runner A/B verifica que ambos manifiestos comparten `application_id`, `source
 ### Conservación del APK primario si falla la compilación Standard
 
 Se separaron los uploads: `android-staging-apk` contiene siempre el APK Outdoors ya verificado; `mapbox-standard-ab-apk` solo se publica si la compilación Standard terminó correctamente. Si Standard falla, el smoke primario todavía puede ejecutarse y conservar sus evidencias; el requisito final A/B hace fallar el job al cierre, sin perder el artefacto primario. Esto evita que `if-no-files-found: error` del upload combinado impida ejecutar el diagnóstico principal.
+
+### Falso positivo del smoke A/B: ANR de Google SDK Setup — 16/11/2026
+
+Ejecución [Android staging 43950050766](https://github.com/Baltas80/espana-outdoor/actions/runs/43950050766), HEAD `8b2215f5b307023f4a4d4980c96e779d55560fe9`:
+
+- Los APK Outdoors y Standard se compilaron, verificaron y publicaron con manifiestos separados. El runner A/B llegó a ejecutar ambos; los dos smoke devolvieron código 1.
+- El artefacto [14272151033](https://github.com/Baltas80/espana-outdoor/actions/runs/43950050766/artifacts/14272151033) contiene dos capturas prácticamente idénticas. Ambas muestran la pantalla de inicio de España Outdoor cubierta por el diálogo Android **“com.google.android.googlesdksetup isn't responding”**.
+- La jerarquía `espana-window-post-map.xml` tiene como ventana superior el paquete `android`, no el paquete de España Outdoor. La app seguía apareciendo como actividad reanudada, pero el diálogo del sistema bloqueaba el toque sobre la navegación.
+- El script había pulsado repetidamente “Wait” para ese paquete y después aceptaba la captura por diversidad/entropía. Las métricas del PNG (92 colores, entropía 3.150 bits, dominante 0.424) procedían de la pantalla de inicio y del diálogo, **no del mapa**.
+- Los ficheros `espana-mapbox-diagnostics.txt` solo contienen el arranque de Impeller; no hay eventos `MAPBOX_DIAGNOSTIC`. Por tanto, en este run el widget Mapbox no llegó a montarse y no se puede extraer ninguna conclusión A/B sobre Outdoors frente a Standard ni sobre el renderizador cartográfico.
+
+Corrección aplicada en esta PR:
+
+- En el emulador CI desechable, detener y deshabilitar para el usuario 0 el paquete de primer arranque `com.google.android.googlesdksetup` si está instalado. Esta operación no se ejecuta en el dispositivo físico ni en producción.
+- Si reaparece su diálogo ANR, cerrarlo explícitamente en lugar de seguir eligiendo “Wait”.
+- Añadir `tool/verify_android_map_screen.py`: exige que la ventana superior pertenezca al paquete de la app y que la jerarquía contenga los controles exclusivos de la página Mapa (`Centrar mapa`, `Mapas offline`, `Navegación GPS`). Rechaza la pantalla de inicio y cualquier ventana de sistema.
+- Ejecutar esta verificación después del toque y de nuevo justo antes de capturar el PNG. La entropía del screenshot ya no puede convertir la pantalla de inicio en una falsa prueba de mapa.
+- Añadir un self-test con casos positivos de la página Mapa, pantalla de inicio y diálogo del sistema.
+
+La ejecución 43950050766 **no es una comparación A/B válida** y no demuestra que ninguno de los dos estilos haya fallado al renderizar. La nueva ejecución debe confirmar primero que la página Mapa está realmente abierta; solo entonces se interpretarán los callbacks y el PNG.
