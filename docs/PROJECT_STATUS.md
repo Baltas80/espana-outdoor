@@ -583,3 +583,13 @@ La discrepancia de configuración está corregida en código, pero no se declara
 - Identidad compartida web/Android, configuración real de Keycloak/PostgreSQL TLS, Valhalla de producción, DNS/HTTP externos y protección de main siguen pendientes.
 
 Siguiente prioridad: ejecutar CI, Security y Android staging sobre el nuevo HEAD; inspeccionar el log `MAPBOX_MAP_OPTIONS pixel_ratio` y repetir la comparación A/B. Si sigue sin alcanzar render completo, investigar el renderer y el estado de la fuente composite con esta configuración ya alineada.
+
+## Actualización de validación — HEAD 32faf647
+
+- La primera ejecución sobre `2114740` detectó dos errores en los nuevos tests: el guard estático esperaba el tipo `MapboxMapOptions` en vez de `MapOptions`, y el test Dart no importaba directamente el paquete que declara `GlyphsRasterizationMode`. Se corrigieron en [8ed9ef3](https://github.com/Baltas80/espana-outdoor/commit/8ed9ef32295b684413668228f488403a03270c29) y [32faf64](https://github.com/Baltas80/espana-outdoor/commit/32faf647d87f036a71a6331ee7f9bfe3aac40b1a).
+- Security baseline [43979531112](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531112): **8/8 jobs superados**.
+- CI [43979531228](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531228): Source Gateway y Rescue Link superados; suite Flutter completa superada y compilación Android release/iOS candidate en ejecución en la última consulta.
+- Android staging [43979531100](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531100): preflight, configuración nativa, lockfile inmutable, análisis Flutter y tests completados correctamente; compilación APK aún en ejecución. Todavía no existe artefacto ni evidencia cartográfica del nuevo pixel ratio.
+- La rama PR #79 queda en 92 commits por delante de `main` y 0 por detrás. Sigue en draft.
+
+La corrección de pixel ratio ya supera el análisis estático y los tests de Android staging. La aceptación funcional depende del nuevo APK A/B: comprobar el valor `MAPBOX_MAP_OPTIONS pixel_ratio`, obtener `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y una captura cartográfica legible. No aceptar offline ni producción hasta completar además el protocolo de descarga, modo avión, cierre/reapertura, reinicio y prueba física.
