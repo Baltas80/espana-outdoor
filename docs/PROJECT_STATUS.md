@@ -1,5 +1,16 @@
 # España Outdoor — estado técnico
 
+## Actualización adicional — 16/11/2026 14:45 CET
+
+- PR #74 se integró en main como squash commit `2c25aba102ab2f7c1b530a0d4dd0392491ca7625`.
+- El workflow de publicación web [43877534174](https://github.com/Baltas80/espana-outdoor/actions/runs/43877534174) terminó correctamente: artefacto Pages `14230438428`, deployment version `2c25aba...`, estado `Reported success`, URL de entorno reportada `https://espanaoutdoor.es/`. La herramienta de navegación externa no pudo abrir el dominio en esta ejecución; por tanto, el workflow confirma la publicación, pero no se afirma una comprobación HTTP independiente.
+- Security baseline de main [43877534385](https://github.com/Baltas80/espana-outdoor/actions/runs/43877534385) falló únicamente en Gitleaks. El log identifica el falso positivo exacto en `lib/core/navigation/waypoint_controller.dart`, commit `2c25aba...`: la clave local de SharedPreferences seguía en el último squash diff. El guard de cinco excepciones pasó; Gitleaks analiza el último commit en eventos push y la excepción al commit histórico no cubría el nuevo squash commit.
+- Se abrió [PR #77](https://github.com/Baltas80/espana-outdoor/pull/77) para migrar el almacenamiento local a `waypoints_v2`, conservar los datos existentes mediante una migración write-before-remove y añadir tests de migración/precedencia. Mantiene las cinco excepciones exactas; CI [43878563911](https://github.com/Baltas80/espana-outdoor/actions/runs/43878563911), Android staging [43878564097](https://github.com/Baltas80/espana-outdoor/actions/runs/43878564097) y Security [43878563987](https://github.com/Baltas80/espana-outdoor/actions/runs/43878563987) están queued sobre el HEAD `f0329bf`.
+- PR #73 está sincronizada con main en `9fbe2d1`; Security [43877738956](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738956) terminó correctamente, CI [43877738968](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738968) está in_progress y Android staging [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921) sigue pending. El gate visual aún no tiene nueva evidencia de emulador.
+- Android staging de main [43877534235](https://github.com/Baltas80/espana-outdoor/actions/runs/43877534235) sigue en build APK; no hay artefacto nuevo de ese run en esta consulta.
+
+---
+
 Última revisión: **16/11/2026 14:34 CET**. Rama de referencia: `main`, HEAD verificado: `2c25aba102ab2f7c1b530a0d4dd0392491ca7625`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
