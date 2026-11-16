@@ -9,6 +9,7 @@ example = (ROOT / "infra" / ".env.example").read_text(encoding="utf-8")
 runbook = (ROOT / "infra" / "PRODUCTION_RUNBOOK.md").read_text(encoding="utf-8")
 production_endpoints = (ROOT / "infra" / "PRODUCTION_ENDPOINTS.template.env").read_text(encoding="utf-8")
 keycloak_db_init = (ROOT / "infra" / "postgres" / "init" / "99-ensure-keycloak-db.sh").read_text(encoding="utf-8")
+bootstrap_test = (ROOT / "tool" / "test_keycloak_postgres_bootstrap.sh").read_text(encoding="utf-8")
 
 
 def service_block(name: str, next_service: str) -> str:
@@ -33,6 +34,12 @@ for fragment in (
         raise SystemExit(f"Keycloak must pin its issuer and trust the configured reverse-proxy headers: {fragment}")
 if "POSTGRES_DB: espana_outdoor" not in postgres or "POSTGRES_USER: espana" not in postgres:
     raise SystemExit("PostgreSQL must define the expected application database and bootstrap user.")
+if "image: postgis/postgis:18-3.6" not in postgres:
+    raise SystemExit("The PostgreSQL integration test must exercise the production PostGIS image.")
+if 'IMAGE="${POSTGRES_TEST_IMAGE:-postgis/postgis:18-3.6}"' not in bootstrap_test:
+    raise SystemExit("PostgreSQL bootstrap integration must default to the exact Compose image.")
+if "pg_isready --host 127.0.0.1" not in bootstrap_test:
+    raise SystemExit("PostgreSQL integration must wait for TCP readiness, not the initdb socket-only server.")
 if "./postgres/init:/docker-entrypoint-initdb.d:ro" not in postgres:
     raise SystemExit("PostgreSQL must mount its initialization scripts read-only.")
 for fragment in (
