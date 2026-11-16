@@ -394,7 +394,7 @@ No desplegar ni declarar producción hasta que se completen las pruebas funciona
 
 No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado cartográfico y completar las validaciones funcionales.
 
-## Actualización de entrega — 16/11/2026, 11:xx CET
+## Actualización de entrega — 16/11/2026 (CET)
 
 ### Integración Android y perfiles
 
