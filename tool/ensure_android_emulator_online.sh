@@ -104,7 +104,7 @@ done
 
 echo "ERROR: Android emulator did not obtain a connected, validated internet default network within ${TIMEOUT_SECONDS}s."
 echo "airplane_mode=${airplane_state:-unknown}"
-echo "wifi_state=$(sed -n 's/^AIRPLANE_MODE=//p' <<<"${snapshot}" | head -n 1 | tr -d '\r')"
+echo "airplane_mode=${airplane_state:-unknown}"
 echo "wifi_status=${wifi_block:-unavailable}"
 echo "wifi_scan_results:"
 adb_run shell cmd wifi list-scan-results 2>/dev/null | head -n 20 || true
