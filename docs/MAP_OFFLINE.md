@@ -316,3 +316,23 @@ Cambios de diagnóstico en el HEAD siguiente:
 - Capturar la señal desde el tag nativo `EspanaOfflineTest` y verificar la actividad de integración antes de guardar el PNG.
 
 **Estado:** estas medidas mejoran la comprobación de identidad/configuración y la evidencia; no demuestran todavía que Maps esté leyendo los paquetes. La aceptación sigue exigiendo un PNG auténtico, carga completa del mapa y cero fallos de recursos en modo avión.
+
+
+## Evidencia Android 16/11/2026 — run 43774889122
+
+El HEAD probado fue `9b3b0fbe1e31942b39a3b9e68c3dbfdfca7e7692`. La CI general terminó 4/4 y Security baseline 8/8. Android staging compiló un APK runtime-capable; artefacto más reciente del run: [14188447528](https://github.com/Baltas80/espana-outdoor/actions/runs/43774889122/artifacts/14188447528), `source_commit=9b3b0fbe`, application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, SHA-256 verificado localmente contra el manifiesto: `7626c90c2a3aedee2c924dd52a5a560ef55ec289ebaef1832fd48529e2f922c9`.
+
+La prueba del emulador confirmó por separado:
+
+- Ruta online nueva: 767,757 m / 55 puntos.
+- Región Maps: 29 recursos, 32.892.088 bytes, cero errores.
+- Región Navigation walking: 4 recursos, 9.955.518 bytes, cero errores.
+- Ruta nueva tras modo avión y Wi-Fi desactivado: origen nativo `offline`, 1.109,662 m / 66 puntos.
+
+El mapa sigue sin renderizar offline: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`, 14 errores `IN_OFFLINE_MODE/NETWORK/TILE`. Los eventos `sourceDataLoaded` muestran la fuente `composite` y solicitudes de tiles z13 en la zona descargada, pero la mayoría no se recuperan del TileStore. No se acepta la cartografía.
+
+Se identificó además un defecto del harness de captura: Android `dumpsys` informa el componente como `applicationId/namespace.MainActivity`, pero el runner comparaba `namespace/` como si fuera el applicationId. El registro real era `com.espanaoutdoors.espana_outdoors.iconspreview/com.example.espana_outdoors.MainActivity`. El matcher ahora compara ambos segmentos exactamente. También se captura y sanea logcat desde el trap EXIT antes de restaurar la conectividad, para conservarlo aunque la aserción offline falle.
+
+Commits de corrección del harness: `71e89b8`, `5c8579d`, `8cbeb25`, `9ab86a3`. La nueva versión aún necesita una ejecución Android para demostrar que el PNG del viewport de integración se captura y para conservar logcat de los fallos TileStore. El PNG del smoke release de este run muestra la app real, pero solo fondo/agua sin cartografía viaria suficiente; no es evidencia de mapa completo.
+
+La ruta peatonal offline está demostrada en emulador; el renderizado offline no. Persistencia tras reinicio y OPPO físico siguen pendientes. No fusionar #61.
