@@ -149,6 +149,9 @@ for marker in (
     'RUNNER_TEMP="${primary_evidence}" timeout',
     'RUNNER_TEMP="${standard_evidence}" timeout',
     'primary_status=${primary_status}',
+    'standard_manifest="${runner_temp}/standard-build/android-staging-validation.txt"',
+    'timeout --foreground --signal=TERM --kill-after=15s 45s adb shell pm clear',
+    'if ! grep -Fxq "Success" <<<"${clear_output}"; then',
     'standard_run=${standard_run}',
     'standard_status=${standard_status}',
     '--kill-after=150s 20m',
@@ -176,6 +179,18 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     (temp_root / "standard-build").mkdir()
     (temp_root / "primary-build" / "app-release.apk").write_bytes(b"primary-apk")
     (temp_root / "standard-build" / "app-release.apk").write_bytes(b"standard-apk")
+    (temp_root / "primary-build" / "android-staging-validation.txt").write_text(
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
+        "version_code=5\\nsource_commit=test-commit\\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\\n",
+        encoding="utf-8",
+    )
+    (temp_root / "standard-build" / "android-staging-validation.txt").write_text(
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
+        "version_code=5\\nsource_commit=test-commit\\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/standard\\n",
+        encoding="utf-8",
+    )
     fake_bin = temp_root / "bin"
     fake_bin.mkdir()
     call_log = temp_root / "timeout-calls.txt"
@@ -184,6 +199,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
         "#!/usr/bin/env bash\n"
         'printf "RUNNER_TEMP=%s\\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
         'printf "ARGS=%s\\n" "$*" >> "$CALL_LOG"\n'
+        'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
         "exit 0\n",
         encoding="utf-8",
@@ -207,6 +223,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
         raise SystemExit("Android A/B runner did not invoke both APKs in the success-path test.")
     if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/standard" not in calls:
         raise SystemExit("Android A/B runner did not isolate primary and Standard evidence directories.")
+    if "adb shell pm clear com.espanaoutdoors.espana_outdoors.iconspreview" not in calls:
+        raise SystemExit("The A/B runner must clear the shared app data before installing Standard.")
 
     call_log.write_text("", encoding="utf-8")
     failing_env = test_env.copy()
@@ -233,8 +251,11 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     )
     if primary_only.returncode != 0 or "standard_run=false" not in primary_only.stdout:
         raise SystemExit("The A/B runner must still support non-PR-79 staging runs without a Standard APK.")
-    if call_log.read_text(encoding="utf-8").count("ARGS=") != 1:
+    primary_only_calls = call_log.read_text(encoding="utf-8")
+    if primary_only_calls.count("ARGS=") != 1:
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
+    if "adb shell pm clear" in primary_only_calls:
+        raise SystemExit("A non-A/B staging run must not clear app data for a nonexistent Standard comparison.")
 
 standard_build = workflow.split("- name: Build Mapbox Standard A/B APK", 1)[1]
 standard_build = standard_build.split("- name: Upload Android staging APK", 1)[0]
