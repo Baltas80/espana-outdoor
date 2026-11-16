@@ -213,3 +213,16 @@ print("mapbox_source_diagnostics=enabled")
 print("navigation_routing_tile_store=shared")
 
 print("mapbox_style_override_scope=integration_test_only")
+
+RELEASE_WORKFLOWS = (
+    ROOT / ".github" / "workflows" / "staging-android.yml",
+    ROOT / ".github" / "workflows" / "release-candidate.yml",
+)
+for workflow_path in RELEASE_WORKFLOWS:
+    workflow = workflow_path.read_text(encoding="utf-8")
+    if "--dart-define=MAPBOX_STYLE_URI" in workflow:
+        raise SystemExit(
+            f"Offline style experiment must not change release APK style: {workflow_path.name}"
+        )
+print("mapbox_release_style_override_absent=true")
+
