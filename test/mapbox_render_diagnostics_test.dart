@@ -2,6 +2,16 @@ import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('formatMapboxTileId', () {
+    test('prints canonical z/x/y coordinates', () {
+      expect(formatMapboxTileId(z: 14, x: 8213, y: 6214), '14/8213/6214');
+    });
+
+    test('uses a stable placeholder when the tile id is absent', () {
+      expect(formatMapboxTileId(), '-');
+    });
+  });
+
   group('sanitizeMapboxDiagnostic', () {
     test('redacts access-token query parameters and bearer credentials', () {
       final accessTokenParameter =
