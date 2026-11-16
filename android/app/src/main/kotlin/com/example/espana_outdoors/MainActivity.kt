@@ -26,7 +26,8 @@ class MainActivity : FlutterActivity() {
                         result.error("MISSING_TOKEN", "Mapbox access token is required.", null)
                     } else {
                         Log.i(logTag, "mapbox_navigation_configure_started")
-                        runCatching { navigationBridge.configure(token) }
+                        val tileStoreUsageMode = call.argument<String>("tileStoreUsageMode") ?: "READ_ONLY"
+                        runCatching { navigationBridge.configure(token, tileStoreUsageMode) }
                             .onSuccess {
                                 Log.i(logTag, "mapbox_navigation_configured")
                                 result.success(null)
