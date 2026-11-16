@@ -51,7 +51,7 @@ if "svc data disable" not in route_script or "ORIGINAL_DATA" not in route_script
     raise SystemExit("Offline routing validation must disable and restore mobile data as well as Wi-Fi.")
 if "verify_android_offline_map_log.py" not in route_script:
     raise SystemExit("Offline acceptance must inspect native MapboxMapViewport logcat, not only the screenshot.")
-if "pumpWidget(" in integration_test or "find.bySemanticsLabel('Mapa')" not in integration_test:
+if "pumpWidget(" in integration_test or "find.byTooltip('Mapa')" not in integration_test:
     raise SystemExit("Offline map validation must navigate the production app's Mapa tab instead of mounting a second MapWidget.")
 if "tile_id=$tileId" not in viewport:
     raise SystemExit("Production MapboxMapViewport must expose safe z/x/y tile IDs for offline coverage verification.")
