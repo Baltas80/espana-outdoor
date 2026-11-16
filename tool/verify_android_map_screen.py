@@ -8,7 +8,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-REQUIRED_CONTROLS = ("Centrar mapa", "Mapas offline", "Navegación GPS")
+REQUIRED_CONTROLS = ("Mapa cartográfico",)
 HOME_MARKERS = ("Explora España",)
 ANR_MARKERS = ("isn't responding", "is not responding")
 
@@ -66,8 +66,7 @@ def _self_test() -> None:
     package = "com.espanaoutdoors.espana_outdoors.iconspreview"
     valid = (
         '<hierarchy rotation="0"><node package="' + package + '">'
-        '<node text="Mapa" /><node content-desc="Centrar mapa" />'
-        '<node content-desc="Mapas offline" /><node content-desc="Navegación GPS" />'
+        '<node text="Mapa" /><node content-desc="Mapa cartográfico" />'
         "</node></hierarchy>"
     )
     home = (
