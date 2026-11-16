@@ -361,7 +361,7 @@ La ejecución del emulador sobre HEAD `470a194` aportó una señal nueva: Maps y
 
 La geometría del fixture anterior tenía latitud `37.85..37.93`. La fila Web Mercator z13/y3164 ocupa aproximadamente `37.8228..37.8575`; el polígono solo cubría una franja de esa fila. Por tanto, la región de prueba no garantizaba cubrir por completo el tile que el viewport realmente solicitaba. Esto es un defecto geométrico reproducible del fixture y una hipótesis concreta para parte de los misses; todavía no demuestra que sea la única causa.
 
-La región del test se amplía a latitud `37.78..37.97`, manteniendo la longitud `-4.84..-4.72`. Se añaden dos controles:
+La región del test y la región que descarga `OfflinePage` en producción se amplían a latitud `37.78..37.97`, manteniendo la longitud `-4.84..-4.72`. El guard compara ambos polígonos y falla si divergen. Se añaden dos controles:
 
 - El guard `tool/test_mapbox_offline_region_coverage.py` calcula los límites Web Mercator y exige que el polígono cubra por completo los seis tiles z13 observados en el viewport anterior.
 - La integración registra únicamente coordenadas z/x/y extraídas de `SourceDataLoadedEventData` y de la ruta de URL de recurso. Nunca registra URLs, query strings ni tokens. Comprueba además que cada tile z13 observado queda completamente dentro del polígono descargado.
