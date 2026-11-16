@@ -1,4 +1,5 @@
 import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
