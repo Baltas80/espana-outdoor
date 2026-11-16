@@ -3,6 +3,37 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+ADB_COMMAND="${ADB:-adb}"
+if ! command -v "${ADB_COMMAND}" >/dev/null 2>&1; then
+  echo "ERROR: adb executable was not found." >&2
+  exit 2
+fi
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "ERROR: GNU timeout is required to bound Android emulator commands." >&2
+  exit 2
+fi
+
+# Bound every adb call. UIAutomator/dumpsys can otherwise hang indefinitely
+# when the emulator loses its system-server or instrumentation connection.
+adb() {
+  local limit=20
+  case "${1:-}" in
+    wait-for-device) limit=120 ;;
+    install) limit=180 ;;
+    logcat) limit=60 ;;
+    exec-out)
+      if [[ "${2:-}" == "uiautomator" ]]; then limit=15; else limit=30; fi
+      ;;
+    shell)
+      case "${2:-}" in
+        dumpsys) limit=20 ;;
+        monkey) limit=30 ;;
+        *) limit=15 ;;
+      esac
+      ;;
+  esac
+  timeout --foreground --signal=TERM --kill-after=5s "${limit}s" "${ADB_COMMAND}" "$@"
+}
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
@@ -14,7 +45,10 @@ adb install -r "${apk_path}"
 
 ui_dump() {
   local file="$1"
-  adb exec-out uiautomator dump /dev/tty 2>/dev/null >"${file}" || true
+  if ! adb exec-out uiautomator dump /dev/tty >"${file}" 2>/dev/null; then
+    echo "ERROR: UIAutomator dump failed or timed out (15s)." >&2
+    return 1
+  fi
 }
 
 wait_outside_anr() {
