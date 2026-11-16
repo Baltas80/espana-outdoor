@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
+const mapboxStyleUri = String.fromEnvironment(
+  'MAPBOX_STYLE_URI',
+  defaultValue: 'mapbox://styles/mapbox/outdoors-v12',
+);
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
 String formatMapboxTileId({int? z, int? x, int? y}) {
@@ -192,6 +195,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         ),
       );
     }
+    _logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri');
     return MapWidget(
       key: const ValueKey('espana-outdoor-mapbox-shared-viewport'),
       styleUri: mapboxStyleUri,
