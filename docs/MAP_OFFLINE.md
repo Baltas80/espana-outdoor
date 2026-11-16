@@ -379,3 +379,21 @@ La evidencia del run 43804464921 muestra que el descriptor y las dos regiones ex
 - `READ_AND_UPDATE`: convierte las solicitudes de mapa en solicitudes de tile packs; no usa solicitudes individuales.
 
 Se añade un experimento aislado: la fase online/descarga sigue usando `READ_ONLY`; tras force-stop, la fase sin conectividad configura `READ_AND_UPDATE` antes de crear el MapWidget. El valor por defecto de producción sigue siendo `READ_ONLY`; no se cambia hasta demostrar que el experimento resuelve el renderizado y evaluar el comportamiento al desplazar el mapa fuera de una región descargada. La prueba registra el modo efectivo desde el puente nativo y mantiene los mismos criterios de aceptación: `MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y PNG válido.
+
+
+## Verificación del style pack y fallos de TileStore — 16/11/2026
+
+La evidencia visual del run 43810890843 muestra que el mapa no está completamente vacío: se dibujan algunos elementos de agua, pero faltan capas cartográficas visibles y el viewport no alcanza el estado completo. El log de integración anterior informaba `style_loaded=true`, pero no demostraba que el style pack siguiera almacenado después de force-stop.
+
+Se añade una comprobación separada del style pack:
+
+- La descarga conserva contadores de recursos completados, bytes, requeridos y errores del callback `loadStylePack`.
+- Se rechaza el resultado si el paquete está vacío o incompleto.
+- `verifyOfflineRegion` consulta `OfflineManager.getStylePack(styleUri)` después de reabrir el proceso y exige recursos persistidos, además del descriptor y los dos TileRegions.
+- `hasOfflineRegion` ya no declara la región completa si falta el marcador de style pack.
+
+También se corrige el diagnóstico de recursos. Antes, el test descartaba todos los eventos `cancelled` y trataba los `NOT_FOUND` del TileStore como misses esperados incluso durante la fase offline `READ_AND_UPDATE`. Eso podía ocultar precisamente los fallos que se intentaban detectar. En la fase offline, un miss `NOT_FOUND/TILE_STORE` de una tesela ahora se registra como `offline_tile_store_miss` y hace fallar la aceptación.
+
+Después de crear el `MapWidget`, la integración vuelve a consultar el puente nativo y registra `MAPBOX_TILESTORE_POST_MAP_WIDGET`. Así se detectará si la inicialización de la vista cambia la instancia global del TileStore, el descriptor, el style pack o el modo efectivo.
+
+**Interpretación:** estos cambios mejoran la verificación y el diagnóstico; no solucionan por sí mismos la causa de los tiles incompletos. El siguiente Android staging debe confirmar el style pack, contar los misses reales y obtener un PNG completo. Si el style pack y el descriptor están presentes y siguen faltando tiles, el siguiente paso es inspeccionar la respuesta/tileset de cada coordenada solicitada, no ampliar más la región sin evidencia.
