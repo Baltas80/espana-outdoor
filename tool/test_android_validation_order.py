@@ -76,7 +76,7 @@ sample_activity = (
     "com.espanaoutdoors.espana_outdoors.iconspreview/"
     "com.example.espana_outdoors.MainActivity t8}"
 )
-match = re.search(r"ActivityRecord\\{[^}]*[[:space:]]u[0-9]+[[:space:]]([^[:space:]]+)", sample_activity)
+match = re.search(r"ActivityRecord\{[^}]*\s+u[0-9]+\s+([^\s}]+)", sample_activity)
 expected_component = (
     "com.espanaoutdoors.espana_outdoors.iconspreview/"
     "com.example.espana_outdoors.MainActivity"
