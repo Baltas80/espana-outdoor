@@ -5,9 +5,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / "tool" / "smoke_android_map.sh"
+WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 source = SMOKE.read_text(encoding="utf-8")
+workflow = WORKFLOW.read_text(encoding="utf-8")
 
 required = (
+    "ensure_android_emulator_online.sh",
+    'ANDROID_EMULATOR_CI:-false',
     "dumpsys window windows",
     "mCurrentFocus|mFocusedApp",
     "mResumedActivity|topResumedActivity",
@@ -27,4 +31,13 @@ if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: 
     raise SystemExit("The smoke must validate the screenshot before reporting PASS.")
 
 print("android_map_smoke_foreground_gate=true")
+network_call = 'bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"'
+if source.index(network_call) > source.index("launch_app"):
+    raise SystemExit("Online network preflight must run before launching the Mapbox smoke.")
+smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
+smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
+if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
+    raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
+
+print("android_map_smoke_network_preflight=true")
 print("android_map_smoke_render_gate=true")
