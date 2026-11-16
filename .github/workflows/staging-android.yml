@@ -231,8 +231,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf build/standard
-          flutter build apk --release --build-dir=build/standard \
+          primary_dir="$RUNNER_TEMP/primary-build"
+          standard_dir="$RUNNER_TEMP/standard-build"
+          mkdir -p "$primary_dir" "$standard_dir"
+
+          # Preserve the already-verified Outdoors APK outside Flutter's build
+          # directory before cleaning and compiling the Standard comparison.
+          primary_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$primary_apk"
+          test -s build/android-staging-validation.txt
+          cp "$primary_apk" "$primary_dir/app-release.apk"
+          cp build/android-staging-validation.txt "$primary_dir/android-staging-validation.txt"
+
+          # Flutter 3.47.5 rejects a custom output-directory flag. Build
+          # Standard through the normal output path, then preserve it separately.
+          # A clean prevents stale Dart defines from being reused.
+          flutter clean
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard" \
@@ -243,12 +260,13 @@ jobs:
             --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
             --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
-          apk="build/standard/app/outputs/flutter-apk/app-release.apk"
-          test -s "$apk"
-          python3 tool/verify_android_release.py --apk "$apk"
+
+          standard_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$standard_apk"
+          python3 tool/verify_android_release.py --apk "$standard_apk"
           aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
           test -x "$aapt_path"
-          badging="$("$aapt_path" dump badging "$apk")"
+          badging="$("$aapt_path" dump badging "$standard_apk")"
           application_id="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
           version_code="$(sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
           version_name="$(sed -n "s/^package:.*versionName='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
@@ -258,10 +276,11 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             source_commit="${{ github.event.pull_request.head.sha }}"
           fi
-          apk_sha256="$(sha256sum "$apk" | cut -d ' ' -f1)"
-          apk_size_bytes="$(stat -c '%s' "$apk")"
+          apk_sha256="$(sha256sum "$standard_apk" | cut -d ' ' -f1)"
+          apk_size_bytes="$(stat -c '%s' "$standard_apk")"
           flutter_version="$(flutter --version | head -n 1)"
           app_version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+          cp "$standard_apk" "$standard_dir/app-release.apk"
           {
             echo "profile=staging"
             echo "build_variant=release"
@@ -269,7 +288,7 @@ jobs:
             echo "version_code=$version_code"
             echo "version_name=$version_name"
             echo "app_version=$app_version"
-            echo "apk_file=$(basename "$apk")"
+            echo "apk_file=app-release.apk"
             echo "apk_size_bytes=$apk_size_bytes"
             echo "apk_sha256=$apk_sha256"
             echo "source_commit=$source_commit"
@@ -282,17 +301,19 @@ jobs:
             echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=mapbox://styles/mapbox/standard"
             echo "validation_scope=runtime-capable-artifact"
-          } > build/standard/android-staging-validation.txt
+          } > "$standard_dir/android-staging-validation.txt"
+          echo "primary_apk_preserved=$primary_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
+          echo "standard_apk_built=$standard_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Android staging APK
         if: success() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
           path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/android-staging-validation.txt
-            build/standard/app/outputs/flutter-apk/*.apk
-            build/standard/android-staging-validation.txt
+            ${{ runner.temp }}/primary-build/app-release.apk
+            ${{ runner.temp }}/primary-build/android-staging-validation.txt
+            ${{ runner.temp }}/standard-build/app-release.apk
+            ${{ runner.temp }}/standard-build/android-staging-validation.txt
           if-no-files-found: error
       - name: Enable KVM for Android emulator
         id: kvm_setup
@@ -332,9 +353,11 @@ jobs:
           script: |
             set +e
             mkdir -p "$RUNNER_TEMP/primary" "$RUNNER_TEMP/standard"
-            RUNNER_TEMP="$RUNNER_TEMP/primary" timeout --foreground --signal=TERM --kill-after=150s 20m bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+            primary_apk="$RUNNER_TEMP/primary-build/app-release.apk"
+            standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"
+            primary_status=0
+            RUNNER_TEMP="$RUNNER_TEMP/primary" timeout --foreground --signal=TERM --kill-after=150s 20m bash tool/smoke_android_map.sh "$primary_apk" online
             primary_status=$?
-            standard_apk="build/standard/app/outputs/flutter-apk/app-release.apk"
             standard_status=0
             standard_run=false
             if [[ -s "$standard_apk" ]]; then
@@ -366,6 +389,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s build/standard/app/outputs/flutter-apk/app-release.apk
-          test -s build/standard/android-staging-validation.txt
+          if [[ "${{ steps.build_standard_apk.outcome }}" != "success" ]]; then
+            echo "::error::Mapbox Standard A/B build failed; inspect the build step output."
+            exit 1
+          fi
+          standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"
+          standard_manifest="$RUNNER_TEMP/standard-build/android-staging-validation.txt"
+          test -s "$standard_apk"
+          test -s "$standard_manifest"
+          expected_sha="$(sed -n 's/^apk_sha256=//p' "$standard_manifest")"
+          actual_sha="$(sha256sum "$standard_apk" | cut -d ' ' -f1)"
+          test -n "$expected_sha"
+          test "$expected_sha" = "$actual_sha"
+          grep -Fxq "mapbox_style_uri=mapbox://styles/mapbox/standard" "$standard_manifest"
 
