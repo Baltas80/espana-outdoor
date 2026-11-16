@@ -16,11 +16,9 @@ La prueba anterior de Córdoba fue reportada como funcional sin conexión en un 
 
 En `main`, el proveedor de rutas utiliza `ValhallaRoutingService` con `VALHALLA_BASE_URL`; requiere conectividad. La disponibilidad de teselas offline no convierte ese servicio en un motor de rutas offline.
 
-La integración nativa propuesta está en la [PR #53](https://github.com/Baltas80/espana-outdoor/pull/53). Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK y descarga los recursos de routing peatonal junto con las teselas del mapa. El adaptador informa el origen devuelto por Mapbox (`online` / `offline`) y el routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
+La integración nativa actual está en la [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61), todavía abierta y en draft. Comparte un `TileStore` persistente entre Maps SDK y Navigation SDK, descarga recursos de routing peatonal y mantiene el origen de ruta informado por el SDK (`online` / `offline`). El routing compuesto conserva Valhalla para BTT, cicloturismo y map matching GPX.
 
-La PR #25 y el primer intento #52 se cerraron como supersedidos. La PR #53 sigue pendiente de CI e integración; su código no forma parte de `main`. No debe mostrarse el cálculo offline como funcional hasta demostrar una solicitud nueva con origen nativo `OFFLINE` en modo avión.
-
-La implementación propuesta no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
+La PR #61 está divergida respecto a `main` y no debe fusionarse hasta sincronizarla y repetir CI, staging y aceptación funcional sobre un único HEAD. La evidencia histórica de ruta peatonal offline en emulador no equivale a aceptar el mapa: el mismo run registró 43 eventos de tesela, solo 3 cargas y 14 fallos/misses. La implementación no habilita routing offline de bicicleta, cobertura nacional ni navegación turn-by-turn completa.
 
 ## Reglas
 
@@ -47,10 +45,20 @@ La validación debe realizarse sobre el APK construido desde el commit exacto ca
 
 Registrar por separado resultados de tests automatizados, emulador y dispositivo físico. La CI verde no sustituye esta prueba.
 
+## Diagnóstico del renderizado Mapbox
+
+El smoke Android debe distinguir entre proceso vivo, estilo cargado y viewport realmente renderizado. La captura de la PR #73 (run [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921)) se tomó con conectividad validada y la aplicación en primer plano, pero el viewport quedó casi negro y el gate visual la rechazó (entropía 0,650 bits; color dominante 0,901). El logcat solo confirmó la inicialización de Mapbox Common/Maps Core; no contenía eventos de estilo/fuente ni un error Mapbox que permitiera atribuir la causa.
+
+La [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79) añade instrumentación temporal y acotada al `MapboxMapViewport`. Los registros usan el prefijo `MAPBOX_DIAGNOSTIC` y distinguen `STYLE_LOADED`, `MAP_LOADED`, `MAP_IDLE`, `MAP_LOAD_ERROR`, `STYLE_DATA`, `SOURCE_ADDED`, `SOURCE_DATA`, `STYLE_IMAGE_MISSING` y cambios de `RENDER_FRAME`. No se registran URLs de solicitudes y se redactan access tokens/Bearer si aparecen en mensajes de error. El límite es de 250 eventos de datos de fuente por instancia. La instrumentación todavía requiere CI y un APK staging; no es una solución funcional por sí misma.
+
 ## Estado y pendientes
 
-- Mapa offline: descarga de una región de prueba presente en `main`; falta repetir la validación física sobre el HEAD actual.
-- Navegación offline nativa: propuesta en PR #53, no integrada.
-- Cobertura nacional: no acreditada.
-- Reapertura en frío y tras reinicio: pendiente para el APK candidato.
-- Las pantallas de planificación y detalle usan el viewport Mapbox compartido; la ruta Valhalla sigue dependiendo del endpoint online.
+- Estilo de producción: `mapbox://styles/mapbox/outdoors-v12`; no se ha cambiado por hipótesis.
+- Mapa online: no aceptado; la captura de la PR #73 falla el gate visual.
+- Mapa offline: no aceptado; falta acreditar renderizado real en modo avión.
+- Routing peatonal offline: evidencia histórica positiva en emulador, pero no suficiente para certificar el mapa ni el APK actual.
+- PR #61: abierta/draft, divergida de `main`; requiere sincronización y nueva ejecución del experimento de estilos/TileStore.
+- PR #79: instrumentación diagnóstica abierta; falta CI/Security y Android staging con logcat nuevo.
+- Reapertura en frío, reinicio físico y validación del APK exacto en OPPO: pendientes.
+- Cobertura nacional y routing offline BTT/cicloturismo: no acreditados.
+- Las pantallas de planificación y detalle usan el viewport Mapbox compartido; Valhalla sigue dependiendo del endpoint online.
