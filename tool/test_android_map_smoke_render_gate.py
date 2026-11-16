@@ -187,6 +187,8 @@ if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
     raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
 if "timeout-minutes: 25" not in smoke_job:
     raise SystemExit("The Android map smoke action must have an explicit upper time bound.")
+if "continue-on-error: true" not in smoke_job:
+    raise SystemExit("The smoke step must preserve the job long enough to upload failure evidence.")
 
 AB_RUNNER = ROOT / "tool" / "smoke_android_map_ab.sh"
 if not AB_RUNNER.is_file():
@@ -372,6 +374,18 @@ if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
     raise SystemExit("The Standard APK requirement must not turn an early cancellation into a false build failure.")
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
+if "if: always()" not in evidence_upload.split("- name: Require Android map native smoke", 1)[0]:
+    raise SystemExit("Android smoke evidence must upload even when the smoke command fails.")
+require_smoke = workflow.split("- name: Require Android map native smoke", 1)[1]
+require_smoke = require_smoke.split("- name: Require Mapbox Standard A/B APK", 1)[0]
+for marker in (
+    'steps.android_map_smoke.outcome',
+    '!= "success"',
+    'inspect the uploaded android-map-smoke artifact',
+):
+    if marker not in require_smoke:
+        raise SystemExit(f"Android smoke failure must be enforced after evidence upload: {marker}")
+
 for marker in (
     "${{ runner.temp }}/primary/espana-window-post-map.xml",
     "${{ runner.temp }}/primary/espana-system-dialog.xml",
