@@ -42,6 +42,7 @@ env:
 jobs:
   android-staging:
     runs-on: ubuntu-latest
+    timeout-minutes: 75
     outputs:
       apk_built: ${{ steps.build_apk.outputs.built }}
     # Install staging previews side-by-side with the production package.
