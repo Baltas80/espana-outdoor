@@ -273,7 +273,7 @@ No aceptar el modo offline, no fusionar PR #61 y no clasificar el fallo como fun
 
 ### PR #61 — Mapbox offline
 
-HEAD actual: `82da1995ce545af4c28e27e46b9afe4159b1ce51` (`test(android): guard persistent offline TileStore lifecycle`). Comparación observada con `main`: 217 commits por delante y 2 por detrás. PR abierta, draft; no fusionada.
+HEAD actual: `82da1995ce545af4c28e27e46b9afe4159b1ce51` (`test(android): guard persistent offline TileStore lifecycle`). Comparación observada con `main`: 217 commits por delante y 3 por detrás. PR abierta, draft; no fusionada.
 
 Se ha añadido una guarda estática para exigir que el TileStore:
 - Fije `TileStore.setRootPath(path)` antes de `TileStore.create()`.
