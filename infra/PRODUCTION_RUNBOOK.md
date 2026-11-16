@@ -21,7 +21,7 @@ This document is the deployment gate for the external services. It intentionally
 4. Configure the licensed offline map provider and populate `MAP_PMTILES_URL`/tile storage as required.
 5. Provision Valhalla Spain/required-region tiles from a licensed source and verify the dataset version.
 6. Configure the AEMET API credential and expiry metadata.
-7. Configure a dedicated Keycloak resource-server audience for Source Gateway (for example `espana-outdoors-api`) and map it into access tokens. Set `OIDC_REQUIRED_ROLE` under that API client.
+7. Route `https://api.espanaoutdoor.es` to the private Source Gateway service. Set `SOURCE_GATEWAY_BASE_URL` and `COMMUNITY_API_BASE_URL` to that exact HTTPS origin for Android builds; the web account page uses the same origin. Configure the dedicated Keycloak resource-server audience `espana-outdoors-api`, map it into both public clients' access tokens, and set `OIDC_REQUIRED_ROLE=source.read` under that API client. Verify `/healthz` externally and test authenticated `GET /v1/me` from web and Android.
 8. Configure a different dedicated Rescue Link audience (for example `espana-outdoors-rescue-api`), map it into access tokens, and set `RESCUE_LINK_OIDC_AUDIENCE`. Do not reuse either public client ID or the Source Gateway audience.
 9. Set `ALLOW_HTTP_DEV=false` in production; the local Compose exception must never be carried into production.
 10. Restrict database, Keycloak, Martin, Valhalla, NATS and monitoring ports to the private network. Only intended public HTTPS endpoints may be exposed.
