@@ -7,6 +7,26 @@ const mapboxStyleUri = String.fromEnvironment(
 );
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+/// Keeps the online MapView pixel ratio aligned with the Android TileStore
+/// descriptor used by offline downloads. MapOptions defaults to 1.0; the
+/// offline descriptor is created from Android displayMetrics.density.
+MapOptions mapboxMapOptionsForPixelRatio(double pixelRatio) {
+  if (!pixelRatio.isFinite || pixelRatio <= 0) {
+    throw ArgumentError.value(
+      pixelRatio,
+      'pixelRatio',
+      'must be finite and greater than zero',
+    );
+  }
+  return MapOptions(
+    pixelRatio: pixelRatio,
+    glyphsRasterizationOptions: GlyphsRasterizationOptions(
+      rasterizationMode: GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+      fontFamily: 'sans-serif',
+    ),
+  );
+}
+
 String formatMapboxTileId({int? z, int? x, int? y}) {
   if (z == null || x == null || y == null) return '-';
   return '$z/$x/$y';
@@ -58,6 +78,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   int _sourceDataEventsLogged = 0;
   int _resourceEventsLogged = 0;
   String? _lastRenderMode;
+  bool _mapOptionsLogged = false;
 
   static const _maxSourceDataEventsToLog = 250;
   static const _maxResourceEventsToLog = 100;
@@ -196,9 +217,18 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       );
     }
     _logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri');
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    if (!_mapOptionsLogged) {
+      _mapOptionsLogged = true;
+      debugPrint(
+        'MAPBOX_MAP_OPTIONS pixel_ratio=$devicePixelRatio '
+        'glyphs=ideographs_local font=sans-serif',
+      );
+    }
     return MapWidget(
       key: const ValueKey('espana-outdoor-mapbox-shared-viewport'),
       styleUri: mapboxStyleUri,
+      mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio),
       viewport: CameraViewportState(
         center: Point(coordinates: widget.initialCenter),
         zoom: widget.initialZoom,
