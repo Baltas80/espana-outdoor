@@ -104,7 +104,7 @@ Artefactos:
 - Mapa offline: no aceptado; falta acreditar renderizado real en modo avión.
 - Routing peatonal offline: evidencia histórica positiva en emulador, pero no suficiente para certificar el mapa ni el APK actual.
 - PR #61: abierta/draft, divergida de `main`; requiere sincronización y nueva ejecución del experimento de estilos/TileStore.
-- PR #79: CI y Security superados en HEAD `35796d4`; Android staging compiló/verificó APK pero falló correctamente el gate (sin `MAP_LOADED`, `FULL` ni `IDLE`). Evidencia y hash incorporados arriba. A/B de estilo y diagnóstico físico pendientes.
+- PR #79: HEAD `aa8d7b5` (48 commits ahead, 0 behind). La evidencia runtime completada sigue siendo la del source commit `35796d4`, cuyo APK compiló/verificó pero falló correctamente el gate (sin `MAP_LOADED`, `FULL` ni `IDLE`). El workflow ahora compila un APK Standard comparativo solo para esta PR y ejecuta ambos estilos en el mismo emulador; el nuevo Android staging `43931402430` está pendiente. Security/CI sobre el HEAD final todavía no están certificados. Los fallos transitorios de los guards (condición de upload y marcador de resumen A/B) se corrigieron en commits posteriores; deben volver a pasar en la nueva ejecución.
 - Reapertura en frío, reinicio físico y validación del APK exacto en OPPO: pendientes.
 - Cobertura nacional y routing offline BTT/cicloturismo: no acreditados.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; Valhalla sigue dependiendo del endpoint online.
