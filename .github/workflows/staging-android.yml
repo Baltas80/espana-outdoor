@@ -341,6 +341,9 @@ jobs:
       - name: Android map native smoke
         id: android_map_smoke
         timeout-minutes: 25
+        # Preserve the runner long enough to upload diagnostics before enforcing
+        # the failure in a separate always() gate below.
+        continue-on-error: true
         env:
           ANDROID_EMULATOR_CI: "true"
         if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
@@ -379,6 +382,15 @@ jobs:
             ${{ runner.temp }}/standard/espana-map-page-check.txt
             ${{ runner.temp }}/standard/espana-outdoor-map.png
           if-no-files-found: ignore
+      - name: Require Android map native smoke
+        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.android_map_smoke.outcome }}" != "success" ]]; then
+            echo "::error::Android map native smoke failed; inspect the uploaded android-map-smoke artifact."
+            exit 1
+          fi
       - name: Require Mapbox Standard A/B APK
         if: always() && steps.build_standard_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
         shell: bash
