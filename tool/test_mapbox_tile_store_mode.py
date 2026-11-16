@@ -211,3 +211,5 @@ print("mapbox_maps_tile_store_usage_default=READ_ONLY")
 print("mapbox_offline_experiment_mode=READ_AND_UPDATE")
 print("mapbox_source_diagnostics=enabled")
 print("navigation_routing_tile_store=shared")
+
+print("mapbox_style_override_scope=integration_test_only")
