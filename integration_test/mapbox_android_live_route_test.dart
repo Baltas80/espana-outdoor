@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,12 +15,15 @@ import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
+// The offline viewport requests z13 rows 3162–3164. The previous polygon
+// clipped row 3164 at its northern edge (37.85°), leaving visible tiles
+// outside the downloaded geometry. Keep a full-tile margin around the view.
 const _regionRing = <List<double>>[
-  [-4.84, 37.85],
-  [-4.72, 37.85],
-  [-4.72, 37.93],
-  [-4.84, 37.93],
-  [-4.84, 37.85],
+  [-4.84, 37.78],
+  [-4.72, 37.78],
+  [-4.72, 37.97],
+  [-4.84, 37.97],
+  [-4.84, 37.78],
 ];
 // Keep the connected proof away from the Córdoba offline download polygon.
 const _onlineRoutePoints = [
@@ -50,6 +54,51 @@ String _safeMapboxFailureClass(String message) {
   if (value.contains('connection') || value.contains('network')) return 'network';
   if (value.contains('not found')) return 'not_found';
   return 'other';
+}
+
+String _safeTileIdFromResourceUrl(String rawUrl) {
+  final uri = Uri.tryParse(rawUrl);
+  if (uri == null) return 'unknown';
+  final segments = uri.pathSegments;
+  for (var index = segments.length - 3; index >= 0; index--) {
+    final zoom = int.tryParse(segments[index]);
+    final x = int.tryParse(segments[index + 1]);
+    final yMatch = RegExp(r'^(\\d+)').firstMatch(segments[index + 2]);
+    final y = yMatch == null ? null : int.tryParse(yMatch.group(1)!);
+    if (zoom == null || x == null || y == null || zoom < 0 || zoom > 22) {
+      continue;
+    }
+    final limit = 1 << zoom;
+    if (x >= 0 && x < limit && y >= 0 && y < limit) {
+      return '$zoom/$x/$y';
+    }
+  }
+  return 'unknown';
+}
+
+double _tileYToLatitude(int y, double scale) {
+  return math.atan(math.sinh(math.pi * (1 - (2 * y / scale)))) *
+      180 /
+      math.pi;
+}
+
+bool _tileBoundsFullyCoveredByOfflineRegion(TileID tile) {
+  final scale = math.pow(2, tile.z).toDouble();
+  final west = tile.x / scale * 360 - 180;
+  final east = (tile.x + 1) / scale * 360 - 180;
+  final north = _tileYToLatitude(tile.y, scale);
+  final south = _tileYToLatitude(tile.y + 1, scale);
+  final longitudes = _regionRing.map((point) => point[0]);
+  final latitudes = _regionRing.map((point) => point[1]);
+  final minLongitude = longitudes.reduce((a, b) => a < b ? a : b);
+  final maxLongitude = longitudes.reduce((a, b) => a > b ? a : b);
+  final minLatitude = latitudes.reduce((a, b) => a < b ? a : b);
+  final maxLatitude = latitudes.reduce((a, b) => a > b ? a : b);
+  const epsilon = 1e-7;
+  return west >= minLongitude - epsilon &&
+      east <= maxLongitude + epsilon &&
+      south >= minLatitude - epsilon &&
+      north <= maxLatitude + epsilon;
 }
 
 void main() {
@@ -291,6 +340,8 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   var sourceAddedCount = 0;
   var sourceDataEventCount = 0;
   final sourceDataCounts = <String, int>{};
+  final observedZoom13Tiles = <String>{};
+  final uncoveredZoom13Tiles = <String>{};
 
   await tester.pumpWidget(
     MaterialApp(
@@ -323,8 +374,10 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             idleSeen = true;
           },
           onMapLoadErrorListener: (event) {
+            final tile = event.tileId;
+            final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
             loadErrors.add(
-              '${event.type.name}/${event.sourceId ?? 'unknown'}/${_safeMapboxFailureClass(event.message)}',
+              '${event.type.name}/${event.sourceId ?? 'unknown'}/${_safeMapboxFailureClass(event.message)}/tile=$tileId',
             );
           },
           onSourceAddedListener: (event) {
@@ -342,6 +395,12 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             sourceDataCounts[key] = (sourceDataCounts[key] ?? 0) + 1;
             final tile = event.tileID;
             final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
+            if (tile != null && tile.z == 13) {
+              observedZoom13Tiles.add(tileId);
+              if (!_tileBoundsFullyCoveredByOfflineRegion(tile)) {
+                uncoveredZoom13Tiles.add(tileId);
+              }
+            }
             if (sourceDataEventCount <= 40) {
               // ignore: avoid_print
               print(
@@ -366,8 +425,11 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
                 (source == 'CACHE' || source == 'TILE_STORE')) {
               return;
             }
+            // ResourceRequest.url can contain an access token. Extract only a
+            // validated z/x/y path tuple; never log the URL or query string.
+            final tileId = _safeTileIdFromResourceUrl(event.request.url);
             resourceFailures.add(
-              '$reason/$source/${event.request.kind.name}/${_safeMapboxFailureClass(error.message)}',
+              '$reason/$source/${event.request.kind.name}/${_safeMapboxFailureClass(error.message)}/tile=$tileId',
             );
           },
         ),
@@ -408,6 +470,14 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
   await Future<void>.delayed(const Duration(seconds: 8));
   // ignore: avoid_print
   print(
+    'MAPBOX_VIEWPORT_TILE_COVERAGE zoom=13 '
+    'observed=${observedZoom13Tiles.length} '
+    'uncovered=${uncoveredZoom13Tiles.length} '
+    'tiles=${observedZoom13Tiles.toList()..sort()} '
+    'uncovered_tiles=${uncoveredZoom13Tiles.toList()..sort()}',
+  );
+  // ignore: avoid_print
+  print(
     'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
     'style_loaded=${styleLoaded.isCompleted} '
     'map_loaded=${mapLoaded.isCompleted} '
@@ -421,6 +491,16 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
     'screenshot_source=adb',
   );
 
+  expect(
+    observedZoom13Tiles,
+    isNotEmpty,
+    reason: 'The offline map test must observe its z13 viewport tiles.',
+  );
+  expect(
+    uncoveredZoom13Tiles,
+    isEmpty,
+    reason: 'Every requested z13 viewport tile must be fully inside the downloaded region: ${uncoveredZoom13Tiles.join(', ')}.',
+  );
   expect(
     styleLoaded.isCompleted,
     isTrue,
