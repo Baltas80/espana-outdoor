@@ -219,6 +219,21 @@ sleep 15
 
 logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
 screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+
+# The process can remain alive in the background while the launcher or a
+# system dialog owns the screen. Never accept a screenshot without proving
+# that the application under test is the resumed/focused package.
+foreground_dump="$(adb shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | tr -d '\r' || true)"
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  foreground_dump="$(adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity' | tr -d '\r' || true)"
+fi
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  echo "FAIL: application is not the foreground Android package."
+  printf '%s\n' "${foreground_dump}"
+  exit 1
+fi
+echo "MAP_SMOKE_FOREGROUND package=${package_name} verified=true"
+
 adb logcat -d >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
@@ -249,6 +264,11 @@ if grep -Eiq "MapboxException|StyleManager" "${logcat_file}"; then
   grep -Ein "MapboxException|StyleManager|HTTP [0-9]{3}|Range|Mapbox|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 500 || true
   exit 1
 fi
+
+# A live process and absence of a loader message do not prove that the
+# cartographic viewport rendered. Reject blank/partial maps before uploading
+# the smoke evidence or reporting a successful Android staging run.
+python3 tool/verify_android_map_screenshot.py "${screenshot_file}" --foreground-package "${package_name}"
 
 echo "PASS: Mapbox map remained alive and the visible UI is not in the loader error state."
 grep -Ei "Mapbox|MapboxSDK|MapboxStyle|tile|Range" "${logcat_file}" | tail -n 200 || true
