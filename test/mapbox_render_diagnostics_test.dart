@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('sanitizeMapboxDiagnostic', () {
     test('redacts access-token query parameters and bearer credentials', () {
-      final accessTokenParameter = '${['access', 'token'].join('_')}=pk.example-value';
+      final accessTokenParameter =
+          '${['access', 'token'].join('_')}=pk.example-value';
       final bearerPrefix = ['Bear', 'er'].join('');
       final message = 'request $accessTokenParameter $bearerPrefix abc.def.ghi';
 
