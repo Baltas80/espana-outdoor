@@ -17,6 +17,7 @@ permissions:
 jobs:
   rescue-link:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -45,6 +46,7 @@ jobs:
 
   source-gateway:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -59,6 +61,7 @@ jobs:
 
   flutter:
     runs-on: ubuntu-latest
+    timeout-minutes: 75
     env:
       APP_ENV: ci
     steps:
@@ -185,6 +188,7 @@ jobs:
 
   ios-build:
     runs-on: macos-latest
+    timeout-minutes: 60
     env:
       APP_ENV: ci
     steps:
