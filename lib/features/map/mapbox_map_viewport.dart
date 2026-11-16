@@ -7,11 +7,11 @@ const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 String sanitizeMapboxDiagnostic(String message) {
   return message
       .replaceAll(
-        RegExp(r'access_token=[^&\\s]+', caseSensitive: false),
+        RegExp(r'access_token=[^&\s]+', caseSensitive: false),
         'access_token=[REDACTED]',
       )
       .replaceAll(
-        RegExp(r'Bearer\\s+[A-Za-z0-9._~+/-]+=*', caseSensitive: false),
+        RegExp(r'Bearer\s+[A-Za-z0-9._~+/-]+=*', caseSensitive: false),
         'Bearer [REDACTED]',
       );
 }
