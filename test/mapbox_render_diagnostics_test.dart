@@ -2,6 +2,29 @@ import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Mapbox MapOptions', () {
+    test('uses the device pixel ratio and offline-compatible glyph settings', () {
+      final options = mapboxMapOptionsForPixelRatio(3.0);
+
+      expect(options.pixelRatio, 3.0);
+      expect(
+        options.glyphsRasterizationOptions?.rasterizationMode,
+        GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+      );
+      expect(
+        options.glyphsRasterizationOptions?.fontFamily,
+        'sans-serif',
+      );
+    });
+
+    test('rejects invalid device pixel ratios', () {
+      expect(() => mapboxMapOptionsForPixelRatio(0), throwsArgumentError);
+      expect(() => mapboxMapOptionsForPixelRatio(-1), throwsArgumentError);
+      expect(() => mapboxMapOptionsForPixelRatio(double.nan), throwsArgumentError);
+      expect(() => mapboxMapOptionsForPixelRatio(double.infinity), throwsArgumentError);
+    });
+  });
+
   group('Mapbox style selection', () {
     test('honors the build define and defaults to Outdoors v12', () {
       const requestedStyle = String.fromEnvironment('MAPBOX_STYLE_URI');
