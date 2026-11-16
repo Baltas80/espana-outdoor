@@ -148,8 +148,8 @@ for marker in (
 ):
     if marker not in standard_build:
         raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
-if "if: always() && steps.build_apk.outputs.built == 'true'" not in workflow:
-    raise SystemExit("Primary APK evidence must still upload if the comparison build fails.")
+if "if: success() && steps.build_apk.outputs.built == 'true'" not in workflow:
+    raise SystemExit("The primary APK must upload only after its verification step succeeds.")
 if "- name: Require Mapbox Standard A/B APK" not in workflow:
     raise SystemExit("The PR #79 comparison build must fail closed when its APK/manifest is missing.")
 
