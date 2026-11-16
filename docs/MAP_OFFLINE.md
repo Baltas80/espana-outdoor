@@ -51,6 +51,8 @@ El smoke Android debe distinguir entre proceso vivo, estilo cargado y viewport r
 
 La [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79) añade instrumentación temporal y acotada al `MapboxMapViewport`. Los registros usan el prefijo `MAPBOX_DIAGNOSTIC` y distinguen `STYLE_LOADED`, `MAP_LOADED`, `MAP_IDLE`, `MAP_LOAD_ERROR`, `STYLE_DATA`, `SOURCE_ADDED`, `SOURCE_DATA`, `STYLE_IMAGE_MISSING` y cambios de `RENDER_FRAME`. No se registran URLs de solicitudes y se redactan access tokens/Bearer si aparecen en mensajes de error. El límite es de 250 eventos de datos de fuente por instancia. La instrumentación todavía requiere CI y un APK staging; no es una solución funcional por sí misma.
 
+Para extraer estos eventos del dispositivo sin volcar el logcat completo: `adb logcat -d | grep 'MAPBOX_DIAGNOSTIC'`. Revisar y sanear cualquier otro log antes de compartirlo.
+
 ## Estado y pendientes
 
 - Estilo de producción: `mapbox://styles/mapbox/outdoors-v12`; no se ha cambiado por hipótesis.
