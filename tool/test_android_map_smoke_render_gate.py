@@ -79,6 +79,18 @@ if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_vi
 if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
     raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
 
+# The native offline TileStore descriptor uses Android display density. The
+# live MapWidget must request the same pixel-ratio variant instead of relying
+# on MapOptions' 1.0 default.
+for marker in (
+    "MapboxMapOptions mapboxMapOptionsForPixelRatio(double pixelRatio)",
+    "MediaQuery.devicePixelRatioOf(context)",
+    "mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio)",
+    "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
+):
+    if marker not in mapbox_viewport:
+        raise SystemExit(f"Mapbox MapOptions must stay aligned with the offline TileStore: {marker}")
+
 required = (
     "ensure_android_emulator_online.sh",
     'ANDROID_EMULATOR_CI:-false',
