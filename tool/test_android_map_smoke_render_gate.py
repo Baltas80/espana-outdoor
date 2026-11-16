@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Prevent Android map smoke from accepting a live process with a blank viewport."""
 
+import os
 import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,8 +136,105 @@ smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
 smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
 if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
     raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
-if "timeout-minutes: 25" not in smoke_job or "--kill-after=150s 20m bash tool/smoke_android_map.sh" not in smoke_job:
-    raise SystemExit("The Android map smoke action and script must have explicit upper time bounds.")
+if "timeout-minutes: 25" not in smoke_job:
+    raise SystemExit("The Android map smoke action must have an explicit upper time bound.")
+
+AB_RUNNER = ROOT / "tool" / "smoke_android_map_ab.sh"
+if not AB_RUNNER.is_file():
+    raise SystemExit("The Android map A/B orchestration script is missing.")
+ab_runner_source = AB_RUNNER.read_text(encoding="utf-8")
+for marker in (
+    'primary_apk="${runner_temp}/primary-build/app-release.apk"',
+    'standard_apk="${runner_temp}/standard-build/app-release.apk"',
+    'RUNNER_TEMP="${primary_evidence}" timeout',
+    'RUNNER_TEMP="${standard_evidence}" timeout',
+    'primary_status=${primary_status}',
+    'standard_run=${standard_run}',
+    'standard_status=${standard_status}',
+    '--kill-after=150s 20m',
+):
+    if marker not in ab_runner_source:
+        raise SystemExit(f"Android A/B runner is missing required behavior: {marker}")
+
+script_lines = [
+    line.strip()
+    for line in smoke_job.split("script:", 1)[1].split("avd-name:", 1)[0].splitlines()
+    if line.strip()
+]
+if script_lines != ['bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_STYLE_URI"']:
+    raise SystemExit(
+        "The emulator action script must invoke one checked-in Bash runner command; "
+        "multi-line shell variables do not persist between action shell invocations."
+    )
+
+# Exercise the orchestration with a stub timeout command. The emulator action
+# invokes script lines in separate shells, so all variable state must live in
+# the checked-in Bash process, not in the action's multi-line input.
+with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
+    temp_root = Path(temp_dir)
+    (temp_root / "primary-build").mkdir()
+    (temp_root / "standard-build").mkdir()
+    (temp_root / "primary-build" / "app-release.apk").write_bytes(b"primary-apk")
+    (temp_root / "standard-build" / "app-release.apk").write_bytes(b"standard-apk")
+    fake_bin = temp_root / "bin"
+    fake_bin.mkdir()
+    call_log = temp_root / "timeout-calls.txt"
+    timeout_stub = fake_bin / "timeout"
+    timeout_stub.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf "RUNNER_TEMP=%s\\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
+        'printf "ARGS=%s\\n" "$*" >> "$CALL_LOG"\n'
+        'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    timeout_stub.chmod(0o755)
+    test_env = os.environ.copy()
+    test_env["PATH"] = str(fake_bin) + os.pathsep + test_env.get("PATH", "")
+    test_env["CALL_LOG"] = str(call_log)
+
+    successful = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=test_env,
+        check=False,
+    )
+    if successful.returncode != 0 or "standard_run=true" not in successful.stdout:
+        raise SystemExit(f"Android A/B runner failed its success-path test: {successful.stderr}")
+    calls = call_log.read_text(encoding="utf-8")
+    if calls.count("ARGS=") != 2 or "primary-build/app-release.apk" not in calls or "standard-build/app-release.apk" not in calls:
+        raise SystemExit("Android A/B runner did not invoke both APKs in the success-path test.")
+    if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/standard" not in calls:
+        raise SystemExit("Android A/B runner did not isolate primary and Standard evidence directories.")
+
+    call_log.write_text("", encoding="utf-8")
+    failing_env = test_env.copy()
+    failing_env["FAIL_PRIMARY"] = "true"
+    failed_primary = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=failing_env,
+        check=False,
+    )
+    calls_after_failure = call_log.read_text(encoding="utf-8")
+    if failed_primary.returncode == 0 or calls_after_failure.count("ARGS=") != 2:
+        raise SystemExit("A primary smoke failure must not prevent the Standard comparison from running.")
+
+    (temp_root / "standard-build" / "app-release.apk").unlink()
+    call_log.write_text("", encoding="utf-8")
+    primary_only = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=test_env,
+        check=False,
+    )
+    if primary_only.returncode != 0 or "standard_run=false" not in primary_only.stdout:
+        raise SystemExit("The A/B runner must still support non-PR-79 staging runs without a Standard APK.")
+    if call_log.read_text(encoding="utf-8").count("ARGS=") != 1:
+        raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
 
 standard_build = workflow.split("- name: Build Mapbox Standard A/B APK", 1)[1]
 standard_build = standard_build.split("- name: Upload Android staging APK", 1)[0]
@@ -190,18 +290,6 @@ if "- name: Require Mapbox Standard A/B APK" not in workflow:
     raise SystemExit("The PR #79 comparison build must fail closed when its APK/manifest is missing.")
 if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
     raise SystemExit("The Standard APK requirement must not turn an early cancellation into a false build failure.")
-
-for marker in (
-    'primary_apk="$RUNNER_TEMP/primary-build/app-release.apk"',
-    'standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"',
-    'RUNNER_TEMP="$RUNNER_TEMP/primary"',
-    'RUNNER_TEMP="$RUNNER_TEMP/standard"',
-    "primary_status=$?",
-    "standard_status=$?",
-    "MAPBOX_STYLE_AB primary_style=",
-):
-    if marker not in smoke_job:
-        raise SystemExit(f"Android smoke must execute both styles and retain both results: {marker}")
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 for marker in (
