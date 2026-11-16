@@ -10,7 +10,7 @@ source = WORKFLOW.read_text(encoding="utf-8")
 generate = source.split("- name: Generate Android project", 1)[1].split(
     "- name: Apply Android native configuration", 1
 )[0]
-dependencies = source.split("- name: Dependencies (enforce committed lockfile)", 1)[1].split(
+dependencies = source.split("- name: Resolve dependencies and export the refreshed lockfile", 1)[1].split(
     "- name: Analyze and test", 1
 )[0]
 
@@ -24,14 +24,14 @@ if generate.index(save) > generate.index("flutter create ."):
     raise SystemExit("The lockfile must be saved before flutter create can overwrite it.")
 if generate.index(restore) < generate.index("flutter create ."):
     raise SystemExit("The lockfile must be restored after flutter create.")
-if "flutter pub get --enforce-lockfile" not in dependencies:
-    raise SystemExit("Android staging must resolve dependencies with --enforce-lockfile.")
-if "git diff --exit-code -- pubspec.lock" not in dependencies:
-    raise SystemExit("Android staging must fail if dependency resolution changes the committed lockfile.")
-if "flutter pub get\n" in dependencies:
-    raise SystemExit("Android staging must not silently rewrite the committed lockfile.")
+if "flutter pub get\n" not in dependencies:
+    raise SystemExit("The one-time lockfile refresh must resolve the restored app pubspec.")
+if "resolved-pub-lock/pubspec.lock" not in dependencies:
+    raise SystemExit("The resolved lockfile must be exported as a workflow artifact.")
+if "name: resolved-pubspec-lock" not in dependencies:
+    raise SystemExit("The resolved lockfile artifact must have a stable name.")
 
 print("staging_lockfile_saved_before_flutter_create=true")
 print("staging_lockfile_restored_after_flutter_create=true")
-print("staging_pub_get_enforces_committed_lockfile=true")
-print("staging_lockfile_unchanged_after_resolution=true")
+print("staging_lockfile_refreshed_from_application_pubspec=true")
+print("staging_resolved_lockfile_exported=true")
