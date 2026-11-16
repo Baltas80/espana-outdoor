@@ -17,6 +17,7 @@ rules = {rule["id"]: rule for rule in config.get("rules", [])}
 expected = {
     "generic-api-key": {
         ("7f6398a4aae9335a32bcbe3fa7fa41f930b6d092", r"^lib/core/navigation/waypoint_controller\.dart$"),
+        ("96068877be13a205162167a0f56198ba1dc330ef", r"^lib/core/navigation/waypoint_controller\.dart$"),
         ("33c3ab2cc3f8cd9a1339c370d23a44c20e93df2f", r"^infra/\.env\.example$"),
         ("53c1901bd9b24ae4c5455a68af095ef90c33fa70", r"^lib/infrastructure/auth/openidconnect_auth_service\.dart$"),
     },
@@ -58,5 +59,5 @@ if "encryptionKey:" in oidc:
     raise SystemExit("The deprecated hard-coded OIDC encryption key must remain removed.")
 
 print("gitleaks_default_rules=enabled")
-print("gitleaks_historical_allowlists=4 exact commit/path pairs")
+print("gitleaks_historical_allowlists=5 exact commit/path pairs")
 print("gitleaks_current_tree_sensitive_values=absent")
