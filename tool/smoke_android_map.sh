@@ -3,10 +3,44 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+
+if [[ "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  script_dir="$(dirname "${BASH_SOURCE[0]}")"
+  bash "${script_dir}/prepare_android_emulator_ci.sh"
+  if [[ "${offline_mode}" != "offline" ]]; then
+    bash "${script_dir}/ensure_android_emulator_online.sh"
+  fi
+fi
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
 test -n "${package_name}"
+
+diagnostics_dir="${RUNNER_TEMP:-/tmp}"
+window_file="${diagnostics_dir}/espana-window.xml"
+logcat_file="${diagnostics_dir}/espana-outdoor-map-logcat.txt"
+screenshot_file="${diagnostics_dir}/espana-outdoor-map.png"
+activity_file="${diagnostics_dir}/espana-outdoor-activity.txt"
+
+capture_failure_diagnostics() {
+  local status=$?
+  trap - EXIT
+  if test "${status}" -ne 0; then
+    adb logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${logcat_file}" 2>/dev/null || true
+    adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
+    adb shell dumpsys activity activities >"${activity_file}" 2>/dev/null || true
+    echo "=== Android bootstrap and crash diagnostics ==="
+    if test -s "${logcat_file}"; then
+      grep -Ei "APP_BOOTSTRAP|EspanaOutdoorBootstrap|MAPBOX_MAP_|MAPBOX_RESOURCE_FAILURE|FATAL EXCEPTION|Fatal signal|AndroidRuntime|MapboxException|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 250 || true
+    fi
+    echo "diagnostic_logcat=${logcat_file}"
+    echo "diagnostic_screenshot=${screenshot_file}"
+    echo "diagnostic_activity=${activity_file}"
+    echo "diagnostic_window=${window_file}"
+  fi
+  exit "${status}"
+}
+trap capture_failure_diagnostics EXIT
 
 echo "Installing ${package_name}"
 adb wait-for-device
@@ -150,7 +184,6 @@ if test "${offline_mode}" = "offline"; then
   launch_app
 fi
 
-window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 ui_dump "${window_file}"
 if ! grep -q '<hierarchy' "${window_file}"; then
   echo "FAIL: UIAutomator did not return a hierarchy."
@@ -215,11 +248,29 @@ fi
 
 echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
-sleep 15
 
-logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
-screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
-adb logcat -d >"${logcat_file}"
+# Wait for Mapbox's actual style load, full render frame and idle callbacks.
+# A visible native view or attribution alone is not proof that map tiles rendered.
+map_render_ready=0
+for attempt in $(seq 1 45); do
+  adb logcat -d -s flutter:I | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${diagnostics_dir}/espana-flutter-map-log.txt"
+  if grep -q 'MAPBOX_MAP_STYLE_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_LOADED' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_FULL_FRAME' "${diagnostics_dir}/espana-flutter-map-log.txt" &&
+     grep -q 'MAPBOX_MAP_IDLE' "${diagnostics_dir}/espana-flutter-map-log.txt"; then
+    map_render_ready=1
+    break
+  fi
+  sleep 1
+done
+if test "${map_render_ready}" -ne 1; then
+  echo "FAIL: Mapbox did not report style-loaded, map-loaded, full-frame and idle within 45 seconds."
+  cat "${diagnostics_dir}/espana-flutter-map-log.txt" || true
+  exit 1
+fi
+sleep 5
+
+adb logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
 

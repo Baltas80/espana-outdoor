@@ -393,3 +393,13 @@ No desplegar ni declarar producción hasta que se completen las pruebas funciona
 - Dispositivo OPPO, reinicio físico y APK candidato final: pendientes.
 
 No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado cartográfico y completar las validaciones funcionales.
+
+## Snapshot de PR #61 — diagnóstico de estilo offline (16/11/2026)
+
+La PR #61 continúa en draft y no debe fusionarse hasta superar sus puertas de renderizado. La última prueba funcional disponible antes de esta sincronización es [Android staging 43818184089](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089): la ruta peatonal nueva se calculó con origen nativo `OFFLINE`, pero el MapWidget no completó el viewport. La captura auténtica muestra fondo de terreno y agua, sin calles ni etiquetas; el registro del source `composite` contiene 43 eventos de tesela no cargada y solo 3 cargados. El TileStore, el descriptor Maps, el style pack y las dos regiones aparecen presentes, por lo que su mera existencia no demuestra que el renderer pueda recuperar todos los tile packs.
+
+La documentación confirma que Outdoors v12 usa Streets v8, Terrain v2 y Bathymetry v2, y advierte de limitaciones de fuentes compuestas en escenarios offline. Se ha añadido un experimento A/B de estilo: el valor predeterminado de producción sigue siendo Outdoors v12, mientras el integration test recibe temporalmente `mapbox://styles/mapbox/standard` mediante `MAPBOX_STYLE_URI`. La pantalla de descarga y el MapWidget comparten una única constante para evitar divergencias de estilo. El experimento no cambia el APK release ni certifica todavía Standard.
+
+Commits de diagnóstico: [79bfd242](https://github.com/Baltas80/espana-outdoor/commit/79bfd2422a2e0e09abfc2ef62e37728b76c4af76), [62e4ee6](https://github.com/Baltas80/espana-outdoor/commit/62e4ee655b9df2eb1adf034bc052752ef2b9aabb) y [90835fb](https://github.com/Baltas80/espana-outdoor/commit/90835fb590b3d73af33760d802e3e00c18f7e59c). Se debe ejecutar CI sobre el HEAD sincronizado, descargar PNG y logcat, y comparar los resultados antes de decidir un cambio de producción.
+
+Puertas pendientes: APK del HEAD final con hash verificado; style pack y Maps/Navigation TileRegions completos; modo avión con Wi-Fi desactivado; ruta nueva offline; callbacks `MAP_LOADED`, `FULL_FRAME` e `IDLE`; cero fallos de recursos; PNG cartográfico válido; reapertura tras force-stop y reinicio; validación del APK exacto en el OPPO físico.

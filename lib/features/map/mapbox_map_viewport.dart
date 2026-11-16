@@ -1,8 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
+const mapboxStyleUri = String.fromEnvironment(
+  'MAPBOX_STYLE_URI',
+  defaultValue: 'mapbox://styles/mapbox/outdoors-v12',
+);
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+
+/// Returns the single Mapbox Maps configuration used by production and the
+/// Android offline integration test. Its pixel ratio and glyph rasterization
+/// must match the native TileStore tileset descriptor.
+MapOptions mapboxMapOptionsForPixelRatio(double pixelRatio) {
+  if (!pixelRatio.isFinite || pixelRatio <= 0) {
+    throw ArgumentError.value(
+      pixelRatio,
+      'pixelRatio',
+      'must be finite and greater than zero',
+    );
+  }
+  return MapOptions(
+    pixelRatio: pixelRatio,
+    glyphsRasterizationOptions: GlyphsRasterizationOptions(
+      rasterizationMode: GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+      fontFamily: 'sans-serif',
+    ),
+  );
+}
+
+String _safeMapboxSourceId(String value) {
+  final safe = value.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_');
+  return safe.length > 96 ? safe.substring(0, 96) : safe;
+}
+
+String _mapboxFailureClass(String? message) {
+  final value = (message ?? '').toLowerCase();
+  final status = RegExp(
+    r'\bhttp(?:\s+status\s+code)?\s*[:=]?\s*(\d{3})\b',
+  ).firstMatch(value)?.group(1);
+  if (status != null) return 'http_$status';
+  if (RegExp(r'\b401\b|\b403\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
+    return 'authorization';
+  }
+  if (value.contains('certificate') || value.contains('ssl') || value.contains('tls')) {
+    return 'tls';
+  }
+  if (value.contains('timeout') || value.contains('timed out')) return 'timeout';
+  if (value.contains('unknownhost') || value.contains('dns') || value.contains('resolve host')) {
+    return 'dns';
+  }
+  if (value.contains('connection') || value.contains('network')) return 'network';
+  if (value.contains('not found')) return 'not_found';
+  return message == null || message.isEmpty ? 'unknown' : 'other';
+}
 
 /// Shared Mapbox surface for the main map, route planner and GPX detail.
 class MapboxMapViewport extends StatefulWidget {
@@ -35,6 +84,19 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   CircleAnnotationManager? _circleManager;
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
+  bool _styleLoadedLogged = false;
+  bool _mapLoadedLogged = false;
+  bool _fullFrameLogged = false;
+  bool _mapIdleLogged = false;
+  bool _mapOptionsLogged = false;
+  int _partialFrameCount = 0;
+  int _resourceSuccessCount = 0;
+  int _resourceCancellationCount = 0;
+  int _resourceLookupMissCount = 0;
+  int _resourceFailureCount = 0;
+  int _sourceAddedCount = 0;
+  int _sourceDataEventCount = 0;
+  final Map<String, int> _sourceDataCounts = <String, int>{};
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
     if (first.length != second.length) return false;
@@ -164,9 +226,22 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         ),
       );
     }
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    if (!_mapOptionsLogged) {
+      _mapOptionsLogged = true;
+      debugPrint(
+        'MAPBOX_MAP_OPTIONS pixel_ratio=$devicePixelRatio '
+        'glyphs=ideographs_local font=sans-serif',
+      );
+    }
     return MapWidget(
       key: const ValueKey('espana-outdoor-mapbox-shared-viewport'),
       styleUri: mapboxStyleUri,
+      // Must match Android resources.displayMetrics.density used by
+      // TilesetDescriptorOptions. MapOptions' default pixelRatio is 1.0;
+      // a mismatch makes the MapView request a tile-pack variant that the
+      // offline region did not download.
+      mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio),
       viewport: CameraViewportState(
         center: Point(coordinates: widget.initialCenter),
         zoom: widget.initialZoom,
@@ -174,6 +249,146 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         pitch: 0,
       ),
       onMapCreated: _onMapCreated,
+      onStyleLoadedListener: (_) {
+        if (_styleLoadedLogged) return;
+        _styleLoadedLogged = true;
+        debugPrint('MAPBOX_MAP_STYLE_LOADED');
+      },
+      onMapLoadedListener: (_) {
+        if (_mapLoadedLogged) return;
+        _mapLoadedLogged = true;
+        debugPrint(
+          'MAPBOX_MAP_LOADED partial_frames=$_partialFrameCount '
+          'resource_successes=$_resourceSuccessCount '
+          'resource_cancellations=$_resourceCancellationCount '
+          'resource_lookup_misses=$_resourceLookupMissCount '
+          'resource_failures=$_resourceFailureCount '
+          'source_added=$_sourceAddedCount '
+          'source_data_events=$_sourceDataEventCount '
+          'source_summary=${_sourceDataCounts.entries.take(8).map((entry) => '${entry.key}:${entry.value}').join(',')}',
+        );
+      },
+      onRenderFrameFinishedListener: (event) {
+        if (event.renderMode == RenderMode.FULL) {
+          if (_fullFrameLogged) return;
+          _fullFrameLogged = true;
+          debugPrint('MAPBOX_MAP_FULL_FRAME');
+          return;
+        }
+        _partialFrameCount++;
+        // Keep diagnostics bounded: partial frames can be emitted continuously
+        // while network resources are missing or the camera is still changing.
+        if (_partialFrameCount <= 3) {
+          debugPrint(
+            'MAPBOX_MAP_PARTIAL_FRAME count=$_partialFrameCount '
+            'needs_repaint=${event.needsRepaint} '
+            'placement_changed=${event.placementChanged}',
+          );
+        }
+      },
+      onMapIdleListener: (_) {
+        if (_mapIdleLogged) return;
+        _mapIdleLogged = true;
+        debugPrint(
+          'MAPBOX_MAP_IDLE partial_frames=$_partialFrameCount '
+          'resource_successes=$_resourceSuccessCount '
+          'resource_cancellations=$_resourceCancellationCount '
+          'resource_lookup_misses=$_resourceLookupMissCount '
+          'resource_failures=$_resourceFailureCount',
+        );
+      },
+      onSourceAddedListener: (event) {
+        _sourceAddedCount++;
+        if (_sourceAddedCount <= 16) {
+          debugPrint('MAPBOX_SOURCE_ADDED id=${_safeMapboxSourceId(event.id)}');
+        }
+      },
+      onSourceDataLoadedListener: (event) {
+        _sourceDataEventCount++;
+        final sourceId = _safeMapboxSourceId(event.id);
+        final key = '${sourceId}:${event.type.name}:${event.loaded ?? false}';
+        _sourceDataCounts[key] = (_sourceDataCounts[key] ?? 0) + 1;
+        if (_sourceDataEventCount <= 40) {
+          debugPrint(
+            'MAPBOX_SOURCE_DATA id=$sourceId type=${event.type.name} '
+            'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
+          );
+        }
+      },
+      onResourceRequestListener: (event) {
+        final response = event.response;
+        final error = response?.error;
+        final kind = event.request.kind;
+        final responseSource = response?.source.name ?? 'unknown';
+        final dataSource = event.dataSource.name;
+
+        // A cancelled cache/TileStore lookup is not itself a failed network
+        // request. Keep it separate so diagnostics do not confuse expected
+        // offline misses with failed HTTP resource loads.
+        if (event.cancelled) {
+          _resourceCancellationCount++;
+          if (_resourceCancellationCount <= 20) {
+            debugPrint(
+              'MAPBOX_RESOURCE_CANCELLED kind=$kind '
+              'data_source=$dataSource '
+              'reason=${error?.reason ?? 'cancelled'} '
+              'response_source=$responseSource '
+              'size=${response?.size ?? 0}',
+            );
+          }
+          return;
+        }
+
+        if (error != null) {
+          // NOT_FOUND from the local cache/TileStore is a lookup miss, not a
+          // failed map resource. READ_ONLY mode is expected to fall back to an
+          // individual tile request when the pack has no matching tile.
+          if (error.reason.name == 'NOT_FOUND' &&
+              dataSource == 'DATABASE' &&
+              (responseSource == 'CACHE' || responseSource == 'TILE_STORE')) {
+            _resourceLookupMissCount++;
+            if (_resourceLookupMissCount <= 20) {
+              debugPrint(
+                'MAPBOX_RESOURCE_LOOKUP_MISS kind=$kind '
+                'data_source=$dataSource '
+                'response_source=$responseSource',
+              );
+            }
+            return;
+          }
+          _resourceFailureCount++;
+          if (_resourceFailureCount <= 20) {
+            // Never log request URLs or response messages: Mapbox URLs can
+            // contain the public access token. The error class is sufficient.
+            debugPrint(
+              'MAPBOX_RESOURCE_FAILURE kind=$kind '
+              'data_source=$dataSource '
+              'reason=${error.reason} '
+              'failure_class=${_mapboxFailureClass(error.message)} '
+              'response_source=$responseSource '
+              'size=${response?.size ?? 0}',
+            );
+          }
+          return;
+        }
+
+        _resourceSuccessCount++;
+        if (_resourceSuccessCount <= 20) {
+          debugPrint(
+            'MAPBOX_RESOURCE_OK kind=$kind '
+            'data_source=$dataSource '
+            'response_source=$responseSource '
+            'size=${response?.size ?? 0}',
+          );
+        }
+      },
+      onMapLoadErrorListener: (event) {
+        debugPrint(
+          'MAPBOX_MAP_LOAD_ERROR type=${event.type} '
+          'source=${event.sourceId ?? 'unknown'} '
+          'failure_class=${_mapboxFailureClass(event.message)}',
+        );
+      },
     );
   }
 }
