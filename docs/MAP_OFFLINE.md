@@ -336,3 +336,12 @@ Se identificó además un defecto del harness de captura: Android `dumpsys` info
 Commits de corrección del harness: `71e89b8`, `5c8579d`, `8cbeb25`, `9ab86a3`. La nueva versión aún necesita una ejecución Android para demostrar que el PNG del viewport de integración se captura y para conservar logcat de los fallos TileStore. El PNG del smoke release de este run muestra la app real, pero solo fondo/agua sin cartografía viaria suficiente; no es evidencia de mapa completo.
 
 La ruta peatonal offline está demostrada en emulador; el renderizado offline no. Persistencia tras reinicio y OPPO físico siguen pendientes. No fusionar #61.
+
+
+## Orden de inicialización Mapbox — 16/11/2026
+
+La revisión de la API oficial de Mapbox confirma que `MapboxMapsOptions` se aplica durante la construcción de los objetos Maps y que los cambios posteriores no afectan a instancias ya creadas. Para eliminar cualquier ambigüedad con objetos Maps que pudiera inicializar Navigation, el puente Android configura ahora el TileStore compartido y `READ_ONLY` antes de `MapboxNavigationProvider.create`, y vuelve a aplicarlos/verificarlos después antes de construir `OfflineManager`. La configuración de la app se realiza antes de `runApp`, y la prueba de integración configura el puente antes de montar `MapWidget`.
+
+La nueva guarda `tool/test_mapbox_tile_store_mode.py` exige el orden: asignación inicial del TileStore < Navigation bootstrap < reaplicación < OfflineManager. Esto es una corrección de orden documentada, no una causa raíz demostrada todavía. La siguiente ejecución debe comprobar si disminuyen los misses `DATABASE/TILE_STORE` y desaparecen los errores `IN_OFFLINE_MODE/NETWORK/TILE`.
+
+Commits: `037b71a` (configuración nativa) y `94c6ce3` (guarda de orden). Las 12 comprobaciones estáticas cruzadas sobre los archivos actuales de la rama pasan en el entorno de revisión; no sustituyen la CI ni la ejecución Android.
