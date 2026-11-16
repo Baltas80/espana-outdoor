@@ -35,19 +35,29 @@ class MapboxNavigationBridge(context: Context) {
     private var offlineManager: OfflineManager? = null
     private var navigation: MapboxNavigation? = null
     private var configuredToken: String? = null
+    private var configuredTileStoreUsageMode: TileStoreUsageMode? = null
 
     @Synchronized
-    fun configure(accessToken: String) {
+    fun configure(accessToken: String, tileStoreUsageModeName: String = "READ_ONLY") {
         require(accessToken.startsWith("pk.")) {
             "A public Mapbox access token (pk.) is required."
         }
-        if (navigation != null && configuredToken == accessToken && tileStore != null && offlineManager != null) return
+        val requestedUsageMode = when (tileStoreUsageModeName.trim().uppercase()) {
+            "READ_ONLY" -> TileStoreUsageMode.READ_ONLY
+            "READ_AND_UPDATE" -> TileStoreUsageMode.READ_AND_UPDATE
+            else -> throw IllegalArgumentException("Unsupported Mapbox TileStore usage mode.")
+        }
+        if (navigation != null && configuredToken == accessToken &&
+            configuredTileStoreUsageMode == requestedUsageMode && tileStore != null && offlineManager != null
+        ) return
 
         if (navigation != null) {
             MapboxNavigationProvider.destroy()
             navigation = null
         }
         offlineManager = null
+        configuredToken = null
+        configuredTileStoreUsageMode = null
 
         MapboxOptions.accessToken = accessToken
         val store = getOrCreateProcessTileStore(appContext)
@@ -59,7 +69,7 @@ class MapboxNavigationBridge(context: Context) {
         // Navigation bootstrap may initialize Maps internals; those objects
         // must inherit the same persistent TileStore used for offline downloads.
         MapboxMapsOptions.tileStore = store
-        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
+        MapboxMapsOptions.tileStoreUsageMode = requestedUsageMode
         check(MapboxMapsOptions.tileStore === store) {
             "Maps SDK did not retain the shared offline TileStore before Navigation bootstrap."
         }
@@ -81,15 +91,16 @@ class MapboxNavigationBridge(context: Context) {
         // READ_ONLY serves downloaded tile packs first and falls back to individual
         // online tiles outside downloaded regions; free panning remains supported.
         MapboxMapsOptions.tileStore = store
-        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
+        MapboxMapsOptions.tileStoreUsageMode = requestedUsageMode
         check(MapboxMapsOptions.tileStore === store) {
             "Maps SDK did not retain the shared offline TileStore."
         }
-        check(MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY) {
-            "Maps SDK TileStore usage mode must remain READ_ONLY."
+        check(MapboxMapsOptions.tileStoreUsageMode == requestedUsageMode) {
+            "Maps SDK did not retain the requested TileStore usage mode."
         }
         offlineManager = OfflineManager()
         configuredToken = accessToken
+        configuredTileStoreUsageMode = requestedUsageMode
     }
 
     fun requestRoute(arguments: Any?, result: MethodChannelResult) {
@@ -556,6 +567,7 @@ class MapboxNavigationBridge(context: Context) {
                         "mapDescriptorPresentInMapsStore" to false,
                         "mapRegionPresent" to false,
                         "routingRegionPresent" to false,
+                        "tileStoreUsageMode" to MapboxMapsOptions.tileStoreUsageMode.name,
                         "tileStoreUsageModeReadOnly" to
                             (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY)
                     )
@@ -612,6 +624,7 @@ class MapboxNavigationBridge(context: Context) {
                             "mapDescriptorPresentInMapsStore" to descriptorPresent,
                             "mapRegionPresent" to mapRegionPresent,
                             "routingRegionPresent" to routingRegionPresent,
+                            "tileStoreUsageMode" to MapboxMapsOptions.tileStoreUsageMode.name,
                             "tileStoreUsageModeReadOnly" to
                                 (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY),
                             "mapPixelRatio" to pixelRatio
@@ -630,6 +643,7 @@ class MapboxNavigationBridge(context: Context) {
         }
         offlineManager = null
         configuredToken = null
+        configuredTileStoreUsageMode = null
         // Keep the process-wide TileStore alive; its files remain on disk.
 
     }
