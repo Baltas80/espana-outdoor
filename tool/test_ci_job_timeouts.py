@@ -28,10 +28,10 @@ for job, minutes in (
     ("flutter", 75),
     ("ios-build", 60),
 ):
-    if f"timeout-minutes: {minutes}" not in job_block(ci, job):
-        raise SystemExit(f"CI job {job} must have a {minutes}-minute timeout.")
+    if not re.search(rf"(?m)^    timeout-minutes: {minutes}$", job_block(ci, job)):
+        raise SystemExit(f"CI job {job} must have a job-level {minutes}-minute timeout.")
 
-if "timeout-minutes: 75" not in job_block(staging, "android-staging"):
-    raise SystemExit("Android staging must have a 75-minute timeout.")
+if not re.search(r"(?m)^    timeout-minutes: 75$", job_block(staging, "android-staging")):
+    raise SystemExit("Android staging must have a job-level 75-minute timeout.")
 
 print("github_actions_job_timeouts=true")
