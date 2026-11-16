@@ -4,6 +4,7 @@
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -13,7 +14,11 @@ WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
 MAPBOX_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+MAP_SCREEN_VERIFIER = ROOT / "tool" / "verify_android_map_screen.py"
 source = SMOKE.read_text(encoding="utf-8")
+if not MAP_SCREEN_VERIFIER.is_file():
+    raise SystemExit("Android map smoke requires the actual map-page hierarchy verifier.")
+map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
 if not MAPBOX_VIEWPORT.is_file():
     raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
 mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
@@ -73,6 +78,10 @@ if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
 required = (
     "ensure_android_emulator_online.sh",
     'ANDROID_EMULATOR_CI:-false',
+    "stabilize_emulator_setup_packages",
+    "pm disable-user --user 0",
+    "com.google.android.googlesdksetup",
+    "ANDROID_EMULATOR_SYSTEM_PACKAGE",
     "adb() {",
     "timeout --foreground --signal=TERM",
     "UIAutomator dump failed or timed out",
@@ -88,6 +97,8 @@ required = (
     "MAPBOX_RENDER_WAIT_SECONDS",
     "MAPBOX_RENDER_READY",
     "MAPBOX_RENDER_NOT_READY",
+    "verify_android_map_screen.py",
+    "MAPBOX_MAP_PAGE_WAIT",
     "MAPBOX_DIAGNOSTIC event=MAP_LOADED",
     "MAPBOX_DIAGNOSTIC event=MAP_IDLE",
     "MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL",
@@ -99,6 +110,31 @@ for marker in ("ANDROID_EMULATOR_CI", "adb_run() {", "timeout --foreground --sig
 for marker in required:
     if marker not in source:
         raise SystemExit(f"Android map smoke is missing foreground/render gate: {marker}")
+
+if 'owner == "com.google.android.googlesdksetup"' not in source:
+    raise SystemExit("The known Google SDK setup ANR must be closed, not repeatedly dismissed with Wait.")
+if source.index("stabilize_emulator_setup_packages") > source.index('adb install -r "${apk_path}"'):
+    raise SystemExit("The known setup ANR must be disabled before the app is installed/launched.")
+if source.index("verify_android_map_screen.py") > source.index("MAPBOX_RENDER_WAIT_SECONDS"):
+    raise SystemExit("The smoke must prove the map page is open before waiting for Mapbox render callbacks.")
+for marker in (
+    "REQUIRED_CONTROLS",
+    "Centrar mapa",
+    "Mapas offline",
+    "Navegación GPS",
+    "window_owned_by_",
+    "home_page_still_visible",
+):
+    if marker not in map_screen_verifier:
+        raise SystemExit(f"Map page hierarchy verifier is missing: {marker}")
+map_screen_test = subprocess.run(
+    [sys.executable, str(MAP_SCREEN_VERIFIER), "--self-test"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+if map_screen_test.returncode != 0:
+    raise SystemExit(f"Map page hierarchy verifier self-test failed: {map_screen_test.stderr}")
 
 ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
 if "|| true" in ui_dump_body:
