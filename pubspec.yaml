@@ -31,7 +31,7 @@ dependencies:
   purchases_flutter: ^10.14.0
   purchases_ui_flutter: ^10.14.0
   background_downloader: ^9.6.3
-  flutter_appauth: ^12.1.0
+  flutter_appauth: ^13.0.0
   sentry_flutter: ^9.30.1
   battery_plus: ^7.1.1
   sensors_plus: ^7.1.0
