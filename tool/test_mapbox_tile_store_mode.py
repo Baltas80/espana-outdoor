@@ -31,6 +31,20 @@ for fragment in required:
     if fragment not in source:
         raise SystemExit(f"Shared Mapbox TileStore configuration is missing: {fragment}")
 
+# MapboxMapsOptions are snapshotted when Maps API objects are constructed.
+# Configure the shared store before Navigation bootstrap and reapply it before
+# OfflineManager so both SDKs cannot silently retain different stores.
+first_store_assignment = source.index("MapboxMapsOptions.tileStore = store")
+navigation_creation = source.index("MapboxNavigationProvider.create(")
+last_store_assignment = source.rindex("MapboxMapsOptions.tileStore = store")
+offline_manager_creation = source.index("offlineManager = OfflineManager()")
+if not (
+    first_store_assignment < navigation_creation < last_store_assignment < offline_manager_creation
+):
+    raise SystemExit(
+        "Configure the shared Maps TileStore before Navigation and reapply it before OfflineManager."
+    )
+
 VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
 viewport = VIEWPORT.read_text(encoding="utf-8")
 required_viewport = (
