@@ -218,7 +218,7 @@ def verify_android() -> None:
         "RenderMode.FULL",
         "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
         "MAPBOX_TILESTORE_POST_MAP_WIDGET",
-        "offline TileStore misses are fatal in READ_AND_UPDATE": "offline_tile_store_miss",
+        "offline_tile_store_miss",
         "style pack is asserted after MapWidget creation": "stylePackPresent",
         "MAPBOX_OFFLINE_SCREENSHOT_READY",
         "markOfflineScreenshotReady",
