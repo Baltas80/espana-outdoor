@@ -143,6 +143,15 @@ if map_screen_test.returncode != 0:
 ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
 if "|| true" in ui_dump_body:
     raise SystemExit("UIAutomator dump failures/timeouts must not be swallowed.")
+for marker in (
+    'adb shell uiautomator dump "$remote_file"',
+    'adb shell cat "$remote_file"',
+    "45s",
+):
+    if marker not in ui_dump_body:
+        raise SystemExit(f"UIAutomator must use a bounded device-file capture: {marker}")
+if "/dev/tty" in ui_dump_body:
+    raise SystemExit("UIAutomator must not write to /dev/tty from a non-interactive adb session.")
 if source.index('logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"') > source.index("trap capture_failure_evidence EXIT"):
     raise SystemExit("Failure-evidence paths must be initialized before installing the EXIT trap.")
 capture_body = source.split("capture_failure_evidence() {", 1)[1].split("\n}", 1)[0]
@@ -150,7 +159,7 @@ for marker in ("adb logcat -d", "ui_dump", "adb exec-out screencap -p"):
     if marker not in capture_body:
         raise SystemExit(f"Failure evidence trap is missing: {marker}")
 
-if "limit=15" not in source or "limit=120" not in source or "limit=180" not in source:
+if "uiautomator) limit=45" not in source or "limit=120" not in source or "limit=180" not in source:
     raise SystemExit("adb wrapper must give UIAutomator, device boot, and APK install explicit bounds.")
 
 screenshot_capture = source.rindex('adb exec-out screencap -p')
