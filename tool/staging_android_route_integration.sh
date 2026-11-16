@@ -18,6 +18,7 @@ SCREENSHOT_PATH="$EVIDENCE_DIR/espana-outdoor-offline-map.png"
 AIRPLANE_CHANGED=0
 ORIGINAL_AIRPLANE=""
 ORIGINAL_WIFI=""
+ORIGINAL_DATA=""
 
 if [[ -z "$TEST_PACKAGE_NAME" ]]; then
   echo "ERROR: could not resolve Android integration-test package from Gradle namespace."
@@ -55,6 +56,13 @@ restore_network() {
   elif [[ "$ORIGINAL_WIFI" == "0" ]]; then
     adb -s "$DEVICE_SERIAL" shell svc wifi disable >/dev/null 2>&1 || true
   fi
+  if [[ "$ORIGINAL_DATA" == "1" ]]; then
+    adb -s "$DEVICE_SERIAL" shell settings put global mobile_data 1 >/dev/null 2>&1 || true
+    adb -s "$DEVICE_SERIAL" shell svc data enable >/dev/null 2>&1 || true
+  elif [[ "$ORIGINAL_DATA" == "0" ]]; then
+    adb -s "$DEVICE_SERIAL" shell settings put global mobile_data 0 >/dev/null 2>&1 || true
+    adb -s "$DEVICE_SERIAL" shell svc data disable >/dev/null 2>&1 || true
+  fi
   exit "$status"
 }
 
@@ -69,6 +77,7 @@ adb -s "$DEVICE_SERIAL" get-state | grep -qx device
 
 ORIGINAL_AIRPLANE="$(adb -s "$DEVICE_SERIAL" shell settings get global airplane_mode_on | tr -d '\r\n')"
 ORIGINAL_WIFI="$(adb -s "$DEVICE_SERIAL" shell settings get global wifi_on | tr -d '\r\n')"
+ORIGINAL_DATA="$(adb -s "$DEVICE_SERIAL" shell settings get global mobile_data 2>/dev/null | tr -d '\r\n' || true)"
 [[ "$ORIGINAL_AIRPLANE" == 0 || "$ORIGINAL_AIRPLANE" == 1 ]]
 [[ "$ORIGINAL_WIFI" == 0 || "$ORIGINAL_WIFI" == 1 ]]
 
@@ -196,6 +205,7 @@ adb -s "$DEVICE_SERIAL" shell cmd connectivity airplane-mode enable || {
   adb -s "$DEVICE_SERIAL" shell settings put global airplane_mode_on 1
   adb -s "$DEVICE_SERIAL" shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
 }
+adb -s "$DEVICE_SERIAL" shell svc data disable
 adb -s "$DEVICE_SERIAL" shell svc wifi disable
 sleep 3
 [[ "$(adb -s "$DEVICE_SERIAL" shell settings get global airplane_mode_on | tr -d '\r\n')" == 1 ]]
@@ -209,5 +219,6 @@ adb -s "$DEVICE_SERIAL" logcat -d | sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-
 grep -q 'MAPBOX_ROUTE_VALIDATION source=online' "$TEST_LOG_PATH"
 grep -q 'MAPBOX_ROUTE_VALIDATION source=offline' "$TEST_LOG_PATH"
 grep -q 'MAPBOX_OFFLINE_SCREENSHOT_FOREGROUND .* verified=true' "$TEST_LOG_PATH"
+grep -q 'MAPBOX_OFFLINE_MAP_VIEWPORT_READY' "$TEST_LOG_PATH"
 grep -q 'MAPBOX_OFFLINE_MAP_RENDERED' "$TEST_LOG_PATH"
-grep -Eq 'MAPBOX_OFFLINE_MAP_DIAGNOSTICS style_loaded=true map_loaded=true full_frame=true rendered_frames=[1-9][0-9]* idle=true load_errors=0 resource_failures=0' "$TEST_LOG_PATH"
+python3 tool/verify_android_offline_map_log.py "$LOGCAT_PATH"
