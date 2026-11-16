@@ -63,6 +63,28 @@ La primera instrumentación no registraba coordenadas z/x/y de `TileID` ni el re
 - Si vence el plazo, conserva PNG, logcat y diagnóstico filtrado, pero falla explícitamente.
 
 Esta instrumentación sigue siendo diagnóstica. No cambia el estilo `outdoors-v12` ni el TileStore y no acredita modo offline. La siguiente ejecución debe permitir distinguir entre fallos de red/servidor, recursos incompletos y problemas de renderizado.
+
+### Evidencia de staging instrumentado — 16/11/2026
+
+Ejecución [Android staging 43918396180](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180), source commit `35796d4599e00c9d88f8e25e23d9daa0b998ea22`, workflow merge commit `c1e1a50367aeb038e0ab53b7b7f073e7ef433855`.
+
+- El APK runtime-capable se compiló, se verificó y se publicó. Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, Flutter 3.47.5, 200.283.766 bytes.
+- SHA-256 recalculado sobre el APK extraído: `dc2290d678e24932c1e80c2e56f00434f3055a852047bc16c3dd964811385a4e`; coincide con `android-staging-validation.txt`.
+- CI general: success. Security baseline: success (8/8). Android staging: failure intencionado del gate cartográfico, no de compilación ni instalación.
+- El preflight de conectividad validada pasó y la aplicación quedó en primer plano.
+- Eventos Mapbox: `STYLE_LOADED=1`, `MAP_LOADED=0`, `MAP_IDLE=0`, `MAP_LOAD_ERROR=0`, `RENDER_FRAME=1` con `RenderMode.PARTIAL`.
+- Se registraron 75 eventos `SOURCE_DATA`; 69 pertenecen a `composite`. De los 68 eventos de tesela `composite`, 65 indicaron `loaded=false` y 3 `loaded=true`.
+- Se registraron 79 eventos `RESOURCE`. Para teselas hubo 12 misses no cancelados en `TILE_STORE`, 24 búsquedas/cancelaciones de fallback y 7 solicitudes de red con respuesta no vacía y sin error (cada respuesta aparece también en el nivel `RESOURCE_LOADER`). Los misses locales/cancelaciones no deben contabilizarse como errores HTTP.
+- Estilo, sprite, glyphs y algunas teselas recibieron respuestas de red sin error. No se observó un `MAP_LOAD_ERROR` ni un fallo de autorización explícito. Esto descarta atribuir el resultado, con la evidencia disponible, a un simple 401/403, pero no demuestra que todos los datos de fuente se hayan decodificado o representado.
+- La captura [android-map-smoke-43918396180](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14253759170) tiene 1080×2400; el gate obtuvo 38 colores, entropía 0,650 bits y color dominante 0,901. Rechazada por entropía y color dominante. El viewport central es casi uniforme RGB 8/8/8, con trazos aislados.
+- El smoke terminó con `MAPBOX_RENDER_NOT_READY deadline_seconds=60`: no aparecieron `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE`. El job conservó PNG, jerarquía, logcat y diagnóstico.
+
+Interpretación: la carga del estilo y varias respuestas de recursos funcionan; la fuente vectorial no llega a confirmar el viewport completo. Los misses de TileStore son compatibles con un arranque online sin región previamente descargada y no explican por sí solos el fallo. Aún no se puede distinguir entre procesamiento/decodificación de teselas, comportamiento del estilo Outdoors, renderizador SwiftShader/Impeller del emulador o un problema del SDK. Se necesita una comparación A/B con Mapbox Standard y una ejecución en dispositivo físico antes de cambiar el estilo de producción.
+
+Artefactos:
+- [APK y manifiesto](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14255086327).
+- [PNG, jerarquía y logs](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14253759170).
+
 ## Estado y pendientes
 
 - Estilo de producción: `mapbox://styles/mapbox/outdoors-v12`; no se ha cambiado por hipótesis.
@@ -70,7 +92,7 @@ Esta instrumentación sigue siendo diagnóstica. No cambia el estilo `outdoors-v
 - Mapa offline: no aceptado; falta acreditar renderizado real en modo avión.
 - Routing peatonal offline: evidencia histórica positiva en emulador, pero no suficiente para certificar el mapa ni el APK actual.
 - PR #61: abierta/draft, divergida de `main`; requiere sincronización y nueva ejecución del experimento de estilos/TileStore.
-- PR #79: instrumentación ampliada y espera explícita de viewport completo; CI/Security/Android staging del HEAD nuevo pendientes.
+- PR #79: CI y Security superados en HEAD `35796d4`; Android staging compiló/verificó APK pero falló correctamente el gate (sin `MAP_LOADED`, `FULL` ni `IDLE`). Evidencia y hash incorporados arriba. A/B de estilo y diagnóstico físico pendientes.
 - Reapertura en frío, reinicio físico y validación del APK exacto en OPPO: pendientes.
 - Cobertura nacional y routing offline BTT/cicloturismo: no acreditados.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; Valhalla sigue dependiendo del endpoint online.
