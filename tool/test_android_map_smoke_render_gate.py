@@ -160,7 +160,7 @@ for marker in (
     'RUNNER_TEMP="$RUNNER_TEMP/standard"',
     "primary_status=$?",
     "standard_status=$?",
-    "MAPBOX_STYLE_AB primary_status=",
+    "MAPBOX_STYLE_AB primary_style=",
 ):
     if marker not in smoke_job:
         raise SystemExit(f"Android smoke must execute both styles and retain both results: {marker}")
