@@ -24,6 +24,8 @@ jobs:
         run: python3 tool/test_rescue_link_compose.py
       - name: Validate PostgreSQL bootstrap script syntax
         run: bash -n infra/postgres/init/99-ensure-keycloak-db.sh
+      - name: Exercise Keycloak database bootstrap against PostgreSQL
+        run: bash tool/test_keycloak_postgres_bootstrap.sh
       - name: Validate Docker Compose interpolation
         env:
           LOCATION_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
@@ -181,7 +183,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Setup Java 21
-        uses: actions/setup-java@v6.0.1
+      - uses: actions/setup-java@v6.0.1
         with:
           distribution: temurin
           java-version: '21'
