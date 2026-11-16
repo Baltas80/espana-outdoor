@@ -161,18 +161,29 @@ if standard_build.index('cp "$primary_apk" "$primary_dir/app-release.apk"') > st
 if standard_build.index("flutter clean") > standard_build.index("flutter pub get --enforce-lockfile"):
     raise SystemExit("A clean Standard build must restore dependencies from the committed lockfile.")
 
+require_standard = workflow.split("- name: Require Mapbox Standard A/B APK", 1)[1]
 for marker in (
-    "github.event.pull_request.number == 79",
-    "continue-on-error: true",
-    "--build-dir=build/standard",
-    '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
-    "build/standard/android-staging-validation.txt",
-    "mapbox_runtime_token=available",
-    "mapbox_downloads_token=available",
-    "mapbox_style_uri=mapbox://styles/mapbox/standard",
+    "steps.build_standard_apk.outcome",
+    'standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"',
+    'standard_manifest="$RUNNER_TEMP/standard-build/android-staging-validation.txt"',
+    'expected_sha="$(sed -n \'s/^apk_sha256=//p\' "$standard_manifest")"',
+    'actual_sha="$(sha256sum "$standard_apk" | cut -d \' \' -f1)"',
+    'test "$expected_sha" = "$actual_sha"',
+    'grep -Fxq "mapbox_style_uri=mapbox://styles/mapbox/standard" "$standard_manifest"',
 ):
-    if marker not in standard_build:
-        raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
+    if marker not in require_standard:
+        raise SystemExit(f"Mapbox Standard A/B artifact verification is missing: {marker}")
+
+apk_upload = workflow.split("- name: Upload Android staging APK", 1)[1]
+apk_upload = apk_upload.split("- name: Enable KVM for Android emulator", 1)[0]
+for marker in (
+    "${{ runner.temp }}/primary-build/app-release.apk",
+    "${{ runner.temp }}/primary-build/android-staging-validation.txt",
+    "${{ runner.temp }}/standard-build/app-release.apk",
+    "${{ runner.temp }}/standard-build/android-staging-validation.txt",
+):
+    if marker not in apk_upload:
+        raise SystemExit(f"Android staging artifact upload is missing A/B file: {marker}")
 if "if: success() && steps.build_apk.outputs.built == 'true'" not in workflow:
     raise SystemExit("The primary APK must upload only after its verification step succeeds.")
 if "- name: Require Mapbox Standard A/B APK" not in workflow:
