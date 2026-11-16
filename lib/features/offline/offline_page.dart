@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../map/mapbox_map_viewport.dart';
 
 const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
-const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
@@ -93,7 +93,7 @@ class _OfflinePageState extends State<OfflinePage> {
         'downloadOfflineRegion',
         {
           'regionId': _regionId,
-          'styleUri': _styleUri,
+          'styleUri': mapboxStyleUri,
           'coordinates': _cordobaRing,
           'minZoom': 8,
           'maxZoom': 15,

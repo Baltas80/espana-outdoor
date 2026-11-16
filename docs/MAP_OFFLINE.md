@@ -397,3 +397,32 @@ También se corrige el diagnóstico de recursos. Antes, el test descartaba todos
 Después de crear el `MapWidget`, la integración vuelve a consultar el puente nativo y registra `MAPBOX_TILESTORE_POST_MAP_WIDGET`. Así se detectará si la inicialización de la vista cambia la instancia global del TileStore, el descriptor, el style pack o el modo efectivo.
 
 **Interpretación:** estos cambios mejoran la verificación y el diagnóstico; no solucionan por sí mismos la causa de los tiles incompletos. El siguiente Android staging debe confirmar el style pack, contar los misses reales y obtener un PNG completo. Si el style pack y el descriptor están presentes y siguen faltando tiles, el siguiente paso es inspeccionar la respuesta/tileset de cada coordenada solicitada, no ampliar más la región sin evidencia.
+
+
+## Diagnóstico de estilo offline (16/11/2026)
+
+La evidencia de la ejecución Android 43818184089 muestra que el estilo carga,
+pero el source vectorial `composite` no llega a completar el viewport: se
+registraron 43 eventos de tesela no cargada frente a 3 cargados, y la captura
+solo representa agua sobre un fondo uniforme. El TileStore y el descriptor
+figuran presentes, por lo que la mera existencia de la región no demuestra que
+el estilo pueda consumir sus tile packs.
+
+Mapbox documenta que Outdoors v12 es un estilo clásico compuesto por Streets v8,
+Terrain v2 y Bathymetry v2, y advierte de limitaciones de fuentes compuestas en
+escenarios offline. La guía recomienda desactivar la composición de fuentes en
+estilos destinados a uso offline. Referencias:
+
+- https://docs.mapbox.com/map-styles/reference/outdoors/
+- https://docs.mapbox.com/android/maps/guides/offline/concepts/
+
+Para aislar esa variable, la integración Android acepta `MAPBOX_STYLE_URI`.
+La ejecución CI de routing offline prueba temporalmente Mapbox Standard, mientras
+que el valor predeterminado de producción permanece en Outdoors v12. La pantalla
+de descarga y el MapWidget comparten ahora una única constante, evitando que se
+descargue un estilo distinto del que se representa.
+
+Este experimento no cambia el estilo de producción ni demuestra que Standard
+sea la solución. La decisión requiere una captura offline completa, eventos
+`MAP_LOADED`, `FULL_FRAME` e `IDLE`, cero fallos de recursos y la repetición
+tras cierre forzado y reinicio.

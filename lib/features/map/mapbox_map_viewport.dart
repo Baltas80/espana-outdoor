@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
+const mapboxStyleUri = String.fromEnvironment(
+  'MAPBOX_STYLE_URI',
+  defaultValue: 'mapbox://styles/mapbox/outdoors-v12',
+);
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
 /// Returns the single Mapbox Maps configuration used by production and the

@@ -14,7 +14,6 @@ import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 
 const _navigationChannel = MethodChannel('com.espanaoutdoors/navigation');
 const _regionId = 'espana-outdoor-cordoba-poc';
-const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 // The offline viewport requests z13 rows 3162–3164. The previous polygon
 // clipped row 3164 at its northern edge (37.85°), leaving visible tiles
 // outside the downloaded geometry. Keep a full-tile margin around the view.
@@ -130,6 +129,8 @@ void main() {
       contains(tileStoreUsageMode),
       reason: 'The integration test only supports explicit Mapbox TileStore modes.',
     );
+    // ignore: avoid_print
+    print('MAPBOX_OFFLINE_STYLE_URI uri=$mapboxStyleUri');
     await _navigationChannel.invokeMethod<void>('configure', {
       'accessToken': accessToken,
       'tileStoreUsageMode': tileStoreUsageMode,
@@ -158,7 +159,7 @@ void main() {
         'downloadOfflineRegion',
         {
           'regionId': _regionId,
-          'styleUri': _styleUri,
+          'styleUri': mapboxStyleUri,
           'coordinates': _regionRing,
           'minZoom': 8,
           'maxZoom': 15,
@@ -366,7 +367,7 @@ Future<void> _expectOfflineMapRendered(
     MaterialApp(
       home: Scaffold(
         body: MapWidget(
-          styleUri: _styleUri,
+          styleUri: mapboxStyleUri,
           mapOptions: mapboxMapOptionsForPixelRatio(
             WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio,
           ),

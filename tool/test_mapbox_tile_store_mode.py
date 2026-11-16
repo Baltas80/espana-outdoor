@@ -185,6 +185,27 @@ for fragment in (
             f"Offline UI must require separate map/routing resources: {fragment}"
         )
 
+
+
+MAP_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+map_viewport = MAP_VIEWPORT.read_text(encoding="utf-8")
+if "const mapboxStyleUri = String.fromEnvironment(" not in map_viewport:
+    raise SystemExit("MapWidget must use a single overridable Mapbox style URI.")
+if "defaultValue: 'mapbox://styles/mapbox/outdoors-v12'" not in map_viewport:
+    raise SystemExit("Production Mapbox style must remain Outdoors v12 unless explicitly overridden.")
+if "import '../map/mapbox_map_viewport.dart';" not in offline_page or "'styleUri': mapboxStyleUri" not in offline_page:
+    raise SystemExit("Offline downloads must use the exact style URI rendered by MapWidget.")
+if "styleUri: mapboxStyleUri" not in integration_test or "_styleUri" in integration_test:
+    raise SystemExit("Offline integration must render the same canonical style URI it downloads.")
+if '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI"' not in route_runner:
+    raise SystemExit("The style A/B experiment must be passed only to the integration test build.")
+if 'MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI="${MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI:-mapbox://styles/mapbox/standard}"' not in route_runner:
+    raise SystemExit("CI must run the controlled Mapbox Standard offline style experiment.")
+
+print("mapbox_style_uri_shared_between_map_and_download=true")
+print("mapbox_production_style_default=outdoors-v12")
+print("mapbox_offline_style_experiment=standard")
+
 print("mapbox_maps_tile_store=shared")
 print("mapbox_maps_tile_store_usage_default=READ_ONLY")
 print("mapbox_offline_experiment_mode=READ_AND_UPDATE")

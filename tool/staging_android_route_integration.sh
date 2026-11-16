@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 DEVICE_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
+MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI="${MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI:-mapbox://styles/mapbox/standard}"
 PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.espanaoutdoors.espana_outdoors}"
 # Flutter's integration-test runner is installed under the Android Gradle
 # namespace, which is intentionally different from the staging application ID.
@@ -81,6 +82,7 @@ run_route_phase() {
   local tile_store_usage_mode=READ_ONLY
   if [[ "$mode" == "offline" ]]; then tile_store_usage_mode=READ_AND_UPDATE; fi
   echo "ROUTE_PHASE_START mode=$mode test_package=$TEST_PACKAGE_NAME app_package=$PACKAGE_NAME"
+  echo "MAPBOX_OFFLINE_STYLE_EXPERIMENT uri=$MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI production_default=mapbox://styles/mapbox/outdoors-v12"
   if [[ "$mode" == "offline" ]]; then
     # Flutter integration_test output can be buffered by the host test runner.
     # Use Android logcat as the screenshot-ready signal, not the host stdout pipe.
@@ -94,6 +96,7 @@ run_route_phase() {
     --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
     --dart-define=ROUTE_TEST_MODE="$mode" \
     --dart-define=MAPBOX_TILESTORE_USAGE_MODE="$tile_store_usage_mode" \
+    --dart-define=MAPBOX_STYLE_URI="$MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI" \
     integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -u -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
   local phase_pid=$!
 
