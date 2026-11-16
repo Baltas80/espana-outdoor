@@ -259,6 +259,7 @@ jobs:
           name: android-map-smoke-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/espana-outdoor-map-logcat.txt
+            ${{ runner.temp }}/espana-mapbox-diagnostics.txt
             ${{ runner.temp }}/espana-window.xml
             ${{ runner.temp }}/espana-window-post-map.xml
             ${{ runner.temp }}/espana-outdoor-map.png
