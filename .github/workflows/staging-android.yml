@@ -250,7 +250,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: timeout --foreground --signal=TERM --kill-after=15s 20m bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+          script: timeout --foreground --signal=TERM --kill-after=150s 20m bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
