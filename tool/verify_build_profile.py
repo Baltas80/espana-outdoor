@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 ANDROID_ENDPOINTS = (
     "VALHALLA_BASE_URL",
     "SOURCE_GATEWAY_BASE_URL",
+    "COMMUNITY_API_BASE_URL",
     "RESCUE_LINK_BASE_URL",
 )
 
