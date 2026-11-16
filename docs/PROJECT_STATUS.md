@@ -393,3 +393,38 @@ No desplegar ni declarar producción hasta que se completen las pruebas funciona
 - Dispositivo OPPO, reinicio físico y APK candidato final: pendientes.
 
 No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado cartográfico y completar las validaciones funcionales.
+
+## Actualización de entrega — 16/11/2026, 11:xx CET
+
+### Integración Android y perfiles
+
+- PR [#71](https://github.com/Baltas80/espana-outdoor/pull/71) fusionada mediante squash en `main`: [88a5e0e](https://github.com/Baltas80/espana-outdoor/commit/88a5e0e9a9d150e78724e22712e61a8bc668a21f).
+- Cambios integrados: `COMMUNITY_API_BASE_URL` en el perfil Android, validación HTTPS del endpoint, tests de perfil CI/staging/producción, preservación de `pubspec.lock`, resolución con `flutter pub get --enforce-lockfile` y eliminación del job temporal con permisos `contents: write`.
+- Validación de PR sobre HEAD `e311a4f`: CI [43844697059](https://github.com/Baltas80/espana-outdoor/actions/runs/43844697059) success; Security [43844697021](https://github.com/Baltas80/espana-outdoor/actions/runs/43844697021) success; Android staging [43844697036](https://github.com/Baltas80/espana-outdoor/actions/runs/43844697036) success, con APK, manifiesto/hash y smoke de actividad. Este smoke no era todavía el gate visual estricto de PR #73.
+- Tras la fusión, los workflows de `main` están ejecutándose: CI [43849864215](https://github.com/Baltas80/espana-outdoor/actions/runs/43849864215) y Android staging [43849864210](https://github.com/Baltas80/espana-outdoor/actions/runs/43849864210) siguen en curso; Security [43849864232](https://github.com/Baltas80/espana-outdoor/actions/runs/43849864232) terminó correctamente.
+- Cloudflare/GitHub Pages [43849864204](https://github.com/Baltas80/espana-outdoor/actions/runs/43849864204) terminó correctamente y reportó despliegue de `88a5e0e` a `https://espanaoutdoor.es/`. La herramienta de consulta externa no pudo abrir el dominio en esta ejecución; el estado de despliegue se acredita por el workflow, no por una prueba HTTP independiente.
+- La página web de cuenta compartida aún no está en `main`: `site/cuenta.html` y `site/account.js` no existen en la rama principal. Permanecen en PR #64, draft, pendiente de sincronización, configuración real de Keycloak y prueba E2E con el mismo usuario en web y Android.
+
+### Smoke visual Android — PR #73
+
+- La ejecución [43844485536](https://github.com/Baltas80/espana-outdoor/actions/runs/43844485536) falló antes de capturar el mapa: `tool/smoke_android_map.sh` invocó `tool/ensure_android_emulator_online.sh`, ausente en esa rama (exit code 127).
+- Se añadió el helper de preflight usado por PR #61 y se amplió el guard para exigir su existencia y comprobar Wi-Fi conectado, red por defecto activa y capacidades `INTERNET` + `VALIDATED`.
+- Commits: [ce7d4f6](https://github.com/Baltas80/espana-outdoor/commit/ce7d4f632d87e2989c8af5ad24c60fbcfe0c250e) y [4a36062](https://github.com/Baltas80/espana-outdoor/commit/4a360626cd2d554e8ba14be7849a132e11922fff).
+- Nueva ejecución [Android staging 43849558688](https://github.com/Baltas80/espana-outdoor/actions/runs/43849558688): en la última consulta había superado preflight, configuración, dependencias, análisis y tests; compilaba el APK. El gate visual aún no se había ejecutado. Security [43849558696](https://github.com/Baltas80/espana-outdoor/actions/runs/43849558696) success.
+- PR #73 sigue draft. No aceptar el mapa hasta obtener una captura auténtica del emulador que supere el validador; el helper corrige el harness, no el defecto cartográfico.
+
+### Mapbox offline — PR #61
+
+- HEAD: `2d6671f877513fca51fecfaa339b2c37a07858f3`, sincronizado con `main` anterior al merge de #71.
+- CI [43845716541](https://github.com/Baltas80/espana-outdoor/actions/runs/43845716541) success; Security [43845716546](https://github.com/Baltas80/espana-outdoor/actions/runs/43845716546) success; Android staging [43845716619](https://github.com/Baltas80/espana-outdoor/actions/runs/43845716619) seguía compilando APK.
+- El experimento A/B mantiene Outdoors v12 como estilo de producción y prueba Standard únicamente en integración. No se ha demostrado aún que Standard renderice correctamente offline.
+- La última evidencia funcional anterior sigue siendo: ruta peatonal nueva `OFFLINE` en emulador, descarga de recursos Maps/Navigation y descriptor presentes, pero viewport incompleto, fallos/misses de teselas y PNG no aceptable.
+- La documentación de Mapbox confirma que el modo `READ_ONLY` consulta tile packs y, si faltan teselas, recurre a solicitudes individuales/disco; `READ_AND_UPDATE` usa tile packs y se orienta a trayectorias predefinidas. Las fuentes compuestas tienen limitaciones offline. Referencia: https://docs.mapbox.com/android/maps/guides/offline/concepts/.
+- PR #61 permanece draft. Requiere sincronizar con el merge de #71, terminar el staging, comparar el estilo experimental, obtener `MAP_LOADED`/`FULL_FRAME`/`IDLE`, cero errores de recursos, PNG válido, persistencia tras cierre/reinicio y validación física del APK exacto en OPPO.
+
+### Seguridad de repositorio y aceptación global
+
+- La API de rulesets devolvió una lista vacía. La lectura de branch protection devolvió `403 Resource not accessible by integration`; por tanto no se puede certificar desde esta conexión la protección de `main`, ni hay un endpoint de escritura de rulesets disponible en las herramientas. Issue [#72](https://github.com/Baltas80/espana-outdoor/issues/72) permanece abierta.
+- El repositorio metadata informa permiso `admin=true`, pero esto no concede al conector la operación de escritura de rulesets.
+- Producción sigue sin aceptación: mapa online/offline no validado visualmente; prueba física OPPO pendiente; login compartido web/Android pendiente; Keycloak/PostgreSQL TLS y Valhalla de producción sin prueba externa.
+- No declarar producción ni fusionar PR #61/#64/#73 hasta cumplir las respectivas puertas funcionales y de seguridad.
