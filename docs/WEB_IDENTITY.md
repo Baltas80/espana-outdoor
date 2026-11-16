@@ -50,3 +50,11 @@ node --test site/oidc-pkce.test.mjs
 Las pruebas cubren generación PKCE, state, parámetros de autorización, issuer/discovery, HTTPS, intercambio de código y rechazo de respuestas de token inválidas.
 
 La CI no puede verificar la configuración privada del realm ni el despliegue de PostgreSQL. La activación final requiere probar el callback real y `GET/PATCH /v1/me` con una cuenta de prueba en el dominio de producción.
+
+
+## Endpoint contract
+
+The web account page calls `https://api.espanaoutdoor.es/v1/me`. The Android build must receive the same Source Gateway origin as `COMMUNITY_API_BASE_URL`; the production endpoint template keeps `SOURCE_GATEWAY_BASE_URL` and `COMMUNITY_API_BASE_URL` aligned. Do not point web and Android to different profile databases or issuers.
+
+The public web client is `espana-outdoors-web`; the Android public client is `espana-outdoors-mobile` with redirect URI `com.espanaoutdoors://oauth2redirect`. Both clients must receive the dedicated API audience `espana-outdoors-api` in their access tokens. Source Gateway authorizes its protected source endpoints using the exact `OIDC_REQUIRED_ROLE` under `resource_access[espana-outdoors-api].roles`. Rescue Link uses a separate audience and must not reuse the Source Gateway audience.
+
