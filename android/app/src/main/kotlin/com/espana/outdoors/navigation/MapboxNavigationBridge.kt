@@ -648,7 +648,7 @@ class MapboxNavigationBridge(context: Context) {
         // offline style pack survived a force-stop. Verify the stored package
         // independently from the map and routing tile regions.
         mapsOffline.getStylePack(styleUri) { styleExpected ->
-            val stylePack = styleExpected.value
+            val stylePack = if (styleExpected.isValue) styleExpected.value else null
             val stylePackCompleted = stylePack?.completedResourceCount ?: 0L
             val stylePackSize = stylePack?.completedResourceSize ?: 0L
             val stylePackRequired = stylePack?.requiredResourceCount ?: 0L
