@@ -219,7 +219,7 @@ def verify_android() -> None:
         "MAPBOX_OFFLINE_MAP_DIAGNOSTICS",
         "MAPBOX_TILESTORE_POST_MAP_WIDGET",
         "offline_tile_store_miss",
-        "style pack is asserted after MapWidget creation": "stylePackPresent",
+        "stylePackPresent",
         "MAPBOX_OFFLINE_SCREENSHOT_READY",
         "markOfflineScreenshotReady",
         "tile_id=",
