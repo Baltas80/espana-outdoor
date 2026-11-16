@@ -108,3 +108,14 @@ Artefactos:
 - Reapertura en frío, reinicio físico y validación del APK exacto en OPPO: pendientes.
 - Cobertura nacional y routing offline BTT/cicloturismo: no acreditados.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; Valhalla sigue dependiendo del endpoint online.
+
+
+### Regresión del experimento A/B — 16/11/2026
+
+Ejecución [Android staging 43931517057](https://github.com/Baltas80/espana-outdoor/actions/runs/43931517057), source commit `2a4992ef11906dc169c0763937481ac1449efa92`:
+
+- El APK Outdoors se compiló, verificó y publicó; el smoke se ejecutó en el emulador y volvió a fallar correctamente el gate visual (`MAP_LOADED=0`, `MAP_IDLE=0`, sin `RenderMode.FULL`; PNG rechazado por entropía y color dominante).
+- El build comparativo Standard no llegó a ejecutarse: Flutter 3.47.5 rechazó explícitamente `flutter build apk --release --build-dir=build/standard` con `Could not find an option named "--build-dir"` (exit code 64).
+- Debido a `continue-on-error: true`, el job conservó el APK primario y continuó, pero no existía un APK Standard; el paso final de requisito A/B falló. Por tanto, **no existe comparación A/B válida en este run**.
+- Corrección preparada en la PR #79: copiar el APK/manifest Outdoors verificado fuera de `build/`, ejecutar `flutter clean` y `flutter pub get --enforce-lockfile`, construir Standard por la ruta Flutter predeterminada y copiar su APK/manifest a un directorio independiente. El emulador ejecutará ambos APK y el gate final verificará el SHA-256 del manifiesto Standard.
+- Esta corrección resuelve el fallo del pipeline A/B, no el defecto de renderizado. El mapa Outdoors continúa sin aceptación; Standard todavía no se ha probado.
