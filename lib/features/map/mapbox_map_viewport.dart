@@ -309,9 +309,11 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         final key = '${sourceId}:${event.type.name}:${event.loaded ?? false}';
         _sourceDataCounts[key] = (_sourceDataCounts[key] ?? 0) + 1;
         if (_sourceDataEventCount <= 40) {
+          final tile = event.tileID;
+          final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
           debugPrint(
             'MAPBOX_SOURCE_DATA id=$sourceId type=${event.type.name} '
-            'loaded=${event.loaded ?? false} tile=${event.tileID != null}',
+            'loaded=${event.loaded ?? false} tile_id=$tileId',
           );
         }
       },
