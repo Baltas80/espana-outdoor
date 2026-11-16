@@ -145,3 +145,7 @@ La corrección elimina el fallo de orquestación; no resuelve el mapa negro. El 
 ### Aislamiento de datos entre estilos A/B
 
 El runner A/B verifica que ambos manifiestos comparten `application_id`, `source_commit` y `version_code`, y que el segundo APK declara exactamente `mapbox://styles/mapbox/standard`. Como ambos APK usan el mismo application ID, el runner fuerza la detención y ejecuta `pm clear` entre Outdoors y Standard, comprobando la respuesta `Success`. Así la caché TileStore y las preferencias del primer estilo no contaminan la comparación del segundo. El staging ordinario sin APK Standard no limpia datos.
+
+### Conservación del APK primario si falla la compilación Standard
+
+Se separaron los uploads: `android-staging-apk` contiene siempre el APK Outdoors ya verificado; `mapbox-standard-ab-apk` solo se publica si la compilación Standard terminó correctamente. Si Standard falla, el smoke primario todavía puede ejecutarse y conservar sus evidencias; el requisito final A/B hace fallar el job al cierre, sin perder el artefacto primario. Esto evita que `if-no-files-found: error` del upload combinado impida ejecutar el diagnóstico principal.
