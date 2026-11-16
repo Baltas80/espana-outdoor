@@ -83,14 +83,15 @@ Interpretación: la carga del estilo y varias respuestas de recursos funcionan; 
 
 ### Experimento A/B de estilos (staging)
 
-La PR #79 permite seleccionar el estilo en el workflow **Android staging** mediante `workflow_dispatch`:
+La PR #79 ejecuta una comparación A/B automática en Android staging:
 
-- `outdoors-v12`: opción predeterminada para pushes/PRs y para ejecuciones manuales sin cambio.
-- `standard`: experimento manual explícito para comparar la misma pantalla, centro, zoom y emulador con Mapbox Standard.
+- En el evento `pull_request` de la propia PR #79, si el estilo primario es Outdoors, el job compila un segundo APK con Mapbox Standard y ejecuta ambos APK en el mismo emulador.
+- El resultado del estilo seleccionado por el workflow se guarda bajo `primary/`; el APK comparativo Standard y sus evidencias se guardan bajo `standard/`.
+- El workflow `workflow_dispatch` también permite elegir `outdoors-v12` (predeterminado) o `standard` para ejecuciones manuales.
 
-El workflow pasa el valor como `MAPBOX_STYLE_URI` al build Dart y lo registra en `android-staging-validation.txt`. La app emite `MAPBOX_DIAGNOSTIC event=STYLE_URI` para que la captura quede asociada al estilo exacto. CI compila el test de selección con el define Standard y comprueba que el valor se propaga.
+El workflow pasa el valor como `MAPBOX_STYLE_URI` al build Dart y lo registra en `android-staging-validation.txt`. La app emite `MAPBOX_DIAGNOSTIC event=STYLE_URI` para asociar cada captura al estilo exacto. CI compila el test de selección con el define Standard y comprueba que el valor se propaga.
 
-Este control no cambia el estilo predeterminado de producción, no modifica los estilos de cuentas de Mapbox y no habilita Standard en una release. La comparación solo será válida si ambos APK se construyen desde el mismo commit y usan el mismo emulador/configuración. El resultado de Standard debe revisarse junto con la captura y los eventos de Mapbox; no basta con que el workflow compile.
+Este control no cambia el estilo predeterminado de producción, no modifica los estilos de cuentas de Mapbox y no habilita Standard en una release. La comparación solo será válida si ambos APK se construyen desde el mismo commit y usan el mismo emulador/configuración. Los resultados deben revisarse junto con ambas capturas y los eventos de Mapbox; no basta con que los workflows compilen.
 
 Artefactos:
 - [APK y manifiesto](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14255086327).
