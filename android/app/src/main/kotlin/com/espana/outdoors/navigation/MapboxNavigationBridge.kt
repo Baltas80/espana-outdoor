@@ -268,14 +268,56 @@ class MapboxNavigationBridge(context: Context) {
             .acceptExpired(false)
             .build()
 
+        var styleProgress: Map<String, Long> = emptyMap()
         mapsOffline.loadStylePack(
             styleUri,
             styleOptions,
-            { /* Native Mapbox download progress. */ }
+            { progress ->
+                styleProgress = mapOf(
+                    "completedResourceCount" to progress.completedResourceCount,
+                    "completedResourceSize" to progress.completedResourceSize,
+                    "erroredResourceCount" to progress.erroredResourceCount,
+                    "requiredResourceCount" to progress.requiredResourceCount,
+                    "loadedResourceCount" to progress.loadedResourceCount,
+                    "loadedResourceSize" to progress.loadedResourceSize
+                )
+            }
         ) { styleExpected ->
             if (!styleExpected.isValue) {
                 mainHandler.post {
                     result.error("STYLE_DOWNLOAD_FAILED", "Mapbox style pack download failed.", null)
+                }
+                return@loadStylePack
+            }
+
+            val downloadedStylePack = styleExpected.value
+            val styleCompleted = downloadedStylePack?.completedResourceCount
+                ?: styleProgress["completedResourceCount"]
+                ?: 0L
+            val styleSize = downloadedStylePack?.completedResourceSize
+                ?: styleProgress["completedResourceSize"]
+                ?: 0L
+            val styleRequired = downloadedStylePack?.requiredResourceCount
+                ?: styleProgress["requiredResourceCount"]
+                ?: 0L
+            val styleErrors = styleProgress["erroredResourceCount"] ?: 0L
+            if (downloadedStylePack == null || styleCompleted <= 0 || styleSize <= 0) {
+                mainHandler.post {
+                    result.error(
+                        "OFFLINE_STYLE_PACK_EMPTY",
+                        "Mapbox reported no persisted style-pack resources.",
+                        styleProgress
+                    )
+                }
+                return@loadStylePack
+            }
+            if (styleErrors > 0 || (styleRequired > 0 && styleCompleted < styleRequired)) {
+                mainHandler.post {
+                    result.error(
+                        "OFFLINE_STYLE_PACK_INCOMPLETE",
+                        "Mapbox did not complete all required style-pack resources.",
+                        styleProgress
+                    )
                 }
                 return@loadStylePack
             }
@@ -434,6 +476,9 @@ class MapboxNavigationBridge(context: Context) {
                     val markerPersisted = appContext
                         .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
                         .edit()
+                        .putBoolean("offline:$regionId:stylePack", true)
+                        .putLong("offline:$regionId:stylePackCompletedResourceCount", styleCompleted)
+                        .putLong("offline:$regionId:stylePackCompletedResourceSize", styleSize)
                         .putBoolean("offline:$regionId:maps", true)
                         .putBoolean("offline:$regionId:routing-walking", true)
                         .putBoolean("offline:$regionId", true)
@@ -466,6 +511,10 @@ class MapboxNavigationBridge(context: Context) {
                         result.success(
                             mapOf(
                                 "regionId" to regionId,
+                                "stylePackCompletedResourceCount" to styleCompleted,
+                                "stylePackCompletedResourceSize" to styleSize,
+                                "stylePackRequiredResourceCount" to styleRequired,
+                                "stylePackErroredResourceCount" to styleErrors,
                                 "mapRegionId" to mapRegionId,
                                 "routingRegionId" to routingRegionId,
                                 "mapTiles" to true,
@@ -528,9 +577,10 @@ class MapboxNavigationBridge(context: Context) {
                 routingRegion.completedResourceCount > 0 &&
                 routingRegion.completedResourceSize > 0 &&
                 preferences.getBoolean("offline:$regionId:routing-walking", false)
+            val styleReady = preferences.getBoolean("offline:$regionId:stylePack", false)
             // Legacy combined regions are intentionally not treated as verified:
             // their aggregate progress could be satisfied by routing alone.
-            mainHandler.post { result.success(mapReady && routingReady) }
+            mainHandler.post { result.success(mapReady && routingReady && styleReady) }
         }
     }
 
@@ -568,6 +618,9 @@ class MapboxNavigationBridge(context: Context) {
                         "mapDescriptorPresentInMapsStore" to false,
                         "mapRegionPresent" to false,
                         "routingRegionPresent" to false,
+                        "stylePackPresent" to false,
+                        "stylePackCompletedResourceCount" to 0L,
+                        "stylePackCompletedResourceSize" to 0L,
                         "tileStoreUsageMode" to MapboxMapsOptions.tileStoreUsageMode.name,
                         "tileStoreUsageModeReadOnly" to
                             (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY)
@@ -591,46 +644,66 @@ class MapboxNavigationBridge(context: Context) {
                 .build()
         )
 
-        store.getAllTileRegions { regionsExpected ->
-            if (!regionsExpected.isValue) {
-                mainHandler.post {
-                    result.error(
-                        "OFFLINE_STATUS_FAILED",
-                        "Mapbox could not read the stored offline region list.",
-                        null
-                    )
-                }
-                return@getAllTileRegions
-            }
-            val regions = regionsExpected.value.orEmpty()
-            val mapRegion = regions.firstOrNull { it.id == mapRegionId }
-            val routingRegion = regions.firstOrNull { it.id == routingRegionId }
-            val mapRegionPresent = mapRegion != null &&
-                mapRegion.completedResourceCount > 0 &&
-                mapRegion.completedResourceSize > 0 &&
-                preferences.getBoolean("offline:$regionId:maps", false)
-            val routingRegionPresent = routingRegion != null &&
-                routingRegion.completedResourceCount > 0 &&
-                routingRegion.completedResourceSize > 0 &&
-                preferences.getBoolean("offline:$regionId:routing-walking", false)
+        // A style URI loading successfully is not proof that the complete
+        // offline style pack survived a force-stop. Verify the stored package
+        // independently from the map and routing tile regions.
+        mapsOffline.getStylePack(styleUri) { styleExpected ->
+            val stylePack = styleExpected.value
+            val stylePackCompleted = stylePack?.completedResourceCount ?: 0L
+            val stylePackSize = stylePack?.completedResourceSize ?: 0L
+            val stylePackRequired = stylePack?.requiredResourceCount ?: 0L
+            val stylePackPresent = styleExpected.isValue &&
+                stylePack != null &&
+                stylePackCompleted > 0 &&
+                stylePackSize > 0 &&
+                (stylePackRequired <= 0 || stylePackCompleted >= stylePackRequired) &&
+                preferences.getBoolean("offline:$regionId:stylePack", false)
 
-            descriptorStore.tileRegionContainsDescriptors(mapRegionId, listOf(mapDescriptor)) { descriptorExpected ->
-                val descriptorCheckCompleted = descriptorExpected.isValue
-                val descriptorPresent = descriptorCheckCompleted && descriptorExpected.value == true
-                mainHandler.post {
-                    result.success(
-                        mapOf(
-                            "mapTileStoreSameInstance" to mapStoreSameInstance,
-                            "mapDescriptorCheckCompleted" to descriptorCheckCompleted,
-                            "mapDescriptorPresentInMapsStore" to descriptorPresent,
-                            "mapRegionPresent" to mapRegionPresent,
-                            "routingRegionPresent" to routingRegionPresent,
-                            "tileStoreUsageMode" to MapboxMapsOptions.tileStoreUsageMode.name,
-                            "tileStoreUsageModeReadOnly" to
-                                (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY),
-                            "mapPixelRatio" to pixelRatio
+            store.getAllTileRegions { regionsExpected ->
+                if (!regionsExpected.isValue) {
+                    mainHandler.post {
+                        result.error(
+                            "OFFLINE_STATUS_FAILED",
+                            "Mapbox could not read the stored offline region list.",
+                            null
                         )
-                    )
+                    }
+                    return@getAllTileRegions
+                }
+                val regions = regionsExpected.value.orEmpty()
+                val mapRegion = regions.firstOrNull { it.id == mapRegionId }
+                val routingRegion = regions.firstOrNull { it.id == routingRegionId }
+                val mapRegionPresent = mapRegion != null &&
+                    mapRegion.completedResourceCount > 0 &&
+                    mapRegion.completedResourceSize > 0 &&
+                    preferences.getBoolean("offline:$regionId:maps", false)
+                val routingRegionPresent = routingRegion != null &&
+                    routingRegion.completedResourceCount > 0 &&
+                    routingRegion.completedResourceSize > 0 &&
+                    preferences.getBoolean("offline:$regionId:routing-walking", false)
+
+                descriptorStore.tileRegionContainsDescriptors(mapRegionId, listOf(mapDescriptor)) { descriptorExpected ->
+                    val descriptorCheckCompleted = descriptorExpected.isValue
+                    val descriptorPresent = descriptorCheckCompleted && descriptorExpected.value == true
+                    mainHandler.post {
+                        result.success(
+                            mapOf(
+                                "mapTileStoreSameInstance" to mapStoreSameInstance,
+                                "mapDescriptorCheckCompleted" to descriptorCheckCompleted,
+                                "mapDescriptorPresentInMapsStore" to descriptorPresent,
+                                "mapRegionPresent" to mapRegionPresent,
+                                "routingRegionPresent" to routingRegionPresent,
+                                "stylePackPresent" to stylePackPresent,
+                                "stylePackCompletedResourceCount" to stylePackCompleted,
+                                "stylePackCompletedResourceSize" to stylePackSize,
+                                "stylePackRequiredResourceCount" to stylePackRequired,
+                                "tileStoreUsageMode" to MapboxMapsOptions.tileStoreUsageMode.name,
+                                "tileStoreUsageModeReadOnly" to
+                                    (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY),
+                                "mapPixelRatio" to pixelRatio
+                            )
+                        )
+                    }
                 }
             }
         }
