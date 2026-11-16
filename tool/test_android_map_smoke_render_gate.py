@@ -83,7 +83,7 @@ if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
 # live MapWidget must request the same pixel-ratio variant instead of relying
 # on MapOptions' 1.0 default.
 for marker in (
-    "MapboxMapOptions mapboxMapOptionsForPixelRatio(double pixelRatio)",
+    "MapOptions mapboxMapOptionsForPixelRatio(double pixelRatio)",
     "MediaQuery.devicePixelRatioOf(context)",
     "mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio)",
     "GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY",
