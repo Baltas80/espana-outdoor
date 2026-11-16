@@ -1,6 +1,6 @@
 # España Outdoor — estado técnico
 
-Última revisión: **16/11/2026 05:22 CET**. Rama de referencia: `main`, HEAD observado: `25507ff224ed3a9404b962737f7271dfda0f96fb`.
+Última revisión: **16/11/2026 (ciclo de entrega actual)**. Rama de referencia: `main`, HEAD observado: `f2d41542ee524d72422f86c37625b0fd5c67059d`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
@@ -9,21 +9,22 @@ Este documento separa código integrado, pruebas automatizadas, validación de e
 - Android Flutter sigue siendo la prioridad.
 - La seguridad de Source Gateway y Rescue Link está integrada mediante PR #68. La configuración de hostname/issuer Keycloak y el bootstrap PostgreSQL se integraron mediante PR #70 (`25507ff`); el despliegue real sigue pendiente.
 - El workflow de GitHub Pages está corregido en `2288290`; la ejecución de despliegue 43699356632 terminó correctamente. No se ha hecho una comprobación HTTP independiente del dominio en esta revisión.
-- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**. PR #61 sigue en draft, HEAD `5892864cb509db09ffc3a05583a6559000c11220`, 237 commits por delante y 1 por detrás de `main`.
+- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**. PR #61 sigue en draft, HEAD `5892864cb509db09ffc3a05583a6559000c11220`, 237 commits por delante y 2 por detrás de `main`.
 - No se acepta todavía el renderizado de mapas offline: una ejecución anterior calculó una ruta offline nueva, pero falló el renderizado y una captura resultó ser del launcher, no del mapa.
 - La identidad web PKCE está en PR #64 (draft); falta configurar el realm/cliente, desplegar Keycloak/PostgreSQL y verificar una cuenta real compartida entre web y Android.
 - No se declara producción.
 
-## Snapshot operativo — 16/11/2026 05:22 CET
+## Snapshot operativo — 16/11/2026 (ciclo de entrega actual)
 
 ### Integraciones y validación actual
 
 - PR #70 está fusionada en `main` como `25507ff`. El bootstrap se probó contra PostGIS desechable: creación/rotación idempotente de rol y base, login TCP, ownership, `docker compose config`, `go test -race` y `go vet`. No se ha desplegado PostgreSQL ni Keycloak de producción.
-- PR #61 sigue abierta y en draft. Su HEAD es `5892864cb509db09ffc3a05583a6559000c11220`; la comparación actual indica 237 commits por delante y 1 por detrás de `main` (la PR #70 se fusionó después de la base de esta rama).
-- La ejecución Android [43804191767](https://github.com/Baltas80/espana-outdoor/actions/runs/43804191767), sobre HEAD anterior `3fd60f7`, falló en `flutter analyze`: `dart:math` no define `sinh`. La corrección usa la fórmula inversa de Web Mercator con `exp/atan` en el commit `5892864`. La nueva validación de ese HEAD está pendiente: [Android staging 43804464921](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464921), [CI 43804464984](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464984), [Security 43804464891](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464891).
-- Android staging [43804363653](https://github.com/Baltas80/espana-outdoor/actions/runs/43804363653) está ejecutándose sobre el HEAD anterior `6f79421`; incluye el fixture geométrico ampliado, pero no el cambio posterior que alinea `OfflinePage` de producción. No aceptar ese resultado como validación final de la pantalla de descarga.
+- PR #61 sigue abierta y en draft. Su HEAD es `5892864cb509db09ffc3a05583a6559000c11220`; la comparación actual indica 237 commits por delante y 2 por detrás de `main` (PR #70 y la actualización documental posterior se fusionaron después de la base de esta rama).
+- Android staging [43804191767](https://github.com/Baltas80/espana-outdoor/actions/runs/43804191767), sobre `3fd60f7`, falló en `flutter analyze` porque Dart no define `sinh`; el commit `5892864` corrigió la fórmula inversa de Web Mercator con `exp/atan`. En [Android staging 43804464921](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464921) ya pasaron guards, cobertura geométrica, preflight, NDK/dependencias y `Analyze and test`; la compilación APK sigue en curso. [CI 43804464984](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464984): Source Gateway, Rescue Link e iOS superados; Flutter/Android release sigue compilando. [Security 43804464891](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464891): 8/8 superados.
+- Android staging [43804363653](https://github.com/Baltas80/espana-outdoor/actions/runs/43804363653), sobre `6f79421`, terminó fallando en `flutter analyze` por el mismo uso de `math.sinh`; no aporta evidencia de mapa. El HEAD actual incluye el cálculo corregido y la geometría alineada en `OfflinePage`.
 - El run [43799514133](https://github.com/Baltas80/espana-outdoor/actions/runs/43799514133), sobre `470a194`, demostró TileStore compartido, descriptor Maps presente, ambas regiones y ruta nueva con origen `OFFLINE`. El mapa falló con 14 misses `NOT_FOUND/TILE_STORE`; los tiles observados fueron z13 x3986–3987, y3162–3164.
 - Se detectó que el polígono anterior `37.85..37.93` solo cubría una franja de la fila y=3164. El test y `OfflinePage` se ampliaron a latitud `37.78..37.97`, longitud `-4.84..-4.72`. `tool/test_mapbox_offline_region_coverage.py` comprueba que ambos polígonos sean idénticos y cubran por completo los seis tiles z13 observados. La lógica Python del guard se ejecutó localmente sobre fixtures equivalentes y pasó; la integración Android sigue pendiente.
+- PR #64 sigue en draft. En HEAD `3d4a436` Web OIDC [43804969608](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969608) y Security [43804969563](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969563) (8/8) han pasado; CI general [43804969693](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969693) sigue con Flutter/iOS en ejecución. El discovery ahora exige `code` y PKCE S256. La cuenta real compartida y la configuración del realm siguen pendientes.
 - No hay todavía evidencia de mapa offline completo (`MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y PNG válido), reinicio real ni validación del APK exacto en el OPPO.
 
 ### Criterio vigente
@@ -34,7 +35,7 @@ No fusionar PR #61 hasta que el mismo HEAD demuestre descarga Maps/Navigation, r
 
 ## Estado de `main`
 
-HEAD: `25507ff224ed3a9404b962737f7271dfda0f96fb`.
+HEAD: `f2d41542ee524d72422f86c37625b0fd5c67059d`.
 
 Integraciones relevantes:
 
