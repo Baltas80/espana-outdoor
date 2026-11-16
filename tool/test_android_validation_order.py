@@ -7,6 +7,7 @@ spend its first validation window only on the separate UI smoke. New commits
 must queue behind an active emulator run instead of cancelling its evidence.
 """
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
@@ -63,8 +64,28 @@ for marker in (
 ):
     if marker not in main_activity:
         raise SystemExit(f"MainActivity is missing the debug-only native screenshot signal: {marker}")
-if '*"$TEST_PACKAGE_NAME/"*' not in route_script:
-    raise SystemExit("Offline screenshot capture must verify the integration-test package is foregrounded.")
+expected_component_pattern = '*"$PACKAGE_NAME/$TEST_PACKAGE_NAME.MainActivity"*'
+if expected_component_pattern not in route_script:
+    raise SystemExit("Offline screenshot capture must match applicationId/namespace.MainActivity from dumpsys.")
+if '*"$TEST_PACKAGE_NAME/"*' in route_script:
+    raise SystemExit("Do not treat the Gradle namespace as the Android applicationId in ActivityRecord.")
+
+# Regression fixture from the actual Android 35 dumpsys format observed in CI.
+sample_activity = (
+    "topResumedActivity=ActivityRecord{fc1b2e8 u0 "
+    "com.espanaoutdoors.espana_outdoors.iconspreview/"
+    "com.example.espana_outdoors.MainActivity t8}"
+)
+match = re.search(r"ActivityRecord\\{[^}]*[[:space:]]u[0-9]+[[:space:]]([^[:space:]]+)", sample_activity)
+expected_component = (
+    "com.espanaoutdoors.espana_outdoors.iconspreview/"
+    "com.example.espana_outdoors.MainActivity"
+)
+if match is None or match.group(1) != expected_component:
+    raise SystemExit("Android dumpsys foreground-component fixture did not resolve the expected app/activity.")
+
+if "capture_route_logcat()" not in route_script or "capture_route_logcat" not in route_script.split("restore_network()", 1)[1].split("}", 1)[0]:
+    raise SystemExit("The EXIT trap must preserve sanitized logcat before restoring network connectivity.")
 
 if "if: always()" not in workflow:
     raise SystemExit("Android staging must retain unconditional evidence-upload steps.")
