@@ -45,25 +45,25 @@ def verify_log_text(text: str) -> dict[str, object]:
     errors = [f"missing {marker}" for marker in required_markers if marker not in text]
 
     network_events = re.findall(
-        r"MAPBOX_RESOURCE_OK kind=([A-Z_]+) data_source=NETWORK\\b", text
+        r"MAPBOX_RESOURCE_OK kind=([A-Z_]+) data_source=NETWORK\b", text
     )
     if network_events:
         errors.append(f"offline map used network resources: {','.join(network_events[:8])}")
 
     tile_misses = re.findall(
-        r"MAPBOX_RESOURCE_(?:LOOKUP_MISS|CANCELLED) kind=TILE\\b", text
+        r"MAPBOX_RESOURCE_(?:LOOKUP_MISS|CANCELLED) kind=TILE\b", text
     )
     if tile_misses:
         errors.append(f"offline TileStore tile misses/cancellations: {len(tile_misses)}")
 
-    resource_failures = re.findall(r"MAPBOX_RESOURCE_FAILURE\\b", text)
+    resource_failures = re.findall(r"MAPBOX_RESOURCE_FAILURE\b", text)
     if resource_failures:
         errors.append(f"offline resource failures: {len(resource_failures)}")
 
     tile_ids = {
         (int(z), int(x), int(y))
         for z, x, y in re.findall(
-            r"MAPBOX_SOURCE_DATA\\b.*?tile_id=(\\d+)/(\\d+)/(\\d+)", text
+            r"MAPBOX_SOURCE_DATA\b.*?tile_id=(\d+)/(\d+)/(\d+)", text
         )
     }
     zoom_tiles = sorted(tile for tile in tile_ids if tile[0] == ZOOM)
