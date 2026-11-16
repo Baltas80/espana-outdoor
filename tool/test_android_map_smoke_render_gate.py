@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Prevent Android map smoke from accepting a live process with a blank viewport."""
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / "tool" / "smoke_android_map.sh"
@@ -16,9 +16,10 @@ network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
 ci_workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
+
 def job_block(source: str, name: str) -> str:
     match = re.search(
-        rf"(?ms)^  {re.escape(name)}:\\n(.*?)(?=^  [a-z0-9-]+:|\\Z)",
+        rf"(?ms)^  {re.escape(name)}:\n(.*?)(?=^  [a-z0-9-]+:|\Z)",
         source,
     )
     if match is None:
