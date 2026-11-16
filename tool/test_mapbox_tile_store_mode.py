@@ -32,6 +32,7 @@ required = (
     'fun verifyOfflineRegion(',
     'tileRegionContainsDescriptors(mapRegionId',
     'MapboxMapsOptions.tileStore === store',
+    'descriptorExpected.value == true',
 )
 for fragment in required:
     if fragment not in source:
