@@ -228,11 +228,16 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       onSourceDataLoadedListener: (event) {
         if (_sourceDataEventsLogged >= _maxSourceDataEventsToLog) return;
         _sourceDataEventsLogged++;
+        final tileId = event.tileID;
+        final tileLabel = formatMapboxTileId(
+          z: tileId?.z,
+          x: tileId?.x,
+          y: tileId?.y,
+        );
         _logMapboxDiagnostic(
           'SOURCE_DATA',
           'id=${event.id} type=${event.type} '
-              'loaded=${event.loaded ?? 'unknown'} '
-              'tile=${formatMapboxTileId(z: event.tileID?.z, x: event.tileID?.x, y: event.tileID?.y)}',
+              'loaded=${event.loaded ?? 'unknown'} tile=$tileLabel',
         );
       },
       onResourceRequestListener: (event) {
