@@ -23,9 +23,19 @@ if [[ -z "$TEST_PACKAGE_NAME" ]]; then
   exit 1
 fi
 
+capture_route_logcat() {
+  # Preserve native Mapbox failures even when the offline assertion exits early.
+  # Capture before restoring radios so IN_OFFLINE_MODE diagnostics remain intact.
+  if adb -s "$DEVICE_SERIAL" get-state 2>/dev/null | grep -qx device; then
+    adb -s "$DEVICE_SERIAL" logcat -d 2>/dev/null |
+      sed -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' > "$LOGCAT_PATH" || true
+  fi
+}
+
 restore_network() {
   local status=$?
   trap - EXIT HUP INT TERM
+  capture_route_logcat
   if [[ "$AIRPLANE_CHANGED" == "1" ]]; then
     local restore_action=disable
     local restore_state=false
@@ -98,12 +108,18 @@ run_route_phase() {
         if [[ -z "$foreground_activity" ]]; then
           foreground_activity="$(adb -s "$DEVICE_SERIAL" shell dumpsys window windows 2>/dev/null | tr -d '\r' | grep -E 'mCurrentFocus|mFocusedApp' | tail -n 1 || true)"
         fi
-        # The offline MapWidget is created by the integration-test package,
-        # not by the separate release APK used by the later smoke test.
-        case "$foreground_activity" in
-          *"$TEST_PACKAGE_NAME/"*) foreground_package="$TEST_PACKAGE_NAME" ;;
+        # dumpsys prefixes the component with applicationId, while the
+        # Activity class belongs to Gradle namespace. They are intentionally
+        # different in this staging build.
+        foreground_component="$(printf '%s\n' "$foreground_activity" | sed -nE 's/.*ActivityRecord\{[^}]*[[:space:]]u[0-9]+[[:space:]]([^[:space:]]+).*/\1/p' | tail -n 1)"
+        if [[ -z "$foreground_component" ]]; then
+          foreground_component="$(printf '%s\n' "$foreground_activity" | sed -nE 's/.*Window\{[^}]*[[:space:]]u[0-9]+[[:space:]]([^[:space:]]+).*/\1/p' | tail -n 1)"
+        fi
+        expected_component="$PACKAGE_NAME/$TEST_PACKAGE_NAME.MainActivity"
+        case "$foreground_component" in
+          "$expected_component") foreground_package="$PACKAGE_NAME" ;;
           *)
-            echo "MAPBOX_OFFLINE_SCREENSHOT_WAITING_FOR_TEST_APP attempt=$attempt observed=$(printf '%s' "$foreground_activity" | tr -s ' ' | cut -c1-240)" | tee -a "$TEST_LOG_PATH"
+            echo "MAPBOX_OFFLINE_SCREENSHOT_WAITING_FOR_TEST_APP attempt=$attempt expected=$expected_component observed=$foreground_component" | tee -a "$TEST_LOG_PATH"
             ;;
         esac
         if [[ -n "$foreground_package" ]]; then
