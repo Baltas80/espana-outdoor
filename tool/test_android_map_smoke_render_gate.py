@@ -180,15 +180,15 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     (temp_root / "primary-build" / "app-release.apk").write_bytes(b"primary-apk")
     (temp_root / "standard-build" / "app-release.apk").write_bytes(b"standard-apk")
     (temp_root / "primary-build" / "android-staging-validation.txt").write_text(
-        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
-        "version_code=5\\nsource_commit=test-commit\\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\\n",
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
+        "version_code=5\nsource_commit=test-commit\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n",
         encoding="utf-8",
     )
     (temp_root / "standard-build" / "android-staging-validation.txt").write_text(
-        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
-        "version_code=5\\nsource_commit=test-commit\\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/standard\\n",
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
+        "version_code=5\nsource_commit=test-commit\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/standard\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
@@ -197,9 +197,9 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     timeout_stub = fake_bin / "timeout"
     timeout_stub.write_text(
         "#!/usr/bin/env bash\n"
-        'printf "RUNNER_TEMP=%s\\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
-        'printf "ARGS=%s\\n" "$*" >> "$CALL_LOG"\n'
-        'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\\n'
+        'printf "RUNNER_TEMP=%s\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
+        'printf "ARGS=%s\n" "$*" >> "$CALL_LOG"\n'
+        'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
         "exit 0\n",
         encoding="utf-8",
