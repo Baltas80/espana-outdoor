@@ -53,6 +53,8 @@ ui_dump() {
 
 window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
+logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
+screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
 capture_failure_evidence() {
   local exit_code=$?
   trap - EXIT
