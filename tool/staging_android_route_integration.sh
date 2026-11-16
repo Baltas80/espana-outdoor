@@ -78,6 +78,8 @@ bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"
 run_route_phase() {
   local mode="$1"
   local phase_status=0
+  local tile_store_usage_mode=READ_ONLY
+  if [[ "$mode" == "offline" ]]; then tile_store_usage_mode=READ_AND_UPDATE; fi
   echo "ROUTE_PHASE_START mode=$mode test_package=$TEST_PACKAGE_NAME app_package=$PACKAGE_NAME"
   if [[ "$mode" == "offline" ]]; then
     # Flutter integration_test output can be buffered by the host test runner.
@@ -91,6 +93,7 @@ run_route_phase() {
     -d "$DEVICE_SERIAL" \
     --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
     --dart-define=ROUTE_TEST_MODE="$mode" \
+    --dart-define=MAPBOX_TILESTORE_USAGE_MODE="$tile_store_usage_mode" \
     integration_test/mapbox_android_live_route_test.dart 2>&1 | sed -u -E 's/(^|[^[:alnum:]])(pk|sk)\.[A-Za-z0-9._~-]{10,}/\1\2.<REDACTED>/g' | tee -a "$TEST_LOG_PATH" &
   local phase_pid=$!
 
