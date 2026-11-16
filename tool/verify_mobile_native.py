@@ -119,6 +119,7 @@ def verify_android() -> None:
         "style-pack resource validation": "OFFLINE_STYLE_PACK_INCOMPLETE",
         "style-pack persistence verification": 'mapsOffline.getStylePack(styleUri)',
         "style-pack completion marker": '"offline:$regionId:stylePack"',
+        "style pack gates offline region readiness": "mapReady && routingReady && styleReady",
     }.items():
         if fragment not in bridge:
             raise SystemExit(f"Native Mapbox bridge is missing: {label}")
