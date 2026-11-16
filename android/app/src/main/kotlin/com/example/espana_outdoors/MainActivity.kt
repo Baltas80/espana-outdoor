@@ -52,6 +52,13 @@ class MainActivity : FlutterActivity() {
                 "requestRoute" -> navigationBridge.requestRoute(call.arguments, result)
                 "downloadOfflineRegion" -> navigationBridge.downloadOfflineRegion(call.arguments, result)
                 "hasOfflineRegion" -> navigationBridge.hasOfflineRegion(call.arguments, result)
+                "verifyOfflineRegion" -> {
+                    if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                        navigationBridge.verifyOfflineRegion(call.arguments, result)
+                    } else {
+                        result.notImplemented()
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
