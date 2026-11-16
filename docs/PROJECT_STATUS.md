@@ -524,3 +524,13 @@ No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado car
 - Corrección en la PR #79: el smoke deshabilita ese paquete de provisioning solo en el emulador CI desechable; añade `tool/verify_android_map_screen.py` para exigir el marcador Semantics `Mapa cartográfico` del viewport y rechazar home/dialogs; verifica la jerarquía después del toque y antes de capturar. `MapboxMapPage` expone el marcador mediante `Semantics(container: true, explicitChildNodes: true)` y el test estático ejecuta el self-test del verificador.
 - Commits de esta corrección: [a6bbeff](https://github.com/Baltas80/espana-outdoor/commit/a6bbeffd1650ef708aaa135fe915b23e2ade7210), [2535efd](https://github.com/Baltas80/espana-outdoor/commit/2535efd679e1fada23fc219cdca4c255e74a707e), [813eb7b](https://github.com/Baltas80/espana-outdoor/commit/813eb7bd6e105cd143752914e0708dcbe95420f9), [33c9aa9](https://github.com/Baltas80/espana-outdoor/commit/33c9aa9dbc5fdc9218a2386b9cbc5e9cc6c1a548).
 - Pendiente: CI/Security y nueva ejecución Android sobre el HEAD final; confirmar que el emulador llega a la página Mapa; entonces comparar Outdoors/Standard y revisar callbacks/PNG. No aceptar mapa online/offline ni fusionar PR #79 todavía.
+
+
+
+## Actualización — 16/11/2026 23:20 CET — endurecimiento de captura UIAutomator
+
+En Android staging [43960709972](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972), ambos APK (Outdoors y Standard) se compilaron, verificaron y publicaron como artefactos [14275217626](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972/artifacts/14275217626) y [14275242373](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972/artifacts/14275242373). El paso de smoke Android terminó en failure; el upload de evidencias quedó skipped y la descarga de logs devolvió `BlobNotFound`. Por tanto, no hay captura nueva ni diagnóstico suficiente para atribuir la causa del fallo.
+
+Revisión del harness identificó un punto frágil: `adb exec-out uiautomator dump /dev/tty` intenta escribir la jerarquía a un TTY en una sesión ADB no interactiva. Se ha sustituido por `adb shell uiautomator dump /sdcard/espana-outdoor-uiautomator.xml` seguido de `adb shell cat`, con timeout de 45 segundos y validación explícita de que el archivo contiene `<hierarchy>`. Se ha añadido una guarda estática que impide reintroducir `/dev/tty` en este flujo.
+
+Este cambio endurece una causa potencial del fallo, pero **no se afirma que sea la causa raíz confirmada**: los logs del run no están disponibles. Los APK compilados no demuestran que el smoke, el mapa online ni la comparación A/B hayan pasado. Repetir Android staging sobre el HEAD actualizado y conservar PNG, jerarquías y logcat antes de aceptar el gate.
