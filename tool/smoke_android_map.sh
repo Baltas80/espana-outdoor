@@ -3,6 +3,37 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+ADB_COMMAND="${ADB:-adb}"
+if ! command -v "${ADB_COMMAND}" >/dev/null 2>&1; then
+  echo "ERROR: adb executable was not found." >&2
+  exit 2
+fi
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "ERROR: GNU timeout is required to bound Android emulator commands." >&2
+  exit 2
+fi
+
+# Bound every adb call. UIAutomator/dumpsys can otherwise hang indefinitely
+# when the emulator loses its system-server or instrumentation connection.
+adb() {
+  local limit=20
+  case "${1:-}" in
+    wait-for-device) limit=120 ;;
+    install) limit=180 ;;
+    logcat) limit=60 ;;
+    exec-out)
+      if [[ "${2:-}" == "uiautomator" ]]; then limit=15; else limit=30; fi
+      ;;
+    shell)
+      case "${2:-}" in
+        dumpsys) limit=20 ;;
+        monkey) limit=30 ;;
+        *) limit=15 ;;
+      esac
+      ;;
+  esac
+  timeout --foreground --signal=TERM --kill-after=5s "${limit}s" "${ADB_COMMAND}" "$@"
+}
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
@@ -14,8 +45,35 @@ adb install -r "${apk_path}"
 
 ui_dump() {
   local file="$1"
-  adb exec-out uiautomator dump /dev/tty 2>/dev/null >"${file}" || true
+  if ! adb exec-out uiautomator dump /dev/tty >"${file}" 2>/dev/null; then
+    echo "ERROR: UIAutomator dump failed or timed out (15s)." >&2
+    return 1
+  fi
 }
+
+window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
+post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
+logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
+screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+capture_failure_evidence() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ ! -s "${logcat_file}" ]]; then
+    adb logcat -d >"${logcat_file}" 2>/dev/null || true
+  fi
+  if [[ ! -s "${window_file}" ]]; then
+    ui_dump "${window_file}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${post_window}" ]]; then
+    ui_dump "${post_window}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${screenshot_file}" ]]; then
+    adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
+  fi
+  exit "${exit_code}"
+}
+trap 'exit 124' TERM
+trap capture_failure_evidence EXIT
 
 wait_outside_anr() {
   local file="${RUNNER_TEMP:-/tmp}/espana-system-dialog.xml"
@@ -136,6 +194,14 @@ launch_app() {
   wait_outside_anr
 }
 
+if [[ "${offline_mode}" == "online" && "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  echo "Verifying a validated internet connection before the online Mapbox smoke."
+  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  bash "${script_dir}/ensure_android_emulator_online.sh"
+elif [[ "${offline_mode}" == "online" ]]; then
+  echo "ANDROID_EMULATOR_NETWORK preflight=skipped reason=not_ci_emulator"
+fi
+
 launch_app
 
 if test "${offline_mode}" = "offline"; then
@@ -150,7 +216,6 @@ if test "${offline_mode}" = "offline"; then
   launch_app
 fi
 
-window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 ui_dump "${window_file}"
 if ! grep -q '<hierarchy' "${window_file}"; then
   echo "FAIL: UIAutomator did not return a hierarchy."
@@ -219,6 +284,21 @@ sleep 15
 
 logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
 screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+
+# The process can remain alive in the background while the launcher or a
+# system dialog owns the screen. Never accept a screenshot without proving
+# that the application under test is the resumed/focused package.
+foreground_dump="$(adb shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | tr -d '\r' || true)"
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  foreground_dump="$(adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity' | tr -d '\r' || true)"
+fi
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  echo "FAIL: application is not the foreground Android package."
+  printf '%s\n' "${foreground_dump}"
+  exit 1
+fi
+echo "MAP_SMOKE_FOREGROUND package=${package_name} verified=true"
+
 adb logcat -d >"${logcat_file}"
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
@@ -236,7 +316,6 @@ if grep -Eiq "FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort me
   exit 1
 fi
 
-post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
 ui_dump "${post_window}"
 if grep -Fq 'No se pudo cargar el mapa' "${post_window}" || grep -Fq 'Reintentar' "${post_window}"; then
   echo "FAIL: Mapbox is showing the map loader error state."
@@ -249,6 +328,11 @@ if grep -Eiq "MapboxException|StyleManager" "${logcat_file}"; then
   grep -Ein "MapboxException|StyleManager|HTTP [0-9]{3}|Range|Mapbox|MapboxSDK|MapboxStyle" "${logcat_file}" | tail -n 500 || true
   exit 1
 fi
+
+# A live process and absence of a loader message do not prove that the
+# cartographic viewport rendered. Reject blank/partial maps before uploading
+# the smoke evidence or reporting a successful Android staging run.
+python3 tool/verify_android_map_screenshot.py "${screenshot_file}" --foreground-package "${package_name}"
 
 echo "PASS: Mapbox map remained alive and the visible UI is not in the loader error state."
 grep -Ei "Mapbox|MapboxSDK|MapboxStyle|tile|Range" "${logcat_file}" | tail -n 200 || true
