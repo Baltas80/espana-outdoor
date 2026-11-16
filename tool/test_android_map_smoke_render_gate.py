@@ -141,6 +141,29 @@ standard_build = standard_build.split("- name: Upload Android staging APK", 1)[0
 for marker in (
     "github.event.pull_request.number == 79",
     "continue-on-error: true",
+    'primary_dir="$RUNNER_TEMP/primary-build"',
+    'standard_dir="$RUNNER_TEMP/standard-build"',
+    'cp "$primary_apk" "$primary_dir/app-release.apk"',
+    'cp build/android-staging-validation.txt "$primary_dir/android-staging-validation.txt"',
+    "flutter clean",
+    "flutter pub get --enforce-lockfile",
+    '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
+    'cp "$standard_apk" "$standard_dir/app-release.apk"',
+    'echo "mapbox_style_uri=mapbox://styles/mapbox/standard"',
+    'echo "validation_scope=runtime-capable-artifact"',
+):
+    if marker not in standard_build:
+        raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
+if "--build-dir" in workflow:
+    raise SystemExit("Flutter 3.47.5 does not support --build-dir; preserve A/B APKs outside build/ instead.")
+if standard_build.index('cp "$primary_apk" "$primary_dir/app-release.apk"') > standard_build.index("flutter clean"):
+    raise SystemExit("The verified primary APK must be preserved before flutter clean.")
+if standard_build.index("flutter clean") > standard_build.index("flutter pub get --enforce-lockfile"):
+    raise SystemExit("A clean Standard build must restore dependencies from the committed lockfile.")
+
+for marker in (
+    "github.event.pull_request.number == 79",
+    "continue-on-error: true",
     "--build-dir=build/standard",
     '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
     "build/standard/android-staging-validation.txt",
@@ -158,6 +181,8 @@ if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
     raise SystemExit("The Standard APK requirement must not turn an early cancellation into a false build failure.")
 
 for marker in (
+    'primary_apk="$RUNNER_TEMP/primary-build/app-release.apk"',
+    'standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"',
     'RUNNER_TEMP="$RUNNER_TEMP/primary"',
     'RUNNER_TEMP="$RUNNER_TEMP/standard"',
     "primary_status=$?",
@@ -169,6 +194,8 @@ for marker in (
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 for marker in (
+    "${{ runner.temp }}/primary-build/app-release.apk",
+    "${{ runner.temp }}/standard-build/app-release.apk",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
