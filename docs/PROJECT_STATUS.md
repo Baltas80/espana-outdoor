@@ -260,3 +260,16 @@ La PR #61 permanece en draft. No fusionar hasta obtener en un mismo HEAD: contad
 ## Sincronización documental con main — 15/11/2026
 
 Se revisó el commit de main `669c8c48dbad05e3d115793e84b2c0b3faca22ea`, cuyo único archivo cambiado desde el merge base es este documento. Su corrección de aceptación (un TileRegion agregado no demuestra teselas Maps) está incorporada y ampliada en esta rama: regiones Maps/Navigation independientes, resultados de emulador del HEAD anterior y corrección del disparador de captura por logcat. Al sincronizar la ascendencia se conserva esta versión de estado, que incluye la evidencia más reciente de PR #61; no se descartan cambios de código de main porque no existen otros archivos divergentes.
+
+
+## Actualización de entrega — 16/11/2026 02:23 CET
+
+PR #61 se mantiene abierta y en draft. HEAD probado por Android staging: `9b3b0fbe1e31942b39a3b9e68c3dbfdfca7e7692`. Run [43774889122](https://github.com/Baltas80/espana-outdoor/actions/runs/43774889122): análisis/tests Flutter y APK staging superados; CI general [43774889115](https://github.com/Baltas80/espana-outdoor/actions/runs/43774889115) 4/4; Security baseline [43774889184](https://github.com/Baltas80/espana-outdoor/actions/runs/43774889184) 8/8.
+
+APK runtime-capable más reciente: artefacto [14188447528](https://github.com/Baltas80/espana-outdoor/actions/runs/43774889122/artifacts/14188447528), source commit `9b3b0fbe`, SHA-256 `7626c90c2a3aedee2c924dd52a5a560ef55ec289ebaef1832fd48529e2f922c9` (recalculado y coincidente con el manifiesto).
+
+La integración en emulador confirma ruta online 767,757 m / 55 puntos, descarga Maps independiente (29 recursos / 32.892.088 bytes / 0 errores), Navigation walking (4 / 9.955.518 bytes / 0 errores) y ruta nueva offline (1.109,662 m / 66 puntos). El mapa offline sigue fallando: 14 `IN_OFFLINE_MODE/NETWORK/TILE`, sin `map_loaded`, full frame ni idle. El artefacto de ruta solo contiene stdout porque el runner no guardaba logcat cuando la aserción fallaba.
+
+Se corrigió el harness: el foreground component real usa `applicationId/namespace.MainActivity`; el runner comparaba erróneamente `namespace/`. El matcher ahora verifica ambos segmentos y el trap EXIT conserva logcat saneado antes de restablecer la red. Commits: `71e89b8`, `5c8579d`, `8cbeb25`, `9ab86a3`. Estas correcciones aún no tienen una ejecución CI asociada.
+
+Próxima prioridad: ejecutar Android staging sobre el nuevo HEAD, comprobar PNG offline válido y logcat completo, identificar por qué los tile packs Maps descargados no satisfacen las solicitudes de la fuente `composite`, y repetir force-stop/reinicio. No fusionar #61 ni declarar offline completo. La validación física OPPO, Keycloak/PostgreSQL, Valhalla de producción y release firmado siguen pendientes.
