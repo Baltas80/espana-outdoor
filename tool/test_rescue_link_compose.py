@@ -31,10 +31,16 @@ for fragment in (
         raise SystemExit(f"Keycloak must pin its issuer and trust the configured reverse-proxy headers: {fragment}")
 if "KEYCLOAK_HOSTNAME=http://keycloak:8080" not in example:
     raise SystemExit("Local Compose Keycloak hostname must match the local OIDC issuer.")
+if "OIDC_ISSUER=http://keycloak:8080/realms/espana-outdoor" not in example:
+    raise SystemExit("Local Source Gateway issuer must match the local Keycloak hostname.")
 if "KEYCLOAK_HOSTNAME=https://auth.espanaoutdoor.es" not in production_endpoints:
     raise SystemExit("Production endpoint template must pin the public Keycloak hostname.")
 if "KEYCLOAK_PROXY_HEADERS=xforwarded" not in production_endpoints:
     raise SystemExit("Production endpoint template must declare the reverse-proxy header mode.")
+if "OIDC_ISSUER=https://auth.espanaoutdoor.es/realms/espana-outdoor" not in production_endpoints:
+    raise SystemExit("Production endpoint template must use the OIDC_ISSUER variable consumed by Compose.")
+if "OIDC_ISSUER_URL=" in production_endpoints:
+    raise SystemExit("Production endpoint template must not use the unconsumed OIDC_ISSUER_URL alias.")
 if "X-Forwarded-Host" not in runbook or "overwrite" not in runbook or "KC_HOSTNAME_STRICT=true" not in runbook:
     raise SystemExit("Production runbook must require trusted overwritten proxy headers and strict Keycloak hostname.")
 
@@ -55,6 +61,8 @@ if "ALLOW_HTTP_DEV=true" not in example or "sslmode=disable" not in example:
 if "PostgreSQL" not in runbook or "TLS" not in runbook:
     raise SystemExit("The production runbook must document PostgreSQL TLS.")
 
+print("keycloak_hostname_and_proxy=required_config")
+print("oidc_issuer_matches_hostname=required_config")
 print("source_gateway_database_dsn=required_config")
 print("rescue_link_database_dsn=shared_tls_aware_config")
 print("rescue_link_audience=required_dedicated")
