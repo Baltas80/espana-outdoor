@@ -1,0 +1,50 @@
+name: Web OIDC
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/web-oidc.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/web-oidc.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-oidc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-oidc:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify Node runtime
+        run: node --version
+      - name: Check browser script syntax
+        run: |
+          node --check site/app.js
+          node --check site/account.js
+          node --check site/oidc-pkce.mjs
+      - name: Test OIDC PKCE client
+        run: node --test site/oidc-pkce.test.mjs
+      - name: Verify static account security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f site/cuenta.html
+          test -f site/account.js
+          grep -q 'type="module" src="./account.js"' site/cuenta.html
+          grep -q 'https://api.espanaoutdoor.es' site/_headers
+          grep -q 'https://auth.espanaoutdoor.es' site/_headers
+          ! grep -Eq 'localStorage|client_secret|refresh_token' site/account.js

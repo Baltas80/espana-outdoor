@@ -10,6 +10,16 @@ const onScroll = () => {
 window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 
+// Cuenta compartida entre la web y Android.
+if (nav && !nav.querySelector('a[href="./cuenta.html"]')) {
+  const accountLink = document.createElement('a');
+  accountLink.href = './cuenta.html';
+  accountLink.textContent = 'Mi cuenta';
+  const appLink = Array.from(nav.querySelectorAll('a[href]')).find((link) => link.getAttribute('href') === './app.html');
+  if (appLink) nav.insertBefore(accountLink, appLink);
+  else nav.appendChild(accountLink);
+}
+
 // Tienda integrada en la navegación global de España Outdoor.
 if (nav && !nav.querySelector('a[href="./tienda.html"]')) {
   const storeLink = document.createElement('a');
@@ -21,6 +31,13 @@ if (nav && !nav.querySelector('a[href="./tienda.html"]')) {
 }
 
 const footerLinks = document.querySelector('.footer-links');
+if (footerLinks && !footerLinks.querySelector('a[href="./cuenta.html"]')) {
+  const accountFooterLink = document.createElement('a');
+  accountFooterLink.href = './cuenta.html';
+  accountFooterLink.textContent = 'Mi cuenta';
+  footerLinks.appendChild(accountFooterLink);
+}
+
 if (footerLinks && !footerLinks.querySelector('a[href="./tienda.html"]')) {
   const storeFooterLink = document.createElement('a');
   storeFooterLink.href = './tienda.html';
