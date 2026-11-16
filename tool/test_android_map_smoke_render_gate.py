@@ -296,15 +296,25 @@ for marker in (
         raise SystemExit(f"Mapbox Standard A/B artifact verification is missing: {marker}")
 
 apk_upload = workflow.split("- name: Upload Android staging APK", 1)[1]
-apk_upload = apk_upload.split("- name: Enable KVM for Android emulator", 1)[0]
+apk_upload = apk_upload.split("- name: Upload Mapbox Standard A/B APK", 1)[0]
 for marker in (
     "${{ runner.temp }}/primary-build/app-release.apk",
     "${{ runner.temp }}/primary-build/android-staging-validation.txt",
+):
+    if marker not in apk_upload:
+        raise SystemExit(f"Primary Android staging artifact upload is missing: {marker}")
+if "if: success() && steps.build_apk.outputs.built == 'true'" not in apk_upload:
+    raise SystemExit("The primary APK must upload only after its verification step succeeds.")
+standard_upload = workflow.split("- name: Upload Mapbox Standard A/B APK", 1)[1]
+standard_upload = standard_upload.split("- name: Enable KVM for Android emulator", 1)[0]
+for marker in (
     "${{ runner.temp }}/standard-build/app-release.apk",
     "${{ runner.temp }}/standard-build/android-staging-validation.txt",
 ):
-    if marker not in apk_upload:
-        raise SystemExit(f"Android staging artifact upload is missing A/B file: {marker}")
+    if marker not in standard_upload:
+        raise SystemExit(f"Standard A/B artifact upload is missing: {marker}")
+if "if: success() && steps.build_standard_apk.outcome == 'success'" not in standard_upload:
+    raise SystemExit("The Standard artifact upload must be conditional on a successful comparison build.")
 if "if: success() && steps.build_apk.outputs.built == 'true'" not in workflow:
     raise SystemExit("The primary APK must upload only after its verification step succeeds.")
 if "- name: Require Mapbox Standard A/B APK" not in workflow:
