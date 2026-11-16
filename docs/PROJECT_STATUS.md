@@ -1,5 +1,14 @@
 # España Outdoor — estado técnico
 
+## Estado de validación posterior — 16/11/2026 14:48 CET
+
+- PR #77 ahora tiene un único commit hijo de main, [`6eef2d6`](https://github.com/Baltas80/espana-outdoor/commit/6eef2d6c6069c4b113719a297c493ae621c648dc). Security baseline [43879125182](https://github.com/Baltas80/espana-outdoor/actions/runs/43879125182) terminó correctamente: Gitleaks pasó sobre el diff final, además de filesystem, SBOM y CodeQL Actions/Go. CI [43879125044](https://github.com/Baltas80/espana-outdoor/actions/runs/43879125044) sigue en ejecución: Source Gateway y Rescue Link pasaron, iOS build y full Flutter test suite aún estaban ejecutándose en la última lectura. Android staging [43879125021](https://github.com/Baltas80/espana-outdoor/actions/runs/43879125021) pending.
+- PR #73: Security [43877738956](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738956) success. CI [43877738968](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738968): Source Gateway, Rescue Link, iOS y full Flutter test suite completados correctamente; Android release build sigue en curso. Android staging [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921): análisis/tests completados; build APK en curso, todavía sin ejecución del emulador ni PNG.
+- Main commit `2c25aba`: Android staging [43877534235](https://github.com/Baltas80/espana-outdoor/actions/runs/43877534235) compiló, verificó y publicó el APK, habilitó KVM y continúa en el smoke antiguo. El nuevo timeout/gate está solo en PR #73; el run de main no demuestra todavía cartografía.
+- El fallo Security de main [43877534385](https://github.com/Baltas80/espana-outdoor/actions/runs/43877534385) está atribuido por log a la clave local en el squash commit `2c25aba`. La corrección en PR #77 elimina el literal sospechoso del nuevo diff sin ampliar allowlists; todavía no está integrada en main.
+
+---
+
 ## Actualización adicional — 16/11/2026 14:45 CET
 
 - PR #74 se integró en main como squash commit `2c25aba102ab2f7c1b530a0d4dd0392491ca7625`.
