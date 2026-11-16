@@ -6,7 +6,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / "tool" / "smoke_android_map.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
+NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
 source = SMOKE.read_text(encoding="utf-8")
+if not NETWORK_PREFLIGHT.is_file():
+    raise SystemExit("Android map smoke references a missing emulator network preflight script.")
+network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
 
 required = (
@@ -19,6 +23,10 @@ required = (
     "verify_android_map_screenshot.py",
     '--foreground-package "${package_name}"',
 )
+for marker in ("ANDROID_EMULATOR_CI", "validated_internet=1", "Active default network", "INTERNET", "VALIDATED"):
+    if marker not in network_preflight:
+        raise SystemExit(f"Android emulator network preflight is missing validation: {marker}")
+
 for marker in required:
     if marker not in source:
         raise SystemExit(f"Android map smoke is missing foreground/render gate: {marker}")
