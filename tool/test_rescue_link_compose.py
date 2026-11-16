@@ -8,6 +8,7 @@ compose = (ROOT / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
 example = (ROOT / "infra" / ".env.example").read_text(encoding="utf-8")
 runbook = (ROOT / "infra" / "PRODUCTION_RUNBOOK.md").read_text(encoding="utf-8")
 production_endpoints = (ROOT / "infra" / "PRODUCTION_ENDPOINTS.template.env").read_text(encoding="utf-8")
+keycloak_db_init = (ROOT / "infra" / "postgres" / "init" / "99-ensure-keycloak-db.sh").read_text(encoding="utf-8")
 
 
 def service_block(name: str, next_service: str) -> str:
@@ -18,6 +19,7 @@ def service_block(name: str, next_service: str) -> str:
     return compose.split(start_marker, 1)[1].split(end_marker, 1)[0]
 
 
+postgres = service_block("postgres", "keycloak")
 keycloak = service_block("keycloak", "source-gateway")
 source_gateway = service_block("source-gateway", "rescue-link")
 rescue_link = service_block("rescue-link", "martin")
@@ -29,6 +31,23 @@ for fragment in (
 ):
     if fragment not in keycloak:
         raise SystemExit(f"Keycloak must pin its issuer and trust the configured reverse-proxy headers: {fragment}")
+if "KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set in .env}" not in postgres:
+    raise SystemExit("PostgreSQL must receive the dedicated Keycloak database password.")
+if "./postgres/init:/docker-entrypoint-initdb.d:ro" not in postgres:
+    raise SystemExit("PostgreSQL must mount its initialization scripts read-only.")
+for fragment in (
+    "CREATE ROLE keycloak LOGIN PASSWORD",
+    "ALTER ROLE keycloak WITH LOGIN PASSWORD",
+    "CREATE DATABASE keycloak OWNER keycloak",
+    "ALTER DATABASE keycloak OWNER TO keycloak",
+    "--set keycloak_password=${KEYCLOAK_DB_PASSWORD}",
+):
+    if fragment not in keycloak_db_init:
+        raise SystemExit(f"Dedicated Keycloak database bootstrap is incomplete: {fragment}")
+if "KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak" not in keycloak:
+    raise SystemExit("Keycloak must connect to its dedicated keycloak database.")
+if "KC_DB_USERNAME: keycloak" not in keycloak:
+    raise SystemExit("Keycloak must use the dedicated keycloak database role.")
 if "KEYCLOAK_HOSTNAME=http://keycloak:8080" not in example:
     raise SystemExit("Local Compose Keycloak hostname must match the local OIDC issuer.")
 if "OIDC_ISSUER=http://keycloak:8080/realms/espana-outdoor" not in example:
