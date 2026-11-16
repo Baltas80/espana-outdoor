@@ -169,3 +169,36 @@ Corrección aplicada en esta PR:
 - Añadir un self-test con casos positivos de la página Mapa, pantalla de inicio y diálogo del sistema.
 
 La ejecución 43950050766 **no es una comparación A/B válida** y no demuestra que ninguno de los dos estilos haya fallado al renderizar. La nueva ejecución debe confirmar primero que la página Mapa está realmente abierta; solo entonces se interpretarán los callbacks y el PNG.
+
+## Diagnóstico A/B y paridad de pixel ratio — 17/11/2026
+
+Ejecución Android staging [43969985170](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170), source commit `d49551168f747347581ba30d3b0ece1eb584fb06`. El artefacto [14279481897](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14279481897) contiene capturas, jerarquías y logcat independientes para Outdoors y Standard.
+
+Esta vez el verificador confirmó la página real `Mapa cartográfico` y que la ventana superior pertenece a España Outdoor. Por tanto, a diferencia de los intentos bloqueados por la pantalla Home/ANR, **ambos estilos sí llegaron a ejecutar el viewport Mapbox**.
+
+Resultado observado en ambos:
+- `STYLE_LOADED` presente.
+- Solo `RenderMode.PARTIAL`; no aparece `MAP_LOADED`, `MAP_IDLE` ni `MAP_LOAD_ERROR`.
+- Fuente `composite`: 3 eventos `loaded=true`; 92 `loaded=false`. No se completa el viewport.
+- Siete respuestas de tesela únicas llegaron desde Network con tamaño no vacío y sin error. El listener refleja cada respuesta en las fases `NETWORK` y `RESOURCE_LOADER`; no deben contarse como 14 teselas distintas.
+- Los `NOT_FOUND` de `TILE_STORE` son misses locales seguidos de fallback de red, no evidencia de HTTP 404 ni de rechazo del token.
+- Las dos capturas 1080×2400 muestran el área cartográfica casi negra. Outdoors conserva algo de linework oscuro; Standard no ofrece una representación cartográfica utilizable. Ninguno supera el gate visual.
+
+Esta comparación es válida como diagnóstico de los dos estilos en el mismo emulador/commit y con limpieza de datos entre APK, pero **no acepta ninguno**. Que ambos fallen de forma similar apunta a una variable compartida (configuración del MapView, renderer o carga de fuentes), no demuestra que el estilo Outdoors sea la causa.
+
+### Hipótesis de configuración: pixel ratio distinto entre MapView y TileStore
+
+La revisión cruzada de la rama de integración offline #61 encontró que el descriptor nativo de Mapbox se crea con `resources.displayMetrics.density`, mientras que el `MapWidget` de la rama principal no proporcionaba `MapOptions` y heredaba el valor predeterminado `pixelRatio=1.0`.
+
+La API oficial de Flutter documenta ese valor predeterminado de `MapOptions.pixelRatio`; la guía Android de Mapbox construye los descriptors offline usando el pixel ratio de la pantalla. Referencias: [MapOptions](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/MapOptions-class.html), [gestión de datos offline](https://docs.mapbox.com/android/maps/guides/offline/manage-offline-data/).
+
+Se ha portado a esta PR una configuración explícita:
+- `MediaQuery.devicePixelRatioOf(context)` para el MapWidget.
+- `MapOptions.pixelRatio` igual a esa densidad.
+- `GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY` y fallback `sans-serif`, en paridad con el style pack nativo.
+- Validación de valores finitos y positivos.
+- Test Dart del helper y guard estático para impedir que el MapWidget deje de usarlo.
+
+Esto corrige una discrepancia real entre la configuración de renderizado y la descarga offline, pero **todavía es una hipótesis respecto al mapa negro online**. Debe validarse con un nuevo APK del HEAD actualizado. El log debe incluir `MAPBOX_MAP_OPTIONS pixel_ratio=...`; la aceptación requiere `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y PNG legible.
+
+No cambiar el estilo predeterminado, no alterar TileStore ni fusionar PR #79 hasta completar esa validación.
