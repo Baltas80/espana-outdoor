@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -291,7 +290,7 @@ Future<void> _expectOfflineMapRendered(
   // bottom navigation. Pumping a second standalone MapWidget left the
   // original Android PlatformView alive and made the test observe a different
   // map instance from the one displayed by the app.
-  final mapDestination = find.bySemanticsLabel('Mapa');
+  final mapDestination = find.byTooltip('Mapa');
   final navigationDeadline = DateTime.now().add(const Duration(seconds: 30));
   while (mapDestination.evaluate().isEmpty &&
       DateTime.now().isBefore(navigationDeadline)) {
