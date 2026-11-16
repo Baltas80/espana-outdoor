@@ -69,6 +69,9 @@ test("discovery requires the configured issuer and same-origin HTTPS endpoints",
       issuer,
       authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
       token_endpoint: `${issuer}/protocol/openid-connect/token`,
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      code_challenge_methods_supported: ["S256"],
     }),
   });
   const document = await loadOidcDiscovery(issuer, validFetch);
@@ -84,6 +87,20 @@ test("discovery requires the configured issuer and same-origin HTTPS endpoints",
       }),
     })),
     /OIDC_ISSUER_MISMATCH/,
+  );
+
+  await assert.rejects(
+    loadOidcDiscovery(issuer, async () => ({
+      ok: true,
+      json: async () => ({
+        issuer,
+        authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+        token_endpoint: `${issuer}/protocol/openid-connect/token`,
+        response_types_supported: ["code"],
+        code_challenge_methods_supported: ["plain"],
+      }),
+    })),
+    /OIDC_PKCE_S256_UNSUPPORTED/,
   );
 });
 
