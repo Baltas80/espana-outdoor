@@ -147,18 +147,18 @@ for marker in (
         raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
 
 for marker in (
-    'RUNNER_TEMP="$RUNNER_TEMP/outdoors"',
+    'RUNNER_TEMP="$RUNNER_TEMP/primary"',
     'RUNNER_TEMP="$RUNNER_TEMP/standard"',
-    "outdoors_status=$?",
+    "primary_status=$?",
     "standard_status=$?",
-    "MAPBOX_STYLE_AB outdoors_status=",
+    "MAPBOX_STYLE_AB primary_status=",
 ):
     if marker not in smoke_job:
         raise SystemExit(f"Android smoke must execute both styles and retain both results: {marker}")
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 for marker in (
-    "${{ runner.temp }}/outdoors/espana-outdoor-map.png",
+    "${{ runner.temp }}/primary/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
 ):
