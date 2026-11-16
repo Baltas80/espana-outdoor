@@ -1,10 +1,22 @@
 # España Outdoor — estado técnico
 
-Última revisión: **16/11/2026 16:26 CET**. Rama de referencia: `main`, HEAD verificado: `99396b6788fb45c0f9618f93aeedd61311a96fbc`.
+Última revisión: **16/11/2026 21:17 CET**. Rama de referencia: `main`, HEAD verificado: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
-## Snapshot operativo vigente — 16/11/2026 16:26 CET
+## Snapshot operativo vigente — 16/11/2026 21:17 CET
+
+### Delta verificado de la ejecución A/B
+- `main` apunta a `fbf4024`; PR #79 (`fix/mapbox-render-diagnostics-ready-20261116`) está 54 commits ahead y 0 behind, HEAD fuente `3029c33`, todavía draft.
+- CI general de PR #79 [43939379797](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379797): success. Security baseline [43939379759](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379759): 8/8.
+- Android staging [43939379836](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836): análisis/tests, APK Outdoors, verificación SHA, APK Standard, manifiestos y upload superados; el smoke falló antes de instalar el primer APK.
+- Causa: el `script: |` multilínea de `reactivecircus/android-emulator-runner` ejecutó cada línea en un proceso `/usr/bin/sh -c` separado. Las variables `primary_apk`/`standard_apk` no sobrevivieron entre líneas; `smoke_android_map.sh` recibió argumento vacío (`APK path required`). El emulador sí arrancó.
+- Artefacto [14263750648](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836/artifacts/14263750648): ambos APK presentes. SHA-256 recalculados y coincidentes con manifiestos: Outdoors `ac25d20b2cf1a1eed3cd1d1bc143d68c14b7c9a185de3b6e9f7d00508c26b8f3`; Standard `fe0119624c81dcc47f3ed2c0e70dbe380328d2619e0788826f21c095cb48b1b2`. Ambos son runtime-capable, source commit `3029c33`, Flutter 3.47.5.
+- Corrección preparada en esta rama: mover toda la orquestación a `tool/smoke_android_map_ab.sh` y dejar una única invocación en el input `script` del action. El test Python ejecuta el wrapper con un `timeout` simulado para probar ambos estilos, la continuidad tras fallo primario y el modo no-A/B.
+- La corrección del pipeline no cambia el resultado cartográfico: el último mapa Outdoors aceptado sigue sin cumplir `MAP_LOADED`, `FULL`, `IDLE` ni el gate visual. Ninguno de los dos APK del run 43939379836 se ejecutó; no hay comparación A/B válida todavía.
+- PR #79 permanece en draft. No integrar hasta que el nuevo smoke ejecute ambos APK y produzca PNG/logcat/diagnósticos revisables.
+
+## Snapshot histórico — 16/11/2026 16:26 CET
 
 ### Main, integraciones y CI
 - PR #68 (seguridad backend), #70 (Keycloak/PostgreSQL), #71 (Community API Android/lockfile), #74 (Gitleaks) y #75 (documentación anterior) están integradas. PR #77 corrigió el falso positivo de Gitleaks migrando la clave local de waypoints y está fusionada; `main` apunta a `99396b6`.
