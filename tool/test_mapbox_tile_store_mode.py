@@ -26,6 +26,11 @@ required = (
     "routingCompletedResourceCount",
     '"offline:$regionId:maps"',
     '"offline:$regionId:routing-walking"',
+    '"offline:$regionId:styleUri"',
+    '"offline:$regionId:pixelRatio"',
+    'fun verifyOfflineRegion(',
+    'tileRegionContainsDescriptors(mapRegionId',
+    'MapboxMapsOptions.tileStore === store',
 )
 for fragment in required:
     if fragment not in source:
@@ -128,6 +133,10 @@ for fragment in (
     "mapCompletedResourceCount",
     "routingCompletedResourceCount",
     "routingTiles",
+    "verifyOfflineRegion",
+    "mapDescriptorPresentInMapsStore",
+    "mapTileStoreSameInstance",
+    "mapPixelRatio",
 ):
     if fragment not in integration_test:
         raise SystemExit(
