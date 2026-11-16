@@ -75,6 +75,26 @@ for fragment in (
             f"Offline acceptance must verify map and routing TileRegions independently: {fragment}"
         )
 
+# The app's TileStore must live outside the evictable cache and survive a
+# force-stop/process restart. The SDK root path must be set before create().
+root_path_setup = source.index("TileStore.setRootPath(path)")
+tile_store_create = source.index("TileStore.create()")
+if not (0 <= root_path_setup < tile_store_create):
+    raise SystemExit("Set the persistent TileStore root path before creating the process TileStore.")
+for fragment in (
+    "File(context.noBackupFilesDir, TILE_STORE_DIRECTORY)",
+    "directory.mkdirs()",
+    "check(rootPath.isValue)",
+    "directory.absolutePath + File.separator",
+):
+    if fragment not in source:
+        raise SystemExit(f"Persistent private TileStore path is not guarded: {fragment}")
+if "context.cacheDir" in source or "context.externalCacheDir" in source:
+    raise SystemExit("Offline TileStore must not be placed in an evictable cache directory.")
+destroy_body = source.split("fun destroy()", 1)[1].split("private companion object", 1)[0]
+if "delete" in destroy_body or "removeTileRegion" in destroy_body:
+    raise SystemExit("Destroying the navigation bridge must not delete persistent offline regions.")
+
 if "TileStoreUsageMode.READ_AND_UPDATE" in source:
     raise SystemExit(
         "Do not set READ_AND_UPDATE globally: it converts free-pan map requests "
