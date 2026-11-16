@@ -534,3 +534,52 @@ En Android staging [43960709972](https://github.com/Baltas80/espana-outdoor/acti
 Revisión del harness identificó un punto frágil: `adb exec-out uiautomator dump /dev/tty` intenta escribir la jerarquía a un TTY en una sesión ADB no interactiva. Se ha sustituido por `adb shell uiautomator dump /sdcard/espana-outdoor-uiautomator.xml` seguido de `adb shell cat`, con timeout de 45 segundos y validación explícita de que el archivo contiene `<hierarchy>`. Se ha añadido una guarda estática que impide reintroducir `/dev/tty` en este flujo.
 
 Este cambio endurece una causa potencial del fallo, pero **no se afirma que sea la causa raíz confirmada**: los logs del run no están disponibles. Los APK compilados no demuestran que el smoke, el mapa online ni la comparación A/B hayan pasado. Repetir Android staging sobre el HEAD actualizado y conservar PNG, jerarquías y logcat antes de aceptar el gate.
+
+## Actualización 17/11/2026 00:23 CET — A/B cartográfico válido y paridad de pixel ratio
+
+### Evidencia nueva de Android staging
+
+En [Android staging 43969985170](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170), source commit `d49551168f747347581ba30d3b0ece1eb584fb06`:
+- CI general [43969985400](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985400): success.
+- Security baseline [43969985219](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985219): success (8/8).
+- Android staging: ambos APK se compilaron y sus pasos de verificación finalizaron correctamente; el smoke falló únicamente en la aceptación del renderizado y publicó evidencias.
+- Artefactos: APK principal [14280355680](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14280355680), APK Standard [14279171310](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14279171310), capturas/jerarquías/logcat [14279481897](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14279481897).
+
+El verificador confirmó que ambos experimentos llegaron a la página real `Mapa cartográfico` y que la ventana pertenecía a España Outdoor. Esta es la primera comparación A/B válida de esta secuencia; los intentos anteriores afectados por el ANR de Google SDK Setup no se consideran pruebas de estilo.
+
+Resultados:
+- Outdoors y Standard registran `STYLE_LOADED`, pero solo `RenderMode.PARTIAL`.
+- Ninguno alcanza `MAP_LOADED` ni `MAP_IDLE`; no aparece `MAP_LOAD_ERROR`.
+- La fuente composite registra 3 eventos `loaded=true` y 92 `loaded=false` en cada experimento.
+- Siete respuestas únicas de tesela llegan desde Network con tamaño no vacío y sin error. Los misses de TileStore son fallback local/red, no prueba de HTTP 404.
+- Las dos capturas son casi negras y no superan el gate visual.
+
+Conclusión: ambos estilos fallan bajo una variable compartida. No hay base para atribuirlo exclusivamente a Outdoors ni al token. La comparación tampoco acepta el mapa.
+
+### Corrección aplicada en la rama PR #79
+
+La rama offline #61 ya había detectado que el descriptor nativo de TileStore usa `resources.displayMetrics.density`, mientras el MapWidget de main heredaba `MapOptions.pixelRatio=1.0`. La API de Mapbox documenta ese valor predeterminado y su guía Android usa la densidad de pantalla para los descriptors.
+
+Se ha portado a la PR #79:
+- `MapOptions.pixelRatio = MediaQuery.devicePixelRatioOf(context)`.
+- Configuración de glyphs en paridad con el style pack nativo.
+- Validación de pixel ratio finito y positivo.
+- Tests Dart del helper y guard estático para exigir su uso por MapWidget.
+
+Commits:
+- [092a55f](https://github.com/Baltas80/espana-outdoor/commit/092a55f0867d25194e0343248699c2c04999c7a6) — configuración MapOptions.
+- [16f7b4a](https://github.com/Baltas80/espana-outdoor/commit/16f7b4a20f34c1b16f99b3ff6ab0b70b2325fd53) — pruebas de pixel ratio/glyphs.
+- [7f364a4](https://github.com/Baltas80/espana-outdoor/commit/7f364a40bd371606ab36d5f525c1a8b0468d77f5) — guard CI.
+- [22a0e18](https://github.com/Baltas80/espana-outdoor/commit/22a0e18348c9e214fcafcad74186b2c392ddd377) — documentación de evidencia e hipótesis.
+
+La discrepancia de configuración está corregida en código, pero no se declara causa raíz del mapa negro hasta obtener un nuevo APK y comprobar que el viewport alcanza `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y supera el gate visual.
+
+### Estado de integración
+
+- `main`: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
+- PR #79 sigue en draft; no fusionar hasta que CI/Security y Android staging pasen en el HEAD nuevo y exista evidencia visual aceptable.
+- PR #61 sigue divergente; no fusionar ni superponer sus cambios de forma masiva.
+- Mapa offline, persistencia tras reinicio y validación física del APK exacto en OPPO siguen pendientes.
+- Identidad compartida web/Android, configuración real de Keycloak/PostgreSQL TLS, Valhalla de producción, DNS/HTTP externos y protección de main siguen pendientes.
+
+Siguiente prioridad: ejecutar CI, Security y Android staging sobre el nuevo HEAD; inspeccionar el log `MAPBOX_MAP_OPTIONS pixel_ratio` y repetir la comparación A/B. Si sigue sin alcanzar render completo, investigar el renderer y el estado de la fuente composite con esta configuración ya alineada.
