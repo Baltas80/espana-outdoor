@@ -41,6 +41,33 @@ test -n "${package_name}"
 
 echo "Installing ${package_name}"
 adb wait-for-device
+
+# The Google APIs API-35 image repeatedly presents a system ANR for its
+# first-run SDK setup activity. It is unrelated to the app and blocks all UI
+# input while leaving the app task "resumed". Disable only this provisioning
+# package on the disposable CI emulator; never run this on a physical device.
+stabilize_emulator_setup_packages() {
+  local setup_package="com.google.android.googlesdksetup"
+  local package_paths disable_output disabled_packages
+  package_paths="$(adb shell pm path "${setup_package}" 2>/dev/null | tr -d '\r' || true)"
+  if [[ -z "${package_paths}" ]]; then
+    echo "ANDROID_EMULATOR_SYSTEM_PACKAGE package=${setup_package} installed=false"
+    return 0
+  fi
+
+  adb shell am force-stop "${setup_package}" >/dev/null 2>&1 || true
+  disable_output="$(adb shell pm disable-user --user 0 "${setup_package}" 2>&1 | tr -d '\r' || true)"
+  disabled_packages="$(adb shell pm list packages -d 2>/dev/null | tr -d '\r' || true)"
+  if ! grep -Fxq "package:${setup_package}" <<<"${disabled_packages}"; then
+    echo "ERROR: failed to disable the known first-run emulator setup package." >&2
+    printf '%s\n' "${disable_output}" >&2
+    exit 1
+  fi
+  adb shell am force-stop "${setup_package}" >/dev/null 2>&1 || true
+  echo "ANDROID_EMULATOR_SYSTEM_PACKAGE package=${setup_package} disabled=true"
+}
+
+stabilize_emulator_setup_packages
 adb install -r "${apk_path}"
 
 ui_dump() {
@@ -120,10 +147,12 @@ for node in root.iter("node"):
             x1, y1, x2, y2 = map(int, match.groups())
             buttons[label] = ((x1+x2)//2, (y1+y2)//2)
 
-    # Pixel Launcher can remain ANR-blocked after a cold emulator boot.
-    # Close only this unrelated launcher process to uncover the app UI;
-    # an ANR belonging to the target application remains a hard failure.
-    if "launcher" in owner.lower() and "Close app" in buttons:
+    # The Pixel launcher and the Google SDK setup activity are unrelated to
+    # the target app. Close their modal ANR dialog; target-app ANRs remain fatal.
+    if (
+        ("launcher" in owner.lower() or owner == "com.google.android.googlesdksetup")
+        and "Close app" in buttons
+    ):
         x, y = buttons["Close app"]
         print(f"SYSTEM_ANR_CLOSE|{owner}|{x}|{y}")
         raise SystemExit(0)
@@ -151,7 +180,7 @@ PY
     IFS='|' read -r kind owner action_x action_y <"${result}"
     case "${kind}" in
       SYSTEM_ANR_CLOSE)
-        echo "Closing unrelated unresponsive launcher ${owner} to uncover the app under test"
+        echo "Closing unrelated unresponsive Android system package ${owner} to uncover the app under test"
         if test -n "${action_x}" && test -n "${action_y}"; then
           adb shell input tap "${action_x}" "${action_y}"
         else
@@ -281,6 +310,29 @@ fi
 echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
 
+# The app can remain the resumed activity while a system ANR dialog owns the
+# screen. Prove that the actual Mapbox page (its map-only controls) is visible
+# before waiting for SDK events or accepting any screenshot entropy metrics.
+map_page_check_file="${RUNNER_TEMP:-/tmp}/espana-map-page-check.txt"
+map_page_ready=false
+for attempt in $(seq 1 15); do
+  wait_outside_anr
+  ui_dump "${post_window}"
+  if python3 tool/verify_android_map_screen.py "${post_window}" --package "${package_name}" >"${map_page_check_file}" 2>&1; then
+    cat "${map_page_check_file}"
+    map_page_ready=true
+    break
+  fi
+  echo "MAPBOX_MAP_PAGE_WAIT attempt=${attempt}/15 reason=$(tail -n 1 "${map_page_check_file}" 2>/dev/null || echo unavailable)"
+  sleep 2
+done
+if [[ "${map_page_ready}" != "true" ]]; then
+  echo "FAIL: the app did not reach the actual Mapbox map page after tapping Mapa."
+  cat "${map_page_check_file}" 2>/dev/null || true
+  cat "${post_window}" 2>/dev/null || true
+  exit 1
+fi
+
 logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
 screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
 mapbox_diag_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-diagnostics.txt"
@@ -312,6 +364,12 @@ if [[ "${mapbox_ready}" != "true" ]]; then
   echo "MAPBOX_RENDER_NOT_READY deadline_seconds=${mapbox_wait_seconds}"
   grep 'MAPBOX_DIAGNOSTIC' "${mapbox_diag_file}" | tail -n 80 || true
 fi
+
+# Recheck the real map page immediately before capture. This also rejects
+# Android system dialogs whose underlying app task still appears resumed.
+wait_outside_anr
+ui_dump "${post_window}"
+python3 tool/verify_android_map_screen.py "${post_window}" --package "${package_name}"
 
 # The process can remain alive in the background while the launcher or a
 # system dialog owns the screen. Never accept a screenshot without proving
