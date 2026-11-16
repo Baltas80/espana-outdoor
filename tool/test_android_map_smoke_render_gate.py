@@ -154,6 +154,8 @@ if "if: success() && steps.build_apk.outputs.built == 'true'" not in workflow:
     raise SystemExit("The primary APK must upload only after its verification step succeeds.")
 if "- name: Require Mapbox Standard A/B APK" not in workflow:
     raise SystemExit("The PR #79 comparison build must fail closed when its APK/manifest is missing.")
+if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
+    raise SystemExit("The Standard APK requirement must not turn an early cancellation into a false build failure.")
 
 for marker in (
     'RUNNER_TEMP="$RUNNER_TEMP/primary"',
