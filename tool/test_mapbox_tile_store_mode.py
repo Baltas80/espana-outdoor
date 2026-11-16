@@ -35,6 +35,8 @@ required = (
     'mapsOffline.getStylePack(styleUri)',
     'OFFLINE_STYLE_PACK_INCOMPLETE',
     'offline:$regionId:stylePack',
+    'val styleReady = preferences.getBoolean("offline:$regionId:stylePack", false)',
+    'mapReady && routingReady && styleReady',
     'tileRegionContainsDescriptors(mapRegionId',
     'MapboxMapsOptions.tileStore === store',
     'descriptorExpected.value == true',
