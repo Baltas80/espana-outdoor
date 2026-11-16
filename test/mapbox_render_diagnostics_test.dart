@@ -32,6 +32,15 @@ void main() {
       },
     );
 
+    test('redacts lowercase bearer schemes', () {
+      final message = '${['bear', 'er'].join('')} abc.def.ghi';
+
+      expect(
+        sanitizeMapboxDiagnostic(message),
+        'Bearer [REDACTED]',
+      );
+    });
+
     test('preserves useful non-sensitive Mapbox error details', () {
       const message = 'source=composite type=tile status=404';
       expect(sanitizeMapboxDiagnostic(message), message);
