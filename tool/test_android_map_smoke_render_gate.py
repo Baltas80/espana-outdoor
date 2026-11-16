@@ -55,6 +55,12 @@ required = (
     "MAP_SMOKE_FOREGROUND",
     "verify_android_map_screenshot.py",
     '--foreground-package "${package_name}"',
+    "MAPBOX_RENDER_WAIT_SECONDS",
+    "MAPBOX_RENDER_READY",
+    "MAPBOX_RENDER_NOT_READY",
+    "MAPBOX_DIAGNOSTIC event=MAP_LOADED",
+    "MAPBOX_DIAGNOSTIC event=MAP_IDLE",
+    "MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL",
 )
 for marker in ("ANDROID_EMULATOR_CI", "adb_run() {", "timeout --foreground --signal=TERM", "ADB_COMMAND_TIMEOUT_SECONDS", "command -v timeout", "validated_internet=1", "Active default network", "INTERNET", "VALIDATED"):
     if marker not in network_preflight:
@@ -82,8 +88,11 @@ if source.index("MAP_SMOKE_FOREGROUND") > screenshot_capture:
     raise SystemExit("Foreground verification must happen before the application screenshot is captured.")
 if source.index("verify_android_map_screenshot.py") < screenshot_capture:
     raise SystemExit("Screenshot validation must happen after the application PNG is captured.")
-if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: Mapbox map remained alive'):
+if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: Mapbox reached a complete idle viewport'):
     raise SystemExit("The smoke must validate the screenshot before reporting PASS.")
+
+if source.index("MAPBOX_RENDER_WAIT_SECONDS") > screenshot_capture:
+    raise SystemExit("Mapbox readiness must be polled before capturing the screenshot.")
 
 print("android_map_smoke_foreground_gate=true")
 script_dir = 'script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"'
