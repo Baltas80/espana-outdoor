@@ -141,3 +141,7 @@ Corrección aplicada en la PR #79:
 - Se añadió una prueba automatizada con un `timeout` simulado para cubrir éxito A/B, fallo primario sin omitir Standard y staging normal sin APK Standard.
 
 La corrección elimina el fallo de orquestación; no resuelve el mapa negro. El gate cartográfico y la comparación A/B real siguen pendientes.
+
+### Aislamiento de datos entre estilos A/B
+
+El runner A/B verifica que ambos manifiestos comparten `application_id`, `source_commit` y `version_code`, y que el segundo APK declara exactamente `mapbox://styles/mapbox/standard`. Como ambos APK usan el mismo application ID, el runner fuerza la detención y ejecuta `pm clear` entre Outdoors y Standard, comprobando la respuesta `Success`. Así la caché TileStore y las preferencias del primer estilo no contaminan la comparación del segundo. El staging ordinario sin APK Standard no limpia datos.
