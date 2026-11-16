@@ -51,6 +51,28 @@ ui_dump() {
   fi
 }
 
+window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
+post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
+capture_failure_evidence() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ ! -s "${logcat_file}" ]]; then
+    adb logcat -d >"${logcat_file}" 2>/dev/null || true
+  fi
+  if [[ ! -s "${window_file}" ]]; then
+    ui_dump "${window_file}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${post_window}" ]]; then
+    ui_dump "${post_window}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${screenshot_file}" ]]; then
+    adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
+  fi
+  exit "${exit_code}"
+}
+trap 'exit 124' TERM
+trap capture_failure_evidence EXIT
+
 wait_outside_anr() {
   local file="${RUNNER_TEMP:-/tmp}/espana-system-dialog.xml"
   local result="${RUNNER_TEMP:-/tmp}/espana-system-anr.txt"
@@ -192,7 +214,6 @@ if test "${offline_mode}" = "offline"; then
   launch_app
 fi
 
-window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 ui_dump "${window_file}"
 if ! grep -q '<hierarchy' "${window_file}"; then
   echo "FAIL: UIAutomator did not return a hierarchy."
@@ -293,7 +314,6 @@ if grep -Eiq "FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort me
   exit 1
 fi
 
-post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
 ui_dump "${post_window}"
 if grep -Fq 'No se pudo cargar el mapa' "${post_window}" || grep -Fq 'Reintentar' "${post_window}"; then
   echo "FAIL: Mapbox is showing the map loader error state."
