@@ -64,9 +64,10 @@ for marker in (
 ):
     if marker not in main_activity:
         raise SystemExit(f"MainActivity is missing the debug-only native screenshot signal: {marker}")
-expected_component_pattern = '*"$PACKAGE_NAME/$TEST_PACKAGE_NAME.MainActivity"*'
-if expected_component_pattern not in route_script:
+if 'expected_component="$PACKAGE_NAME/$TEST_PACKAGE_NAME.MainActivity"' not in route_script:
     raise SystemExit("Offline screenshot capture must match applicationId/namespace.MainActivity from dumpsys.")
+if '"$expected_component") foreground_package="$PACKAGE_NAME" ;;' not in route_script:
+    raise SystemExit("Offline screenshot capture must accept only the exact staging app/activity component.")
 if '*"$TEST_PACKAGE_NAME/"*' in route_script:
     raise SystemExit("Do not treat the Gradle namespace as the Android applicationId in ActivityRecord.")
 
