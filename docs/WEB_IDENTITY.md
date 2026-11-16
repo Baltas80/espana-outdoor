@@ -11,7 +11,7 @@ La página estática `/cuenta.html` utiliza OAuth 2.0 Authorization Code + PKCE 
 - Sesión del navegador: `sessionStorage`, nunca `localStorage`; no se solicita ni almacena refresh token.
 - El backend valida firma, issuer, audiencia API y el claim `typ=Bearer` del access token. Los ID tokens (`typ=ID`) y refresh tokens no son credenciales válidas para la API; la exigencia de tipo y audiencia API se integra en la PR #68 (que sustituye a #65). La web no envía un identificador de usuario.
 
-El cliente elimina el código de autorización de la URL antes del intercambio, comprueba `state`, usa un verificador PKCE de alta entropía y restringe el discovery y el token endpoint al mismo origen HTTPS del issuer. Al no solicitar `openid`, no recibe ni ignora un ID token que tendría que validar como relying party; el API recibe exclusivamente el access token. El perfil se obtiene y actualiza exclusivamente a través de `GET/PATCH /v1/me`.
+El cliente elimina el código de autorización de la URL antes del intercambio, comprueba `state`, usa un verificador PKCE de alta entropía y restringe el discovery y el token endpoint al mismo origen HTTPS del issuer. Además, falla de forma cerrada si el discovery no anuncia `response_types_supported: code` y `code_challenge_methods_supported: S256` (y, cuando publica `grant_types_supported`, exige `authorization_code`). Al no solicitar `openid`, no recibe ni ignora un ID token que tendría que validar como relying party; el API recibe exclusivamente el access token. El perfil se obtiene y actualiza exclusivamente a través de `GET/PATCH /v1/me`.
 
 ## Configuración necesaria en el proveedor OIDC
 
