@@ -32,7 +32,8 @@ if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: 
 
 print("android_map_smoke_foreground_gate=true")
 network_call = 'bash "$(dirname "${BASH_SOURCE[0]}")/ensure_android_emulator_online.sh"'
-if source.index(network_call) > source.index("launch_app"):
+launch_call = source.rfind("\\nlaunch_app\\n\\nif test")
+if launch_call < 0 or source.index(network_call) > launch_call:
     raise SystemExit("Online network preflight must run before launching the Mapbox smoke.")
 smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
 smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
