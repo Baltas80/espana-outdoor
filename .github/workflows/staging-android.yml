@@ -233,6 +233,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
+        timeout-minutes: 25
         env:
           ANDROID_EMULATOR_CI: "true"
         if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
@@ -249,7 +250,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
+          script: timeout --foreground --signal=TERM --kill-after=15s 20m bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
