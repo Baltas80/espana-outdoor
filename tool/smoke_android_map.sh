@@ -72,8 +72,8 @@ adb install -r "${apk_path}"
 ui_dump() {
   local file="$1"
   local remote_file="/sdcard/espana-outdoor-uiautomator.xml"
-  # UIAutomator expects a regular device-side output file. Writing to /dev/tty
-  # is unreliable on non-interactive adb exec-out sessions (no controlling TTY).
+  # UIAutomator expects a regular device-side output file. Writing directly to
+  # a pseudo-terminal is unreliable on non-interactive ADB sessions.
   if ! adb shell uiautomator dump "$remote_file" >/dev/null 2>&1; then
     echo "ERROR: UIAutomator dump failed or timed out (45s)." >&2
     return 1
