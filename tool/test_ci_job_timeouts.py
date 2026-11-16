@@ -19,6 +19,18 @@ def job_block(source: str, name: str) -> str:
     return match.group(1)
 
 
+def has_job_timeout(block: str, minutes: int) -> bool:
+    return re.search(rf"(?m)^    timeout-minutes: {minutes}$", block) is not None
+
+
+step_only_timeout = """    steps:
+      - name: smoke
+        timeout-minutes: 75
+"""
+if has_job_timeout(step_only_timeout, 75):
+    raise SystemExit("A step-level timeout must not satisfy the job-level guard.")
+
+
 ci = CI_WORKFLOW.read_text(encoding="utf-8")
 staging = STAGING_WORKFLOW.read_text(encoding="utf-8")
 
@@ -28,10 +40,10 @@ for job, minutes in (
     ("flutter", 75),
     ("ios-build", 60),
 ):
-    if not re.search(rf"(?m)^    timeout-minutes: {minutes}$", job_block(ci, job)):
+    if not has_job_timeout(job_block(ci, job), minutes):
         raise SystemExit(f"CI job {job} must have a job-level {minutes}-minute timeout.")
 
-if not re.search(r"(?m)^    timeout-minutes: 75$", job_block(staging, "android-staging")):
+if not has_job_timeout(job_block(staging, "android-staging"), 75):
     raise SystemExit("Android staging must have a job-level 75-minute timeout.")
 
 print("github_actions_job_timeouts=true")
