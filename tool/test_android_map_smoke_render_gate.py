@@ -16,6 +16,9 @@ workflow = WORKFLOW.read_text(encoding="utf-8")
 required = (
     "ensure_android_emulator_online.sh",
     'ANDROID_EMULATOR_CI:-false',
+    "adb() {",
+    "timeout --foreground --signal=TERM",
+    "UIAutomator dump failed or timed out",
     "dumpsys window windows",
     "mCurrentFocus|mFocusedApp",
     "mResumedActivity|topResumedActivity",
@@ -23,13 +26,19 @@ required = (
     "verify_android_map_screenshot.py",
     '--foreground-package "${package_name}"',
 )
-for marker in ("ANDROID_EMULATOR_CI", "validated_internet=1", "Active default network", "INTERNET", "VALIDATED"):
+for marker in ("ANDROID_EMULATOR_CI", "adb_run() {", "timeout --foreground --signal=TERM", "ADB_COMMAND_TIMEOUT_SECONDS", "command -v timeout", "validated_internet=1", "Active default network", "INTERNET", "VALIDATED"):
     if marker not in network_preflight:
         raise SystemExit(f"Android emulator network preflight is missing validation: {marker}")
 
 for marker in required:
     if marker not in source:
         raise SystemExit(f"Android map smoke is missing foreground/render gate: {marker}")
+
+ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
+if "|| true" in ui_dump_body:
+    raise SystemExit("UIAutomator dump failures/timeouts must not be swallowed.")
+if "limit=15" not in source or "limit=120" not in source or "limit=180" not in source:
+    raise SystemExit("adb wrapper must give UIAutomator, device boot, and APK install explicit bounds.")
 
 if source.index("MAP_SMOKE_FOREGROUND") > source.index('adb exec-out screencap -p'):
     raise SystemExit("Foreground verification must happen before the screenshot is captured.")
@@ -50,6 +59,8 @@ smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
 smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
 if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
     raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
+if "timeout-minutes: 25" not in smoke_job or "20m bash tool/smoke_android_map.sh" not in smoke_job:
+    raise SystemExit("The Android map smoke action and script must have explicit upper time bounds.")
 
 print("android_map_smoke_network_preflight=true")
 print("android_map_smoke_render_gate=true")
