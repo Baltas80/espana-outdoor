@@ -47,12 +47,22 @@ Registrar por separado resultados de tests automatizados, emulador y dispositivo
 
 ## Diagnóstico del renderizado Mapbox
 
-El smoke Android debe distinguir entre proceso vivo, estilo cargado y viewport realmente renderizado. La captura de la PR #73 (run [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921)) se tomó con conectividad validada y la aplicación en primer plano, pero el viewport quedó casi negro y el gate visual la rechazó (entropía 0,650 bits; color dominante 0,901). El logcat solo confirmó la inicialización de Mapbox Common/Maps Core; no contenía eventos de estilo/fuente ni un error Mapbox que permitiera atribuir la causa.
+El smoke Android [43909921940](https://github.com/Baltas80/espana-outdoor/actions/runs/43909921940) verificó conectividad validada y que la aplicación estaba en primer plano. El artefacto [14247954799](https://github.com/Baltas80/espana-outdoor/actions/runs/43909921940/artifacts/14247954799) contiene PNG, jerarquía UI y logcat.
 
-La [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79) añade instrumentación temporal y acotada al `MapboxMapViewport`. Los registros usan el prefijo `MAPBOX_DIAGNOSTIC` y distinguen `STYLE_LOADED`, `MAP_LOADED`, `MAP_IDLE`, `MAP_LOAD_ERROR`, `STYLE_DATA`, `SOURCE_ADDED`, `SOURCE_DATA`, `STYLE_IMAGE_MISSING` y cambios de `RENDER_FRAME`. No se registran URLs de solicitudes y se redactan access tokens/Bearer si aparecen en mensajes de error. El límite es de 250 eventos de datos de fuente por instancia. La instrumentación todavía requiere CI y un APK staging; no es una solución funcional por sí misma.
+Hallazgos del logcat:
+- `STYLE_LOADED` se emitió a las 17:09:15.792; el source `composite` y sus metadatos se añadieron.
+- Se registraron 118 eventos `SOURCE_DATA` para `composite`: 108 con `loaded=false`, 3 con `loaded=true` y 7 sin valor.
+- `loaded=false` no equivale a un error HTTP ni significa por sí solo que una tesela haya fallado. El SDK define `loaded=true` como que todos los datos de la fuente necesarios para el viewport visible están cargados.
+- El primer frame fue `RenderMode.PARTIAL`. En el intervalo capturado no aparecieron `MAP_LOADED`, `MAP_IDLE`, `RenderMode.FULL`, `MAP_LOAD_ERROR` ni `STYLE_IMAGE_MISSING`.
+- No se encontró un error HTTP explícito en los logs nativos. La captura muestra el mapa casi negro, con algunos trazos cartográficos, y el gate visual la rechaza.
 
-Para extraer estos eventos del dispositivo sin volcar el logcat completo: `adb logcat -d | grep 'MAPBOX_DIAGNOSTIC'`. Revisar y sanear cualquier otro log antes de compartirlo.
+La primera instrumentación no registraba coordenadas z/x/y de `TileID` ni el resultado de las solicitudes de recursos. La [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79) amplía ahora el diagnóstico:
+- Cada evento de tesela incluye coordenadas `z/x/y`.
+- Se registran hasta 100 resúmenes `RESOURCE` con tipo, host, origen de datos, origen de respuesta, tamaño, motivo de error y cancelación. No se registra la URL ni sus parámetros.
+- El smoke espera hasta 60 segundos para obtener simultáneamente `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL` antes de aceptar la captura.
+- Si vence el plazo, conserva PNG, logcat y diagnóstico filtrado, pero falla explícitamente.
 
+Esta instrumentación sigue siendo diagnóstica. No cambia el estilo `outdoors-v12` ni el TileStore y no acredita modo offline. La siguiente ejecución debe permitir distinguir entre fallos de red/servidor, recursos incompletos y problemas de renderizado.
 ## Estado y pendientes
 
 - Estilo de producción: `mapbox://styles/mapbox/outdoors-v12`; no se ha cambiado por hipótesis.
@@ -60,7 +70,7 @@ Para extraer estos eventos del dispositivo sin volcar el logcat completo: `adb l
 - Mapa offline: no aceptado; falta acreditar renderizado real en modo avión.
 - Routing peatonal offline: evidencia histórica positiva en emulador, pero no suficiente para certificar el mapa ni el APK actual.
 - PR #61: abierta/draft, divergida de `main`; requiere sincronización y nueva ejecución del experimento de estilos/TileStore.
-- PR #79: instrumentación diagnóstica abierta; falta CI/Security y Android staging con logcat nuevo.
+- PR #79: instrumentación ampliada y espera explícita de viewport completo; CI/Security/Android staging del HEAD nuevo pendientes.
 - Reapertura en frío, reinicio físico y validación del APK exacto en OPPO: pendientes.
 - Cobertura nacional y routing offline BTT/cicloturismo: no acreditados.
 - Las pantallas de planificación y detalle usan el viewport Mapbox compartido; Valhalla sigue dependiendo del endpoint online.
