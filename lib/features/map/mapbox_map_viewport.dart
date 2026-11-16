@@ -245,9 +245,11 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         _resourceEventsLogged++;
         final response = event.response;
         final error = response?.error;
+        final requestHost = Uri.tryParse(event.request.url)?.host ?? 'unknown';
         _logMapboxDiagnostic(
           'RESOURCE',
-          'kind=${event.request.kind} data_source=${event.dataSource} '
+          'kind=${event.request.kind} host=$requestHost '
+              'data_source=${event.dataSource} '
               'response_source=${response?.source ?? 'pending'} '
               'size=${response?.size ?? -1} '
               'error=${error?.reason ?? 'none'} '
