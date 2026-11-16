@@ -345,3 +345,12 @@ La revisión de la API oficial de Mapbox confirma que `MapboxMapsOptions` se apl
 La nueva guarda `tool/test_mapbox_tile_store_mode.py` exige el orden: asignación inicial del TileStore < Navigation bootstrap < reaplicación < OfflineManager. Esto es una corrección de orden documentada, no una causa raíz demostrada todavía. La siguiente ejecución debe comprobar si disminuyen los misses `DATABASE/TILE_STORE` y desaparecen los errores `IN_OFFLINE_MODE/NETWORK/TILE`.
 
 Commits: `037b71a` (configuración nativa) y `94c6ce3` (guarda de orden). Las 12 comprobaciones estáticas cruzadas sobre los archivos actuales de la rama pasan en el entorno de revisión; no sustituyen la CI ni la ejecución Android.
+
+
+## Verificación del descriptor de Maps en el TileStore compartido — 16/11/2026
+
+La siguiente prueba no se limita a comprobar que existe un ID de TileRegion y que sus contadores son mayores que cero. Después de descargar la región, consulta `tileRegionContainsDescriptors` desde el TileStore expuesto por `MapboxMapsOptions`, reconstruyendo el descriptor con el mismo estilo, zoom y pixel ratio persistidos durante la descarga. También compara por identidad el TileStore global de Maps con el que usa Navigation y verifica que el modo sigue en `READ_ONLY`.
+
+El test registra `MAPBOX_TILESTORE_VERIFICATION` antes de desconectar y después de reabrir la app. Si el descriptor no está presente en el TileStore que Maps recibe, la prueba falla antes de atribuir el problema a las teselas del viewport. El pixel ratio nativo del descriptor se compara con el del `MapWidget` de Flutter con tolerancia de 0,01.
+
+Este diagnóstico separa cuatro condiciones: región persistida, descriptor incluido en la región, identidad del TileStore compartido y configuración de uso. No sustituye el renderizado: siguen siendo obligatorios `MAPBOX_MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y una captura PNG válida en modo avión.
