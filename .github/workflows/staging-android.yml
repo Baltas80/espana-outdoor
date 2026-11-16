@@ -312,6 +312,13 @@ jobs:
           path: |
             ${{ runner.temp }}/primary-build/app-release.apk
             ${{ runner.temp }}/primary-build/android-staging-validation.txt
+          if-no-files-found: error
+      - name: Upload Mapbox Standard A/B APK
+        if: success() && steps.build_standard_apk.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: mapbox-standard-ab-apk
+          path: |
             ${{ runner.temp }}/standard-build/app-release.apk
             ${{ runner.temp }}/standard-build/android-staging-validation.txt
           if-no-files-found: error
