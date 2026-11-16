@@ -54,6 +54,16 @@ class MapboxNavigationBridge(context: Context) {
         // Maps SDK v11 reads TileStore credentials from MapboxOptions.
         // The global token is set above, before this persistent TileStore is created.
         tileStore = store
+
+        // Apply Maps SDK globals before constructing any Maps API object.
+        // Navigation bootstrap may initialize Maps internals; those objects
+        // must inherit the same persistent TileStore used for offline downloads.
+        MapboxMapsOptions.tileStore = store
+        MapboxMapsOptions.tileStoreUsageMode = TileStoreUsageMode.READ_ONLY
+        check(MapboxMapsOptions.tileStore === store) {
+            "Maps SDK did not retain the shared offline TileStore before Navigation bootstrap."
+        }
+
         // Navigation receives this same TileStore explicitly through RoutingTilesOptions.
         val routingTilesOptions = RoutingTilesOptions.Builder()
             .tileStore(store)
@@ -65,9 +75,9 @@ class MapboxNavigationBridge(context: Context) {
                 .build()
         )
 
-        // Apply Maps SDK globals after Navigation bootstrap and before constructing
-        // OfflineManager or any MapView. Maps API objects snapshot these options at
-        // construction, so the map must see the exact persistent store used above.
+        // Reapply and verify after Navigation bootstrap in case the Navigation
+        // provider changed global Maps options. OfflineManager and the later Flutter
+        // MapWidget must still use the exact same persistent store.
         // READ_ONLY serves downloaded tile packs first and falls back to individual
         // online tiles outside downloaded regions; free panning remains supported.
         MapboxMapsOptions.tileStore = store
