@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 compose = (ROOT / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
 example = (ROOT / "infra" / ".env.example").read_text(encoding="utf-8")
 runbook = (ROOT / "infra" / "PRODUCTION_RUNBOOK.md").read_text(encoding="utf-8")
+production_endpoints = (ROOT / "infra" / "PRODUCTION_ENDPOINTS.template.env").read_text(encoding="utf-8")
 
 
 def service_block(name: str, next_service: str) -> str:
@@ -17,8 +18,25 @@ def service_block(name: str, next_service: str) -> str:
     return compose.split(start_marker, 1)[1].split(end_marker, 1)[0]
 
 
+keycloak = service_block("keycloak", "source-gateway")
 source_gateway = service_block("source-gateway", "rescue-link")
 rescue_link = service_block("rescue-link", "martin")
+
+for fragment in (
+    "KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:?set in .env}",
+    'KC_HOSTNAME_STRICT: "true"',
+    "KC_PROXY_HEADERS: ${KEYCLOAK_PROXY_HEADERS:-xforwarded}",
+):
+    if fragment not in keycloak:
+        raise SystemExit(f"Keycloak must pin its issuer and trust the configured reverse-proxy headers: {fragment}")
+if "KEYCLOAK_HOSTNAME=http://keycloak:8080" not in example:
+    raise SystemExit("Local Compose Keycloak hostname must match the local OIDC issuer.")
+if "KEYCLOAK_HOSTNAME=https://auth.espanaoutdoor.es" not in production_endpoints:
+    raise SystemExit("Production endpoint template must pin the public Keycloak hostname.")
+if "KEYCLOAK_PROXY_HEADERS=xforwarded" not in production_endpoints:
+    raise SystemExit("Production endpoint template must declare the reverse-proxy header mode.")
+if "X-Forwarded-Host" not in runbook or "overwrite" not in runbook or "KC_HOSTNAME_STRICT=true" not in runbook:
+    raise SystemExit("Production runbook must require trusted overwritten proxy headers and strict Keycloak hostname.")
 
 for name, block in (("Source Gateway", source_gateway), ("Rescue Link", rescue_link)):
     if "DATABASE_URL: ${DATABASE_URL:?set in .env}" not in block:
