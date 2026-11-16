@@ -109,6 +109,25 @@ if 'tileStoreUsageModeName: String = "READ_ONLY"' not in source:
 if '"READ_AND_UPDATE" -> TileStoreUsageMode.READ_AND_UPDATE' not in source:
     raise SystemExit("The controlled offline diagnostic mode must remain available.")
 
+MAIN_ACTIVITY = ROOT / "android" / "app" / "src" / "main" / "kotlin" / "com" / "example" / "espana_outdoors" / "MainActivity.kt"
+main_activity = MAIN_ACTIVITY.read_text(encoding="utf-8")
+for fragment in (
+    'call.argument<String>("tileStoreUsageMode") ?: "READ_ONLY"',
+    "navigationBridge.configure(token, tileStoreUsageMode)",
+):
+    if fragment not in main_activity:
+        raise SystemExit(f"MainActivity does not forward the controlled TileStore mode: {fragment}")
+
+ROUTE_RUNNER = ROOT / "tool" / "staging_android_route_integration.sh"
+route_runner = ROUTE_RUNNER.read_text(encoding="utf-8")
+for fragment in (
+    "local tile_store_usage_mode=READ_ONLY",
+    'if [[ "$mode" == "offline" ]]; then tile_store_usage_mode=READ_AND_UPDATE; fi',
+    '--dart-define=MAPBOX_TILESTORE_USAGE_MODE="$tile_store_usage_mode"',
+):
+    if fragment not in route_runner:
+        raise SystemExit(f"Offline integration mode experiment is incomplete: {fragment}")
+
 NATIVE_VERIFIER = ROOT / "tool" / "verify_mobile_native.py"
 native_verifier = NATIVE_VERIFIER.read_text(encoding="utf-8")
 for fragment in (
