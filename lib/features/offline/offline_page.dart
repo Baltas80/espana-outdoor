@@ -9,12 +9,14 @@ const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+// Include complete z13 tile bounds around the portrait map viewport.
+// A 37.85° southern edge clipped most of the y=3164 row in the emulator.
 const _cordobaRing = <List<double>>[
-  [-4.84, 37.85],
-  [-4.72, 37.85],
-  [-4.72, 37.93],
-  [-4.84, 37.93],
-  [-4.84, 37.85],
+  [-4.84, 37.78],
+  [-4.72, 37.78],
+  [-4.72, 37.97],
+  [-4.84, 37.97],
+  [-4.84, 37.78],
 ];
 
 /// Downloads map and pedestrian routing resources through the native bridge.
