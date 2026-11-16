@@ -426,3 +426,6 @@ Este experimento no cambia el estilo de producción ni demuestra que Standard
 sea la solución. La decisión requiere una captura offline completa, eventos
 `MAP_LOADED`, `FULL_FRAME` e `IDLE`, cero fallos de recursos y la repetición
 tras cierre forzado y reinicio.
+
+
+La variable `MAPBOX_OFFLINE_EXPERIMENT_STYLE_URI` solo se inyecta en las dos fases del integration test mediante `--dart-define=MAPBOX_STYLE_URI`; no se pasa al build release ni al smoke del APK. Así se puede comparar el comportamiento del renderer con otro estilo sin cambiar el valor predeterminado de producción.
