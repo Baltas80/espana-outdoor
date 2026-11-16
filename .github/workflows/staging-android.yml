@@ -284,7 +284,7 @@ jobs:
             echo "validation_scope=runtime-capable-artifact"
           } > build/standard/android-staging-validation.txt
       - name: Upload Android staging APK
-        if: always() && steps.build_apk.outputs.built == 'true'
+        if: success() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
