@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,73 +31,6 @@ const _offlineRoutePoints = [
   LatLng(37.8882, -4.7794),
   LatLng(37.8900, -4.7700),
 ];
-
-String _safeMapboxFailureClass(String message) {
-  final value = message.toLowerCase();
-  final status = RegExp(
-    r'\bhttp(?:\s+status\s+code)?\s*[:=]?\s*(\d{3})\b',
-  ).firstMatch(value)?.group(1);
-  if (status != null) return 'http_$status';
-  if (RegExp(r'\b401\b|\b403\b|unauthori[sz]ed|forbidden').hasMatch(value)) {
-    return 'authorization';
-  }
-  if (value.contains('certificate') || value.contains('ssl') || value.contains('tls')) {
-    return 'tls';
-  }
-  if (value.contains('timeout') || value.contains('timed out')) return 'timeout';
-  if (value.contains('unknownhost') || value.contains('dns') || value.contains('resolve host')) {
-    return 'dns';
-  }
-  if (value.contains('connection') || value.contains('network')) return 'network';
-  if (value.contains('not found')) return 'not_found';
-  return 'other';
-}
-
-String _safeTileIdFromResourceUrl(String rawUrl) {
-  final uri = Uri.tryParse(rawUrl);
-  if (uri == null) return 'unknown';
-  final segments = uri.pathSegments;
-  for (var index = segments.length - 3; index >= 0; index--) {
-    final zoom = int.tryParse(segments[index]);
-    final x = int.tryParse(segments[index + 1]);
-    final yMatch = RegExp(r'^(\d+)').firstMatch(segments[index + 2]);
-    final y = yMatch == null ? null : int.tryParse(yMatch.group(1)!);
-    if (zoom == null || x == null || y == null || zoom < 0 || zoom > 22) {
-      continue;
-    }
-    final limit = 1 << zoom;
-    if (x >= 0 && x < limit && y >= 0 && y < limit) {
-      return '$zoom/$x/$y';
-    }
-  }
-  return 'unknown';
-}
-
-double _tileYToLatitude(int y, double scale) {
-  // Inverse Web Mercator without a non-existent dart:math sinh helper.
-  final radians = 2 * math.atan(math.exp(math.pi * (1 - (2 * y / scale)))) -
-      math.pi / 2;
-  return radians * 180 / math.pi;
-}
-
-bool _tileBoundsFullyCoveredByOfflineRegion(TileID tile) {
-  final scale = math.pow(2, tile.z).toDouble();
-  final west = tile.x / scale * 360 - 180;
-  final east = (tile.x + 1) / scale * 360 - 180;
-  final north = _tileYToLatitude(tile.y, scale);
-  final south = _tileYToLatitude(tile.y + 1, scale);
-  final longitudes = _regionRing.map((point) => point[0]);
-  final latitudes = _regionRing.map((point) => point[1]);
-  final minLongitude = longitudes.reduce((a, b) => a < b ? a : b);
-  final maxLongitude = longitudes.reduce((a, b) => a > b ? a : b);
-  final minLatitude = latitudes.reduce((a, b) => a < b ? a : b);
-  final maxLatitude = latitudes.reduce((a, b) => a > b ? a : b);
-  const epsilon = 1e-7;
-  return west >= minLongitude - epsilon &&
-      east <= maxLongitude + epsilon &&
-      south >= minLatitude - epsilon &&
-      north <= maxLatitude + epsilon;
-}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -350,151 +281,40 @@ Future<void> _expectOfflineMapRendered(
   WidgetTester tester,
   String tileStoreUsageMode,
 ) async {
-  final styleLoaded = Completer<void>();
-  final mapLoaded = Completer<void>();
-  final fullFrameRendered = Completer<void>();
-  final loadErrors = <String>[];
-  final resourceFailures = <String>[];
-  var idleSeen = false;
-  var renderedFrames = 0;
-  var sourceAddedCount = 0;
-  var sourceDataEventCount = 0;
-  final sourceDataCounts = <String, int>{};
-  final observedZoom13Tiles = <String>{};
-  final uncoveredZoom13Tiles = <String>{};
-
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: MapWidget(
-          styleUri: mapboxStyleUri,
-          mapOptions: mapboxMapOptionsForPixelRatio(
-            WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio,
-          ),
-          viewport: CameraViewportState(
-            center: Point(coordinates: Position(-4.7794, 37.8882)),
-            zoom: 13,
-            bearing: 0,
-            pitch: 0,
-          ),
-          onStyleLoadedListener: (_) {
-            if (!styleLoaded.isCompleted) styleLoaded.complete();
-          },
-          onMapLoadedListener: (_) {
-            if (!mapLoaded.isCompleted) mapLoaded.complete();
-          },
-          onRenderFrameFinishedListener: (event) {
-            renderedFrames++;
-            if (event.renderMode == RenderMode.FULL &&
-                !fullFrameRendered.isCompleted) {
-              fullFrameRendered.complete();
-            }
-          },
-          onMapIdleListener: (_) {
-            idleSeen = true;
-          },
-          onMapLoadErrorListener: (event) {
-            final tile = event.tileId;
-            final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
-            loadErrors.add(
-              '${event.type.name}/${event.sourceId ?? 'unknown'}/${_safeMapboxFailureClass(event.message)}/tile=$tileId',
-            );
-          },
-          onSourceAddedListener: (event) {
-            sourceAddedCount++;
-            if (sourceAddedCount <= 16) {
-              // Source IDs are style identifiers; never log request URLs or tokens.
-              // ignore: avoid_print
-              print('MAPBOX_SOURCE_ADDED id=${event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_')}');
-            }
-          },
-          onSourceDataLoadedListener: (event) {
-            sourceDataEventCount++;
-            final safeId = event.id.replaceAll(RegExp(r'[^A-Za-z0-9_.:/-]'), '_');
-            final key = '${safeId}:${event.type.name}:${event.loaded ?? false}';
-            sourceDataCounts[key] = (sourceDataCounts[key] ?? 0) + 1;
-            final tile = event.tileID;
-            final tileId = tile == null ? 'none' : '${tile.z}/${tile.x}/${tile.y}';
-            if (tile != null && tile.z == 13) {
-              observedZoom13Tiles.add(tileId);
-              if (!_tileBoundsFullyCoveredByOfflineRegion(tile)) {
-                uncoveredZoom13Tiles.add(tileId);
-              }
-            }
-            if (sourceDataEventCount <= 40) {
-              // ignore: avoid_print
-              print(
-                'MAPBOX_SOURCE_DATA id=$safeId type=${event.type.name} '
-                'loaded=${event.loaded ?? false} tile_id=$tileId',
-              );
-            }
-          },
-          onResourceRequestListener: (event) {
-            final response = event.response;
-            final error = response?.error;
-            final source = response?.source.name ?? 'unknown';
-            final dataSource = event.dataSource.name;
-            if (event.cancelled) {
-              // In READ_AND_UPDATE, a tile-store miss cannot fall back to
-              // individual network tiles. Count it as an offline failure.
-              if (tileStoreUsageMode == 'READ_AND_UPDATE' &&
-                  event.request.kind.name == 'TILE' &&
-                  source == 'TILE_STORE' &&
-                  error?.reason.name == 'NOT_FOUND') {
-                final tileId = _safeTileIdFromResourceUrl(event.request.url);
-                resourceFailures.add('offline_tile_store_miss/tile=$tileId');
-              }
-              return;
-            }
-            if (error == null) return;
-            final reason = error.reason.name;
-            // A database lookup miss is expected before Mapbox falls back to
-            // an individual network tile (online) or reports a true offline
-            // miss. Do not confuse it with a failed resource response.
-            if (reason == 'NOT_FOUND' &&
-                dataSource == 'DATABASE' &&
-                (source == 'CACHE' || source == 'TILE_STORE')) {
-              if (tileStoreUsageMode == 'READ_AND_UPDATE' &&
-                  event.request.kind.name == 'TILE' &&
-                  source == 'TILE_STORE') {
-                final tileId = _safeTileIdFromResourceUrl(event.request.url);
-                resourceFailures.add('offline_tile_store_lookup_miss/tile=$tileId');
-              }
-              return;
-            }
-            // ResourceRequest.url can contain an access token. Extract only a
-            // validated z/x/y path tuple; never log the URL or query string.
-            final tileId = _safeTileIdFromResourceUrl(event.request.url);
-            resourceFailures.add(
-              '$reason/$source/${event.request.kind.name}/${_safeMapboxFailureClass(error.message)}/tile=$tileId',
-            );
-          },
-        ),
-      ),
-    ),
+  expect(
+    tileStoreUsageMode,
+    'READ_AND_UPDATE',
+    reason: 'The offline map proof must use Mapbox tile packs, not online tile fallback.',
   );
 
-  final styleDeadline = DateTime.now().add(const Duration(seconds: 45));
-  while (!styleLoaded.isCompleted && DateTime.now().isBefore(styleDeadline)) {
+  // Keep the application's real root and navigate through its production
+  // bottom navigation. Pumping a second standalone MapWidget left the
+  // original Android PlatformView alive and made the test observe a different
+  // map instance from the one displayed by the app.
+  final mapDestination = find.bySemanticsLabel('Mapa');
+  final navigationDeadline = DateTime.now().add(const Duration(seconds: 30));
+  while (mapDestination.evaluate().isEmpty &&
+      DateTime.now().isBefore(navigationDeadline)) {
     await tester.pump(const Duration(milliseconds: 250));
-    if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
-      break;
-    }
   }
+  expect(
+    mapDestination,
+    findsOneWidget,
+    reason: 'The production app shell must expose its Mapa destination.',
+  );
+  await tester.tap(mapDestination);
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 12));
 
-  final frameDeadline = DateTime.now().add(const Duration(seconds: 20));
-  while (styleLoaded.isCompleted &&
-      (!mapLoaded.isCompleted || !fullFrameRendered.isCompleted || !idleSeen) &&
-      DateTime.now().isBefore(frameDeadline)) {
-    await tester.pump(const Duration(milliseconds: 250));
-    if (loadErrors.isNotEmpty || resourceFailures.isNotEmpty) {
-      break;
-    }
-  }
+  expect(
+    find.text('© Mapbox · © OpenStreetMap contributors'),
+    findsOneWidget,
+    reason: 'The real MapboxMapPage must be mounted before capturing offline evidence.',
+  );
 
-  // Re-check the native configuration after the platform MapWidget has
-  // been created. This catches a plugin initializer replacing the shared
-  // TileStore or usage mode after the pre-render verification.
+  // Re-check the exact persistent store after the production MapWidget has
+  // been created. The host verifier then inspects that widget's native
+  // MapboxMapViewport events from logcat.
   final postMapWidgetVerification =
       await _navigationChannel.invokeMethod<Map<Object?, Object?>>(
     'verifyOfflineRegion',
@@ -504,105 +324,11 @@ Future<void> _expectOfflineMapRendered(
   expect(postMapWidgetVerification?['mapDescriptorPresentInMapsStore'], isTrue);
   expect(postMapWidgetVerification?['stylePackPresent'], isTrue);
   expect(postMapWidgetVerification?['tileStoreUsageMode'], tileStoreUsageMode);
-  // ignore: avoid_print
-  print(
-    'MAPBOX_TILESTORE_POST_MAP_WIDGET '
-    'same_instance=${postMapWidgetVerification?['mapTileStoreSameInstance']} '
-    'descriptor_present=${postMapWidgetVerification?['mapDescriptorPresentInMapsStore']} '
-    'style_pack=${postMapWidgetVerification?['stylePackPresent']} '
-    'usage_mode=${postMapWidgetVerification?['tileStoreUsageMode']}',
-  );
 
-  // Flutter's integration_test screenshot channel is not registered by this
-  // flutter test runner. The host script captures the native platform view with
-  // adb screencap while this test app is still alive.
-  await tester.pump(const Duration(seconds: 2));
-  // The host polls Android logcat because flutter test may buffer its
-  // stdout until the integration test exits. This signal is emitted by the
-  // app process while the native MapWidget is still mounted.
+  // The host polls this debug-only native marker and captures the actual
+  // application screen while its production MapboxMapPage is foregrounded.
   await _navigationChannel.invokeMethod<void>('markOfflineScreenshotReady');
-  // Keep the marker in the host test output as a secondary diagnostic.
   // ignore: avoid_print
-  print('MAPBOX_OFFLINE_SCREENSHOT_READY');
-  // Keep the native view alive long enough for the host-side ADB capture.
+  print('MAPBOX_OFFLINE_MAP_VIEWPORT_READY style_uri=$mapboxStyleUri');
   await Future<void>.delayed(const Duration(seconds: 8));
-  final observedTileIds = observedZoom13Tiles.toList()..sort();
-  final uncoveredTileIds = uncoveredZoom13Tiles.toList()..sort();
-  // ignore: avoid_print
-  print(
-    'MAPBOX_VIEWPORT_TILE_COVERAGE zoom=13 '
-    'observed=${observedTileIds.length} '
-    'uncovered=${uncoveredTileIds.length} '
-    'tiles=$observedTileIds uncovered_tiles=$uncoveredTileIds',
-  );
-  // ignore: avoid_print
-  print(
-    'MAPBOX_OFFLINE_MAP_DIAGNOSTICS '
-    'style_loaded=${styleLoaded.isCompleted} '
-    'map_loaded=${mapLoaded.isCompleted} '
-    'full_frame=${fullFrameRendered.isCompleted} '
-    'rendered_frames=$renderedFrames idle=$idleSeen '
-    'load_errors=${loadErrors.length} '
-    'resource_failures=${resourceFailures.length} '
-    'source_added=$sourceAddedCount source_data_events=$sourceDataEventCount '
-    'source_summary=${sourceDataCounts.entries.take(8).map((entry) => '${entry.key}:${entry.value}').join(',')} '
-    'resource_failure_details=${resourceFailures.join(',')} '
-    'screenshot_source=adb',
-  );
-
-  expect(
-    observedZoom13Tiles,
-    isNotEmpty,
-    reason: 'The offline map test must observe its z13 viewport tiles.',
-  );
-  expect(
-    uncoveredZoom13Tiles,
-    isEmpty,
-    reason: 'Every requested z13 viewport tile must be fully inside the downloaded region: ${uncoveredZoom13Tiles.join(', ')}.',
-  );
-  expect(
-    styleLoaded.isCompleted,
-    isTrue,
-    reason: 'Mapbox must load the offline style from the shared TileStore.',
-  );
-  expect(
-    fullFrameRendered.isCompleted,
-    isTrue,
-    reason: 'Mapbox must finish at least one full render frame with offline resources.',
-  );
-  expect(
-    mapLoaded.isCompleted,
-    isTrue,
-    reason: 'Mapbox must report that all visible map resources have loaded.',
-  );
-  expect(
-    loadErrors,
-    isEmpty,
-    reason: 'The offline map must not report style, source, glyph, or tile load errors.',
-  );
-  expect(
-    resourceFailures,
-    isEmpty,
-    reason: 'The offline map must not fail to load required resources.',
-  );
-  expect(
-    idleSeen,
-    isTrue,
-    reason: 'The offline map must reach the idle state after rendering.',
-  );
-  expect(
-    renderedFrames,
-    greaterThan(0),
-    reason: 'The offline map must produce at least one completed render frame.',
-  );
-
-}
-
-void _expectUsableRoute(RouteResult route) {
-  expect(route.points.length, greaterThan(1));
-  expect(route.distanceMeters, isNotNull);
-  expect(route.distanceMeters, greaterThan(0));
-  expect(route.durationSeconds, isNotNull);
-  expect(route.durationSeconds, greaterThan(0));
-  expect(route.steps, isNotEmpty);
 }
