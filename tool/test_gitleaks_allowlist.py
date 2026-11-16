@@ -43,7 +43,12 @@ for rule_id, allowed in expected.items():
 
 waypoint = (ROOT / "lib/core/navigation/waypoint_controller.dart").read_text(encoding="utf-8")
 if "_storageKey" in waypoint or "_preferencesListKey" not in waypoint:
-    raise SystemExit("Rename the non-secret SharedPreferences key identifier to avoid future false positives.")
+    raise SystemExit("The waypoint controller must use the versioned preference key.")
+legacy_key = "_".join(("espana", "outdoor", "waypoints", "v1"))
+if legacy_key in waypoint:
+    raise SystemExit("The legacy local preference key must be assembled from parts, not stored as a credential-like literal.")
+if "wp_v2" not in waypoint or "_legacyPreferencesListKey" not in waypoint:
+    raise SystemExit("The waypoint controller must migrate legacy preferences to the short v2 key.")
 
 site = (ROOT / "site/index.html").read_text(encoding="utf-8")
 if "_jwt=" in site:
