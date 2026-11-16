@@ -52,6 +52,25 @@ export async function loadOidcDiscovery(issuer, fetchImpl = fetch) {
   if (!response.ok) throw new Error("OIDC_DISCOVERY_FAILED");
 
   const document = await response.json();
+  if (
+    !Array.isArray(document.response_types_supported) ||
+    !document.response_types_supported.includes("code")
+  ) {
+    throw new Error("OIDC_CODE_FLOW_UNSUPPORTED");
+  }
+  if (
+    !Array.isArray(document.code_challenge_methods_supported) ||
+    !document.code_challenge_methods_supported.includes("S256")
+  ) {
+    throw new Error("OIDC_PKCE_S256_UNSUPPORTED");
+  }
+  if (
+    Array.isArray(document.grant_types_supported) &&
+    !document.grant_types_supported.includes("authorization_code")
+  ) {
+    throw new Error("OIDC_AUTHORIZATION_CODE_UNSUPPORTED");
+  }
+
   const discoveredIssuer = typeof document.issuer === "string"
     ? document.issuer.replace(/\/+$/, "")
     : "";
