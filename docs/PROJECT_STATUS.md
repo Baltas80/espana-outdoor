@@ -273,3 +273,12 @@ La integración en emulador confirma ruta online 767,757 m / 55 puntos, descarga
 Se corrigió el harness: el foreground component real usa `applicationId/namespace.MainActivity`; el runner comparaba erróneamente `namespace/`. El matcher ahora verifica ambos segmentos y el trap EXIT conserva logcat saneado antes de restablecer la red. Commits: `71e89b8`, `5c8579d`, `8cbeb25`, `9ab86a3`. Estas correcciones aún no tienen una ejecución CI asociada.
 
 Próxima prioridad: ejecutar Android staging sobre el nuevo HEAD, comprobar PNG offline válido y logcat completo, identificar por qué los tile packs Maps descargados no satisfacen las solicitudes de la fuente `composite`, y repetir force-stop/reinicio. No fusionar #61 ni declarar offline completo. La validación física OPPO, Keycloak/PostgreSQL, Valhalla de producción y release firmado siguen pendientes.
+
+
+## Orden de inicialización Mapbox — 16/11/2026
+
+La revisión de la API oficial de Mapbox confirma que `MapboxMapsOptions` se aplica durante la construcción de los objetos Maps y que los cambios posteriores no afectan a instancias ya creadas. Para eliminar cualquier ambigüedad con objetos Maps que pudiera inicializar Navigation, el puente Android configura ahora el TileStore compartido y `READ_ONLY` antes de `MapboxNavigationProvider.create`, y vuelve a aplicarlos/verificarlos después antes de construir `OfflineManager`. La configuración de la app se realiza antes de `runApp`, y la prueba de integración configura el puente antes de montar `MapWidget`.
+
+La nueva guarda `tool/test_mapbox_tile_store_mode.py` exige el orden: asignación inicial del TileStore < Navigation bootstrap < reaplicación < OfflineManager. Esto es una corrección de orden documentada, no una causa raíz demostrada todavía. La siguiente ejecución debe comprobar si disminuyen los misses `DATABASE/TILE_STORE` y desaparecen los errores `IN_OFFLINE_MODE/NETWORK/TILE`.
+
+Commits: `037b71a` (configuración nativa) y `94c6ce3` (guarda de orden). Las 12 comprobaciones estáticas cruzadas sobre los archivos actuales de la rama pasan en el entorno de revisión; no sustituyen la CI ni la ejecución Android.
