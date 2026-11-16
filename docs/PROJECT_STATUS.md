@@ -19,10 +19,10 @@ Este documento separa código integrado, pruebas automatizadas, validación de e
 - PR #78 se cerró como duplicada/supersedida por #79.
 - PR #61 ([Mapbox offline](https://github.com/Baltas80/espana-outdoor/pull/61)): HEAD `c5bdaef`, 274 commits por delante y 6 por detrás; diverged/mergeable=false. Contiene la integración nativa de TileStore/Navigation, pero no hay checks actuales sobre su HEAD. No sincronizar superponiendo archivos; resolver la divergencia por grupos funcionales.
 - PR #64 ([OIDC web/PKCE](https://github.com/Baltas80/espana-outdoor/pull/64)): HEAD `3051111`, 33 commits por delante y 22 por detrás; diverged/mergeable=false. No existe prueba de login real ni perfil compartido end-to-end.
-- PR #76 es este cambio documental; debe quedar sincronizada con main antes de integrarse.
+- PR #76 contiene este snapshot documental y está sincronizada con main; su único archivo modificado es `docs/PROJECT_STATUS.md`.
 
 ### Evidencia cartográfica
-- Android staging de PR #73 [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921), HEAD antiguo `9fbe2d1): preflight de red validado, modo avión desactivado y aplicación en primer plano. Mapbox Common 24.33.0 y Maps Core 11.33.0 se inicializaron. La captura 1080×2400 quedó casi negra; el gate la rechazó (entropía 0,650 bits, color dominante 0,901). El logcat no contiene eventos de estilo/fuente/render ni error Mapbox explícito suficiente para localizar la causa.
+- Android staging de PR #73 [43877738921](https://github.com/Baltas80/espana-outdoor/actions/runs/43877738921), HEAD antiguo `9fbe2d1`: preflight de red validado, modo avión desactivado y aplicación en primer plano. Mapbox Common 24.33.0 y Maps Core 11.33.0 se inicializaron. La captura 1080×2400 quedó casi negra; el gate la rechazó (entropía 0,650 bits, color dominante 0,901). El logcat no contiene eventos de estilo/fuente/render ni error Mapbox explícito suficiente para localizar la causa.
 - Issue #63 contiene la evidencia y el comentario de diagnóstico. La PR #79 añade listeners `STYLE_LOADED`, `MAP_LOADED`, `MAP_IDLE`, `MAP_LOAD_ERROR`, `STYLE_DATA`, `SOURCE_ADDED`, `SOURCE_DATA`, `STYLE_IMAGE_MISSING` y cambios de `RENDER_FRAME`; todavía no se ha ejecutado en Android.
 - La evidencia histórica de routing peatonal offline [43818184089](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089) calculó una ruta nueva con origen `OFFLINE` (1.109,662 m / 66 puntos), pero registró 43 eventos de tesela, solo 3 cargas y 14 fallos/misses. No acredita renderizado cartográfico offline.
 - El experimento A/B `outdoors-v12` frente a `standard` no está validado sobre el HEAD actual. No cambiar el estilo de producción por hipótesis.
@@ -37,7 +37,6 @@ Este documento separa código integrado, pruebas automatizadas, validación de e
 ### Criterio de cierre
 No fusionar #61/#73 ni declarar producción hasta demostrar en el mismo HEAD: mapa online completo; descarga y persistencia de style pack + Maps TileRegion + Navigation TileRegion; force-stop y modo avión real; ruta peatonal nueva offline; mapa offline con `MAP_LOADED`, `renderMode=full`, `MAP_IDLE`, cero errores de recursos y PNG auténtico válido; reapertura y reinicio. Después validar el APK exacto en OPPO. La aceptación global exige además login/perfil compartido real, backend/Valhalla desplegados y protegidos, CI verde y reglas de `main` activas.
 
----
 ---
 
 ## Snapshot histórico — 16/11/2026 13:40 CET
