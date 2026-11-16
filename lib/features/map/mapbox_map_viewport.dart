@@ -4,6 +4,11 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+String formatMapboxTileId({int? z, int? x, int? y}) {
+  if (z == null || x == null || y == null) return '-';
+  return '$z/$x/$y';
+}
+
 String sanitizeMapboxDiagnostic(String message) {
   return message
       .replaceAll(
@@ -48,9 +53,11 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
   int _sourceDataEventsLogged = 0;
+  int _resourceEventsLogged = 0;
   String? _lastRenderMode;
 
   static const _maxSourceDataEventsToLog = 250;
+  static const _maxResourceEventsToLog = 100;
 
   void _logMapboxDiagnostic(String event, [String details = '']) {
     final suffix = details.isEmpty ? '' : ' $details';
@@ -225,7 +232,21 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           'SOURCE_DATA',
           'id=${event.id} type=${event.type} '
               'loaded=${event.loaded ?? 'unknown'} '
-              'tile=${event.tileID ?? '-'}',
+              'tile=${formatMapboxTileId(z: event.tileID?.z, x: event.tileID?.x, y: event.tileID?.y)}',
+        );
+      },
+      onResourceRequestListener: (event) {
+        if (_resourceEventsLogged >= _maxResourceEventsToLog) return;
+        _resourceEventsLogged++;
+        final response = event.response;
+        final error = response?.error;
+        _logMapboxDiagnostic(
+          'RESOURCE',
+          'kind=${event.request.kind} data_source=${event.dataSource} '
+              'response_source=${response?.source ?? 'pending'} '
+              'size=${response?.size ?? -1} '
+              'error=${error?.reason ?? 'none'} '
+              'cancelled=${event.cancelled}',
         );
       },
       onStyleImageMissingListener: (event) {
