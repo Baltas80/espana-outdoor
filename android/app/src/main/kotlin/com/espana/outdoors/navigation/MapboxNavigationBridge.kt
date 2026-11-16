@@ -268,12 +268,13 @@ class MapboxNavigationBridge(context: Context) {
                 return@loadStylePack
             }
 
+            val mapPixelRatio = appContext.resources.displayMetrics.density
             val mapsDescriptor = mapsOffline.createTilesetDescriptor(
                 TilesetDescriptorOptions.Builder()
                     .styleURI(styleUri)
                     // Match the tile-pack descriptor to the density used by MapView.
                     // Without this, Maps may request a different tile variant offline.
-                    .pixelRatio(appContext.resources.displayMetrics.density)
+                    .pixelRatio(mapPixelRatio)
                     .minZoom(minZoom.toByte())
                     .maxZoom(maxZoom.toByte())
                     .build()
@@ -424,6 +425,10 @@ class MapboxNavigationBridge(context: Context) {
                         .putBoolean("offline:$regionId:maps", true)
                         .putBoolean("offline:$regionId:routing-walking", true)
                         .putBoolean("offline:$regionId", true)
+                        .putString("offline:$regionId:styleUri", styleUri)
+                        .putInt("offline:$regionId:minZoom", minZoom)
+                        .putInt("offline:$regionId:maxZoom", maxZoom)
+                        .putFloat("offline:$regionId:pixelRatio", mapPixelRatio)
                         .commit()
                     if (!markerPersisted) {
                         mainHandler.post {
@@ -454,6 +459,7 @@ class MapboxNavigationBridge(context: Context) {
                                 "mapTiles" to true,
                                 "routingTiles" to true,
                                 "routingProfile" to "walking",
+                                "mapPixelRatio" to mapPixelRatio,
                                 "mapCompletedResourceCount" to mapCompleted,
                                 "mapCompletedResourceSize" to mapSize,
                                 "mapRequiredResourceCount" to mapRequired,
@@ -513,6 +519,106 @@ class MapboxNavigationBridge(context: Context) {
             // Legacy combined regions are intentionally not treated as verified:
             // their aggregate progress could be satisfied by routing alone.
             mainHandler.post { result.success(mapReady && routingReady) }
+        }
+    }
+
+
+    /**
+     * Verify the downloaded Maps descriptor through the exact TileStore exposed
+     * to Maps SDK globals, not only through the Navigation bridge's local handle.
+     * This distinguishes a region that exists from a region the MapWidget can use.
+     */
+    fun verifyOfflineRegion(arguments: Any?, result: MethodChannelResult) {
+        val regionId = (arguments as? Map<*, *>)?.get("regionId") as? String
+        if (regionId.isNullOrBlank()) {
+            result.error("INVALID_REGION", "A region ID is required.", null)
+            return
+        }
+        val store = tileStore
+        val mapsOffline = offlineManager
+        if (store == null || mapsOffline == null) {
+            result.error("NAVIGATION_NOT_CONFIGURED", "Configure Mapbox before verifying offline data.", null)
+            return
+        }
+
+        val preferences = appContext
+            .getSharedPreferences("espana_outdoor_offline", Context.MODE_PRIVATE)
+        val styleUri = preferences.getString("offline:$regionId:styleUri", null)
+        val minZoom = preferences.getInt("offline:$regionId:minZoom", -1)
+        val maxZoom = preferences.getInt("offline:$regionId:maxZoom", -1)
+        val pixelRatio = preferences.getFloat("offline:$regionId:pixelRatio", -1f)
+        if (styleUri.isNullOrBlank() || minZoom < 0 || maxZoom < minZoom || pixelRatio <= 0f) {
+            mainHandler.post {
+                result.success(
+                    mapOf(
+                        "mapTileStoreSameInstance" to false,
+                        "mapDescriptorCheckCompleted" to false,
+                        "mapDescriptorPresentInMapsStore" to false,
+                        "mapRegionPresent" to false,
+                        "routingRegionPresent" to false,
+                        "tileStoreUsageModeReadOnly" to
+                            (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY)
+                    )
+                )
+            }
+            return
+        }
+
+        val mapsStore = MapboxMapsOptions.tileStore
+        val mapStoreSameInstance = mapsStore === store
+        val descriptorStore = mapsStore ?: store
+        val mapRegionId = "$regionId-maps"
+        val routingRegionId = "$regionId-routing-walking"
+        val mapDescriptor = mapsOffline.createTilesetDescriptor(
+            TilesetDescriptorOptions.Builder()
+                .styleURI(styleUri)
+                .pixelRatio(pixelRatio)
+                .minZoom(minZoom.toByte())
+                .maxZoom(maxZoom.toByte())
+                .build()
+        )
+
+        store.getAllTileRegions { regionsExpected ->
+            if (!regionsExpected.isValue) {
+                mainHandler.post {
+                    result.error(
+                        "OFFLINE_STATUS_FAILED",
+                        "Mapbox could not read the stored offline region list.",
+                        null
+                    )
+                }
+                return@getAllTileRegions
+            }
+            val regions = regionsExpected.value.orEmpty()
+            val mapRegion = regions.firstOrNull { it.id == mapRegionId }
+            val routingRegion = regions.firstOrNull { it.id == routingRegionId }
+            val mapRegionPresent = mapRegion != null &&
+                mapRegion.completedResourceCount > 0 &&
+                mapRegion.completedResourceSize > 0 &&
+                preferences.getBoolean("offline:$regionId:maps", false)
+            val routingRegionPresent = routingRegion != null &&
+                routingRegion.completedResourceCount > 0 &&
+                routingRegion.completedResourceSize > 0 &&
+                preferences.getBoolean("offline:$regionId:routing-walking", false)
+
+            descriptorStore.tileRegionContainsDescriptors(mapRegionId, listOf(mapDescriptor)) { descriptorExpected ->
+                val descriptorCheckCompleted = descriptorExpected.isValue
+                val descriptorPresent = descriptorCheckCompleted && descriptorExpected.value
+                mainHandler.post {
+                    result.success(
+                        mapOf(
+                            "mapTileStoreSameInstance" to mapStoreSameInstance,
+                            "mapDescriptorCheckCompleted" to descriptorCheckCompleted,
+                            "mapDescriptorPresentInMapsStore" to descriptorPresent,
+                            "mapRegionPresent" to mapRegionPresent,
+                            "routingRegionPresent" to routingRegionPresent,
+                            "tileStoreUsageModeReadOnly" to
+                                (MapboxMapsOptions.tileStoreUsageMode == TileStoreUsageMode.READ_ONLY),
+                            "mapPixelRatio" to pixelRatio
+                        )
+                    )
+                }
+            }
         }
     }
 
