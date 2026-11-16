@@ -10,6 +10,7 @@ on:
       - 'test/**'
       - 'assets/**'
       - 'pubspec.yaml'
+      - 'pubspec.lock'
       - '.github/workflows/staging-android.yml'
   push:
     branches: [main]
@@ -94,21 +95,13 @@ jobs:
         run: python3 tool/configure_mobile_native.py --platform android
       - name: Verify Android native configuration
         run: python3 tool/verify_mobile_native.py --platform android
-      - name: Resolve dependencies and export the refreshed lockfile
+      - name: Resolve dependencies from committed lockfile
         shell: bash
         run: |
           set -euo pipefail
-          flutter pub get
-          mkdir -p "$RUNNER_TEMP/resolved-pub-lock"
-          cp pubspec.lock "$RUNNER_TEMP/resolved-pub-lock/pubspec.lock"
-          echo "resolved_pub_lockfile_uploaded=true" >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload resolved Pub lockfile
-        if: always()
-        uses: actions/upload-artifact@v7.0.0
-        with:
-          name: resolved-pubspec-lock
-          path: ${{ runner.temp }}/resolved-pub-lock/pubspec.lock
-          if-no-files-found: ignore
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          echo "pubspec_lock_unchanged=true" >> "$GITHUB_STEP_SUMMARY"
       - name: Analyze and test
         run: |
           flutter analyze --no-fatal-infos
@@ -267,43 +260,3 @@ jobs:
             ${{ runner.temp }}/espana-outdoor-map.png
           if-no-files-found: ignore
 
-  # One-time repair for the committed Pub lockfile on PR #71. This job is
-  # restricted to this same-repository branch and writes only pubspec.lock.
-  # It is removed after the refreshed lockfile is committed; subsequent builds
-  # return to --enforce-lockfile.
-  refresh-pub-lockfile:
-    if: >-
-      always() &&
-      needs.android-staging.outputs.apk_built == 'true' &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'fix/android-community-api-build-define-20261116'
-    needs: android-staging
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2.23.0
-        with:
-          flutter-version: '3.47.5'
-          channel: stable
-          cache: true
-      - name: Resolve and commit the refreshed lockfile
-        shell: bash
-        run: |
-          set -euo pipefail
-          flutter pub get
-          if git diff --quiet -- pubspec.lock; then
-            echo "Committed pubspec.lock is already current."
-            exit 0
-          fi
-          git diff --stat -- pubspec.lock
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.lock
-          git commit -m "chore(deps): refresh Flutter pub lockfile"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
