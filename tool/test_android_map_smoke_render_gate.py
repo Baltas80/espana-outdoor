@@ -205,8 +205,6 @@ for marker in (
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 for marker in (
-    "${{ runner.temp }}/primary-build/app-release.apk",
-    "${{ runner.temp }}/standard-build/app-release.apk",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
