@@ -43,6 +43,8 @@ for job, minutes in (
 android_job = job_block(workflow, "android-staging")
 if "timeout-minutes: 75" not in android_job:
     raise SystemExit("Android staging job must have a 75-minute upper bound.")
+if "cancel-in-progress: true" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
+    raise SystemExit("A newer Android staging commit must supersede queued stale runs on the same branch.")
 
 # A/B style selection is a staging-only build input. The default and all PR
 # builds remain Outdoors; Standard can be selected explicitly on workflow_dispatch.
