@@ -364,7 +364,12 @@ if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 for marker in (
+    "${{ runner.temp }}/primary/espana-window-post-map.xml",
+    "${{ runner.temp }}/primary/espana-system-dialog.xml",
+    "${{ runner.temp }}/primary/espana-map-page-check.txt",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
+    "${{ runner.temp }}/standard/espana-system-dialog.xml",
+    "${{ runner.temp }}/standard/espana-map-page-check.txt",
     "${{ runner.temp }}/standard/espana-outdoor-map.png",
     "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
 ):
