@@ -119,3 +119,25 @@ Ejecución [Android staging 43931517057](https://github.com/Baltas80/espana-outd
 - Debido a `continue-on-error: true`, el job conservó el APK primario y continuó, pero no existía un APK Standard; el paso final de requisito A/B falló. Por tanto, **no existe comparación A/B válida en este run**.
 - Corrección preparada en la PR #79: copiar el APK/manifest Outdoors verificado fuera de `build/`, ejecutar `flutter clean` y `flutter pub get --enforce-lockfile`, construir Standard por la ruta Flutter predeterminada y copiar su APK/manifest a un directorio independiente. El emulador ejecutará ambos APK y el gate final verificará el SHA-256 del manifiesto Standard.
 - Esta corrección resuelve el fallo del pipeline A/B, no el defecto de renderizado. El mapa Outdoors continúa sin aceptación; Standard todavía no se ha probado.
+
+### Incidencia de orquestación A/B — 16/11/2026 21:17 CET
+
+Ejecución [Android staging 43939379836](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836), source commit `3029c332a483a54df9547aab6faab7af67057750`:
+
+- CI general [43939379797](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379797): success.
+- Security baseline [43939379759](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379759): 8/8.
+- Android staging: análisis/tests, APK Outdoors, verificación, APK Standard y publicación de artefactos pasaron. El job falló al iniciar el smoke del emulador.
+- El artefacto [14263750648](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836/artifacts/14263750648) contiene ambos APK y manifiestos. SHA-256 recalculados desde los archivos descargados:
+  - Outdoors: `ac25d20b2cf1a1eed3cd1d1bc143d68c14b7c9a185de3b6e9f7d00508c26b8f3`.
+  - Standard: `fe0119624c81dcc47f3ed2c0e70dbe380328d2619e0788826f21c095cb48b1b2`.
+  Ambos coinciden con sus manifiestos; source commit `3029c33`, workflow commit `3d3fbf4`, Flutter 3.47.5.
+- Causa exacta del smoke fallido: el bloque multilínea `script: |` de `reactivecircus/android-emulator-runner` aparece en los logs ejecutando cada línea como una invocación independiente de `/usr/bin/sh -c`. Las asignaciones `primary_apk=...` y `standard_apk=...` no persistieron hasta la línea que invocó `smoke_android_map.sh`; el argumento llegó vacío y el script terminó con `APK path required`. El emulador había arrancado correctamente.
+- Por tanto, los dos APK se compilaron, pero **ninguno de los dos estilos se ejecutó**. Este run no es una comparación A/B ni aporta evidencia cartográfica nueva.
+
+Corrección aplicada en la PR #79:
+- La acción del emulador invoca una sola línea: `bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_STYLE_URI"`.
+- Toda la gestión de variables, ejecución primaria/Standard, timeouts, directorios de evidencia y códigos de salida vive dentro del script Bash versionado.
+- El runner ejecuta Standard incluso si falla el smoke primario, para conservar una comparación diagnóstica útil.
+- Se añadió una prueba automatizada con un `timeout` simulado para cubrir éxito A/B, fallo primario sin omitir Standard y staging normal sin APK Standard.
+
+La corrección elimina el fallo de orquestación; no resuelve el mapa negro. El gate cartográfico y la comparación A/B real siguen pendientes.
