@@ -2,16 +2,42 @@
 """Prevent Android map smoke from accepting a live process with a blank viewport."""
 
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / "tool" / "smoke_android_map.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
 source = SMOKE.read_text(encoding="utf-8")
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
 network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
+ci_workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+def job_block(source: str, name: str) -> str:
+    match = re.search(
+        rf"(?ms)^  {re.escape(name)}:\\n(.*?)(?=^  [a-z0-9-]+:|\\Z)",
+        source,
+    )
+    if match is None:
+        raise SystemExit(f"CI workflow is missing job: {name}")
+    return match.group(1)
+
+
+for job, minutes in (
+    ("rescue-link", 20),
+    ("source-gateway", 30),
+    ("flutter", 75),
+    ("ios-build", 60),
+):
+    if f"timeout-minutes: {minutes}" not in job_block(ci_workflow, job):
+        raise SystemExit(f"CI job {job} must have a {minutes}-minute upper bound.")
+
+android_job = job_block(workflow, "android-staging")
+if "timeout-minutes: 75" not in android_job:
+    raise SystemExit("Android staging job must have a 75-minute upper bound.")
 
 required = (
     "ensure_android_emulator_online.sh",
