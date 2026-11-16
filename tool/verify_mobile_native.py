@@ -112,7 +112,7 @@ def verify_android() -> None:
         "single process TileStore": "processTileStore",
         "Maps SDK shared TileStore": "MapboxMapsOptions.tileStore = store",
         "Navigation SDK shared TileStore": ".tileStore(store)",
-        "Maps read-only online fallback mode": "TileStoreUsageMode.READ_ONLY",
+        "production TileStore mode defaults to read-only": 'tileStoreUsageModeName: String = "READ_ONLY"',
         "global Mapbox runtime token": "MapboxOptions.accessToken = accessToken",
         "strict online/offline source": "RouterOrigin.ONLINE",
         "synchronous offline metadata persistence": ".commit()",
@@ -120,10 +120,8 @@ def verify_android() -> None:
         if fragment not in bridge:
             raise SystemExit(f"Native Mapbox bridge is missing: {label}")
 
-    if "TileStoreUsageMode.READ_AND_UPDATE" in bridge:
-        raise SystemExit(
-            "Do not use READ_AND_UPDATE globally: the free-pan map requires individual-tile online fallback."
-        )
+    if '"READ_AND_UPDATE" -> TileStoreUsageMode.READ_AND_UPDATE' not in bridge:
+        raise SystemExit("The offline tile-pack diagnostic mode is missing.")
 
     token_index = bridge.find("MapboxOptions.accessToken = accessToken")
     store_init_index = bridge.find("getOrCreateProcessTileStore(appContext)")
