@@ -136,6 +136,11 @@ jobs:
           test/source_gateway_config_test.dart
       - name: Full test suite
         run: flutter test --coverage --concurrency=1
+      - name: Verify Mapbox staging style override
+        run: >-
+          flutter test
+          --dart-define=MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard
+          test/mapbox_render_diagnostics_test.dart
       - name: Android release build
         run: |
           flutter build apk --release --dart-define=APP_ENV=ci
