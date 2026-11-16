@@ -219,7 +219,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     if successful.returncode != 0 or "standard_run=true" not in successful.stdout:
         raise SystemExit(f"Android A/B runner failed its success-path test: {successful.stderr}")
     calls = call_log.read_text(encoding="utf-8")
-    if calls.count("ARGS=") != 2 or "primary-build/app-release.apk" not in calls or "standard-build/app-release.apk" not in calls:
+    if calls.count("bash tool/smoke_android_map.sh") != 2 or "primary-build/app-release.apk" not in calls or "standard-build/app-release.apk" not in calls:
         raise SystemExit("Android A/B runner did not invoke both APKs in the success-path test.")
     if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/standard" not in calls:
         raise SystemExit("Android A/B runner did not isolate primary and Standard evidence directories.")
@@ -237,7 +237,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
         check=False,
     )
     calls_after_failure = call_log.read_text(encoding="utf-8")
-    if failed_primary.returncode == 0 or calls_after_failure.count("ARGS=") != 2:
+    if failed_primary.returncode == 0 or calls_after_failure.count("bash tool/smoke_android_map.sh") != 2:
         raise SystemExit("A primary smoke failure must not prevent the Standard comparison from running.")
 
     (temp_root / "standard-build" / "app-release.apk").unlink()
@@ -252,7 +252,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     if primary_only.returncode != 0 or "standard_run=false" not in primary_only.stdout:
         raise SystemExit("The A/B runner must still support non-PR-79 staging runs without a Standard APK.")
     primary_only_calls = call_log.read_text(encoding="utf-8")
-    if primary_only_calls.count("ARGS=") != 1:
+    if primary_only_calls.count("bash tool/smoke_android_map.sh") != 1:
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data for a nonexistent Standard comparison.")
