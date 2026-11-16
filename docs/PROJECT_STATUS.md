@@ -1,32 +1,75 @@
 # España Outdoor — estado técnico
 
-Última revisión: **15/11/2026 19:24 CET**. Rama de referencia: `main`, HEAD observado: `125932eacad78cefa838a2333a0a018d3451a6be`.
+Última revisión: **16/11/2026 07:49 CET**. Rama de referencia: `main`, HEAD verificado: `412b899d36b47040b8e36ba66c0cfa7eb7df01db`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
+
+## Snapshot operativo — 16/11/2026 07:49 CET
+
+### Estado de ramas y CI
+
+- `main` apunta a `412b899d36b47040b8e36ba66c0cfa7eb7df01db`. PR #70 (Keycloak/PostgreSQL) está integrada; no hay despliegue real de esos servicios.
+- PR #71 ([Android Community API](https://github.com/Baltas80/espana-outdoor/pull/71)) está lista para revisión, HEAD `963ded931e8279dff60a15ebd068019987b8c3b0`, 12 commits por delante y 0 por detrás. CI general [43817492034](https://github.com/Baltas80/espana-outdoor/actions/runs/43817492034) terminó correctamente y Security [43817491984](https://github.com/Baltas80/espana-outdoor/actions/runs/43817491984) pasó 8/8. Android staging [43817492001](https://github.com/Baltas80/espana-outdoor/actions/runs/43817492001) superó análisis/tests, compilación APK, verificación del APK, publicación y KVM; el smoke online sigue en ejecución. Artefacto APK: `14203902599`. No aceptar el perfil compartido hasta validar endpoint real y login.
+- El workflow de #71 generó `resolved-pubspec-lock` (artefacto `14203038525`). El lockfile extraído tiene Git blob SHA `c40c72f594ecf647fe39557dd913c2096333df55`, distinto del lockfile versionado `cd4572ff04c3d0c47f90be6b99afe390f3ddfc97`. El job temporal `refresh-pub-lockfile` debe incorporar ese cambio tras el éxito del staging. Después hay que retirar el job con `contents: write`, exigir `flutter pub get --enforce-lockfile` y verificar que no modifica el archivo.
+- PR #61 ([Mapbox offline](https://github.com/Baltas80/espana-outdoor/pull/61)) continúa en draft. HEAD `5993228a901e095b6b38690059a5c72f98f22b67`, 258 commits por delante y 4 por detrás. CI [43818184098](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184098) y Security [43818184042](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184042) terminaron correctamente; Security 8/8. Android staging [43818184089](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089) sigue pendiente sin jobs iniciados. Los cambios nuevos exigen style pack persistido y contabilizan los misses `NOT_FOUND/TILE_STORE` como fallos.
+- PR #73 ([smoke visual Android](https://github.com/Baltas80/espana-outdoor/pull/73)) sigue en draft. HEAD actual `d74797aa3ef51f46721c3ff31c60653c17942ab0`. El artefacto real `14202823106` de run [43816647416](https://github.com/Baltas80/espana-outdoor/actions/runs/43816647416) mostró un viewport casi negro. Se añadió un validador PNG y se detectó que el smoke online no ejecutaba el preflight de red validada del emulador. La PR ahora exige `ANDROID_EMULATOR_CI=true` y ejecuta `ensure_android_emulator_online.sh` antes del lanzamiento. Es una hipótesis diagnóstica aún no validada por una nueva ejecución.
+- PR #64 sigue en draft; no hay login real con Keycloak ni lectura/escritura del mismo perfil desde web y Android.
+- Issue #72 confirma que `main` no está protegida (`protected=false`, sin rulesets activos). La conexión GitHub disponible permite lectura, pero no expone escritura de branch protection/rulesets; se requiere aplicar el ruleset desde una conexión con permisos de administración y verificarlo después.
+
+### Puertas funcionales aún abiertas
+
+- La ruta peatonal offline tiene evidencia anterior positiva en emulador; el renderizado completo de Maps no.
+- No se ha demostrado un mapa online completo en el APK release actual ni un mapa offline con `MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero errores y PNG válido.
+- Faltan force-stop/reapertura, reinicio y validación del APK exacto en el OPPO físico.
+- Keycloak/PostgreSQL están configurados y probados en integración desechable, no desplegados en producción. Valhalla, TLS, DNS/HTTP de los dominios y el perfil compartido real siguen pendientes.
+- No declarar producción ni fusionar #61/#73 hasta que sus puertas funcionales pasen en el mismo HEAD.
+
+
 
 ## Resumen ejecutivo
 
 - Android Flutter sigue siendo la prioridad.
-- La seguridad de Source Gateway y Rescue Link está integrada en `main` mediante PR #68.
+- La seguridad de Source Gateway y Rescue Link está integrada mediante PR #68. La configuración de hostname/issuer Keycloak y el bootstrap PostgreSQL se integraron mediante PR #70 (`25507ff`); el despliegue real sigue pendiente.
 - El workflow de GitHub Pages está corregido en `2288290`; la ejecución de despliegue 43699356632 terminó correctamente. No se ha hecho una comprobación HTTP independiente del dominio en esta revisión.
-- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**. PR #61 sigue en draft, con HEAD `97aaa316efb878dc3e70c07c1288a2c175a3d003`, 166 commits por delante y 0 por detrás de `main`.
+- La navegación peatonal offline de Mapbox está en PR #61 y **no forma parte de `main`**. Ver snapshot operativo superior: HEAD `5993228a901e095b6b38690059a5c72f98f22b67`, 258 commits por delante y 4 por detrás.
 - No se acepta todavía el renderizado de mapas offline: una ejecución anterior calculó una ruta offline nueva, pero falló el renderizado y una captura resultó ser del launcher, no del mapa.
-- La identidad web PKCE está en PR #64 (draft); falta configurar Keycloak y verificar una cuenta real contra backend/PostgreSQL desplegados.
+- La identidad web PKCE está en PR #64 (draft); falta configurar el realm/cliente, desplegar Keycloak/PostgreSQL y verificar una cuenta real compartida entre web y Android.
 - No se declara producción.
+
+## Snapshot operativo — 16/11/2026 (ciclo de entrega actual)
+
+### Integraciones y validación actual
+
+- PR #70 está fusionada en `main` como `25507ff`. El bootstrap se probó contra PostGIS desechable: creación/rotación idempotente de rol y base, login TCP, ownership, `docker compose config`, `go test -race` y `go vet`. No se ha desplegado PostgreSQL ni Keycloak de producción.
+- PR #61 sigue abierta y en draft. Su HEAD es `5892864cb509db09ffc3a05583a6559000c11220`; la comparación actual indica 237 commits por delante y 2 por detrás de `main` (PR #70 y la actualización documental posterior se fusionaron después de la base de esta rama).
+- Android staging [43804191767](https://github.com/Baltas80/espana-outdoor/actions/runs/43804191767), sobre `3fd60f7`, falló en `flutter analyze` porque Dart no define `sinh`; el commit `5892864` corrigió la fórmula inversa de Web Mercator con `exp/atan`. En [Android staging 43804464921](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464921) ya pasaron guards, cobertura geométrica, preflight, NDK/dependencias y `Analyze and test`; la compilación APK sigue en curso. [CI 43804464984](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464984): Source Gateway, Rescue Link e iOS superados; Flutter/Android release sigue compilando. [Security 43804464891](https://github.com/Baltas80/espana-outdoor/actions/runs/43804464891): 8/8 superados.
+- Android staging [43804363653](https://github.com/Baltas80/espana-outdoor/actions/runs/43804363653), sobre `6f79421`, terminó fallando en `flutter analyze` por el mismo uso de `math.sinh`; no aporta evidencia de mapa. El HEAD actual incluye el cálculo corregido y la geometría alineada en `OfflinePage`.
+- El run [43799514133](https://github.com/Baltas80/espana-outdoor/actions/runs/43799514133), sobre `470a194`, demostró TileStore compartido, descriptor Maps presente, ambas regiones y ruta nueva con origen `OFFLINE`. El mapa falló con 14 misses `NOT_FOUND/TILE_STORE`; los tiles observados fueron z13 x3986–3987, y3162–3164.
+- Se detectó que el polígono anterior `37.85..37.93` solo cubría una franja de la fila y=3164. El test y `OfflinePage` se ampliaron a latitud `37.78..37.97`, longitud `-4.84..-4.72`. `tool/test_mapbox_offline_region_coverage.py` comprueba que ambos polígonos sean idénticos y cubran por completo los seis tiles z13 observados. La lógica Python del guard se ejecutó localmente sobre fixtures equivalentes y pasó; la integración Android sigue pendiente.
+- PR #64 sigue en draft. En HEAD `3d4a436` Web OIDC [43804969608](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969608) y Security [43804969563](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969563) (8/8) han pasado; CI general [43804969693](https://github.com/Baltas80/espana-outdoor/actions/runs/43804969693) sigue con Flutter/iOS en ejecución. El discovery ahora exige `code` y PKCE S256. La cuenta real compartida y la configuración del realm siguen pendientes.
+- La configuración Android de `main` todavía pasa `SOURCE_GATEWAY_BASE_URL` pero no `COMMUNITY_API_BASE_URL`, mientras `CommunityIdentityApi` lee `COMMUNITY_API_BASE_URL`. PR #61 ya añade esa variable al entorno, preflight y `--dart-define`; hasta integrar ese cambio, los perfiles móviles pueden quedar sin API configurada en builds derivados de `main`.
+- No hay todavía evidencia de mapa offline completo (`MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y PNG válido), reinicio real ni validación del APK exacto en el OPPO.
+
+### Criterio vigente
+
+No fusionar PR #61 hasta que el mismo HEAD demuestre descarga Maps/Navigation, ruta nueva offline, renderizado completo sin fallos, PNG de la aplicación correcta, persistencia tras force-stop/reinicio y posteriormente instalación/validación del APK exacto en OPPO. No declarar producción hasta verificar además PKCE/perfil compartido, endpoints TLS, PostgreSQL, Valhalla y despliegue web.
+
+---
 
 ## Estado de `main`
 
-HEAD: `2288290b3fb233fe5e0d124f0b38008a31b0cd25`.
+HEAD: `f2d41542ee524d72422f86c37625b0fd5c67059d`.
 
 Integraciones relevantes:
 
 - PR #58: API canónica de perfiles `GET/PATCH /v1/me`, migración PostgreSQL y adaptador Flutter.
 - PR #68: validación de access tokens firmados, issuer, audiencia dedicada y `typ=Bearer`; audiencias separadas para Source Gateway y Rescue Link; TLS de PostgreSQL obligatorio fuera del modo local explícito. Commit squash: `b5ec47c4e4d1f8f7f3343f0b14fa47363a4f2a7f`.
+- PR #70: hostname estricto de Keycloak, `OIDC_ISSUER` alineado con Compose y bootstrap idempotente de la base `keycloak`. Commit squash en `main`: `25507ff224ed3a9404b962737f7271dfda0f96fb`. CI/PostGIS de integración y Security 8/8 superados antes de fusionar; no equivale a despliegue.
 - `2288290`: alinea las versiones del uploader de artefactos Pages y del cliente deploy para corregir la publicación.
 
-La rama `main` no tiene protección de rama habilitada en la última consulta a GitHub. Es un riesgo de proceso: conviene exigir CI y revisión antes de futuras integraciones.
+La protección de `main` no está verificada: la consulta al endpoint de protección devolvió `403 Resource not accessible by integration`. No concluir que esté deshabilitada ni cambiar reglas sin evidencia.
 
-## PR #61 — Mapbox Navigation peatonal offline
+## PR #61 — Mapbox Navigation peatonal offline (histórico; ver snapshot operativo superior)
 
 [PR #61](https://github.com/Baltas80/espana-outdoor/pull/61)  
 Rama: `feat/mapbox-offline-routing-final-20261114`  
@@ -289,7 +332,7 @@ En el run [43786917459](https://github.com/Baltas80/espana-outdoor/actions/runs/
 
 Métricas calculadas sobre la zona central del PNG de 1080×2400: 38 colores cuantizados, opacidad 1.000, entropía 0.650 bits y color dominante 0.901. El validador de captura de PR #61 exige entropía >1.2 y color dominante <0.85; por tanto, rechazaría esa imagen. El smoke de `main` no debe contarse como prueba de renderizado: su script solo comprobaba que la app siguiera viva y que no apareciera el estado textual de error, no los callbacks completos del motor cartográfico.
 
-### PR #70 — hostname público de Keycloak
+### PR #70 — hostname público de Keycloak (snapshot anterior a la fusión; ahora integrada en `main`)
 
 [PR #70](https://github.com/Baltas80/espana-outdoor/pull/70), rama `fix/keycloak-public-hostname-20261116`, HEAD `2a2d1c65e9224a65cca2ed1074bd6cf8da0c24f0`, 7 commits por delante y 0 por detrás de `main`. Sigue en draft.
 
@@ -316,41 +359,47 @@ Los resultados del run anterior [43786917459](https://github.com/Baltas80/espana
 
 No desplegar ni declarar producción hasta que se completen las pruebas funcionales y externas indicadas.
 
-## Anexo de evidencia de fuentes Mapbox — 15/11/2026
 
-La ejecución [43752643079](https://github.com/Baltas80/espana-outdoor/actions/runs/43752643079) terminó con fallo funcional, pero publicó evidencia suficiente para separar routing y cartografía:
+## Actualización 16/11/2026 08:32 CET — Android staging, lockfile y evidencia visual
 
-- La ruta online se calculó: 767,757 m / 55 puntos.
-- Córdoba se descargó con 33/33 recursos, 0 errores y 42.847.606 bytes.
-- Tras activar modo avión y deshabilitar Wi-Fi, Mapbox Navigation devolvió una ruta nueva con origen nativo `offline`: 1.109,662 m / 66 puntos.
-- El mapa offline no renderizó el viewport: `style_loaded=true`, `map_loaded=false`, `full_frame=false`, `idle=false`, 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`.
-- La captura del integration test no se aceptó porque el paquete de prueba no estaba en primer plano. El artefacto separado del smoke online sí contiene una captura de la pantalla real de Mapa, con fondo y elementos de agua, pero sin cartografía viaria/etiquetas suficiente para aceptación.
-- En el smoke online el estilo, sprites, glyphs y algunas teselas respondieron desde red; solo hubo dos frames parciales y no aparecieron errores de recurso ni callbacks de mapa completo.
+### PR #71 — perfil Android y lockfile
 
-No se cambia todavía el descriptor ni se amplía la región por conjetura. La rama añade instrumentación `sourceAdded`/`sourceDataLoaded` en producción y en el integration test para identificar qué fuentes vectoriales cargan metadata/tiles. Los IDs se saneen y se limitan los eventos; no se registran URLs, mensajes originales ni tokens.
+- Rama `fix/android-community-api-build-define-20261116`, HEAD `7fb4b4784ebe964048d6f59b27be77c9892db303`; comparación con `main` observado en `7110884e`: 16 commits por delante y 1 por detrás.
+- La ejecución [CI 43820273758](https://github.com/Baltas80/espana-outdoor/actions/runs/43820273758) terminó 4/4 (Flutter, Source Gateway, Rescue Link e iOS). [Security 43820273899](https://github.com/Baltas80/espana-outdoor/actions/runs/43820273899) terminó 8/8.
+- [Android staging 43820273828](https://github.com/Baltas80/espana-outdoor/actions/runs/43820273828) terminó correctamente sobre source commit `387003f68edf40f3a869cd4dfce32bedf8627b11`. APK release generado, análisis/tests y verificación de manifiesto/hash superados. Artefacto [14205310509](https://github.com/Baltas80/espana-outdoor/actions/runs/43820273828/artifacts/14205310509), 200.201.846 bytes, Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, SHA-256 `ce3ce87326f3b96b8a8e4b790a61f62d070f8347030b6aebee36b478f5a3cc30`. El hash fue recalculado después de descargar el APK y coincide con el manifiesto.
+- El job temporal de reparación del lockfile se ejecutó correctamente y creó [cbc16a4](https://github.com/Baltas80/espana-outdoor/commit/cbc16a4b380c3ff4f8bce608e1651bd840a886cd). Después se retiró ese job en [7fb4b47](https://github.com/Baltas80/espana-outdoor/commit/7fb4b4784ebe964048d6f59b27be77c9892db303): el workflow ahora ejecuta `flutter pub get --enforce-lockfile`, exige que `pubspec.lock` no cambie y añade el lockfile al path filter. **No hay aún una ejecución CI/Android sobre el HEAD 7fb4b47**, por lo que ese último cambio de workflow sigue pendiente de validación.
+- PR #71 continúa abierta. La configuración de `COMMUNITY_API_BASE_URL` está implementada, pero todavía no se ha probado una cuenta real ni un perfil sincronizado web/Android.
 
-Commits de instrumentación:
-- `653bd89`: eventos de fuentes en el viewport de producción.
-- `b037c82`: eventos de fuentes en la prueba offline.
-- `df1fc3a`: mantener los logs del test compatibles con lint.
-- `608e2e0` y `e799dab`: exigir los diagnósticos mediante el guard estático.
-- `437bfb2`: documentar la evidencia y el diagnóstico.
+### Evidencia visual del smoke Android
 
-La ruta offline peatonal queda demostrada en emulador; el mapa offline no. No fusionar #61 hasta que el mismo APK/HEAD produzca metadata/tiles de las fuentes necesarias, full frame, idle y PNG verificado; después debe repetirse persistencia y reinicio y validarse el APK exacto en OPPO.
+- El smoke del run 43820273828 terminó con PASS porque comprobaba proceso vivo y ausencia de pantalla de error; no aplicaba todavía el validador visual estricto.
+- Artefacto de captura [14204319317](https://github.com/Baltas80/espana-outdoor/actions/runs/43820273828/artifacts/14204319317). PNG real de 1080×2400, inspeccionado directamente: viewport casi negro, sin cartografía suficiente. Métricas con el mismo muestreo del validador de PR #73: 15 colores cuantizados, entropía 0,626 bits, color dominante 0,901 y opacidad 1,000.
+- El validador de [PR #73](https://github.com/Baltas80/espana-outdoor/pull/73) exige más de 24 colores, entropía superior a 1,2 y color dominante inferior a 0,85; rechaza correctamente esta captura. Por tanto, el PASS anterior **no** es evidencia de mapa visible. PR #73 sigue abierta y su gate estricto necesita ejecutarse en un workflow Android con las credenciales y el lockfile actuales.
 
-## Orden de inicialización Mapbox — 16/11/2026
+### PR #61 — Mapbox offline
 
-La revisión de la API oficial de Mapbox confirma que `MapboxMapsOptions` se aplica durante la construcción de los objetos Maps y que los cambios posteriores no afectan a instancias ya creadas. Para eliminar cualquier ambigüedad con objetos Maps que pudiera inicializar Navigation, el puente Android configura ahora el TileStore compartido y `READ_ONLY` antes de `MapboxNavigationProvider.create`, y vuelve a aplicarlos/verificarlos después antes de construir `OfflineManager`. La configuración de la app se realiza antes de `runApp`, y la prueba de integración configura el puente antes de montar `MapWidget`.
+- HEAD validado por la ejecución actual: `5993228a901e095b6b38690059a5c72f98f22b67`; comparación con `main` `7110884e`: 258 commits por delante y 5 por detrás.
+- Android staging [43818184089](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089) continúa en `Build Android staging APK`. Guards Mapbox, cobertura geométrica, preflight de estilo/vector tile, verificación del proyecto nativo, NDK, `flutter pub get --enforce-lockfile`, análisis y tests terminaron correctamente. APK, emulador y prueba offline aún no han empezado en ese job.
+- El artefacto de lockfile resuelto es [14205932821](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089/artifacts/14205932821). La descarga de logs del job devuelve `BlobNotFound`; no se atribuye a un fallo de compilación.
+- La última prueba funcional disponible sigue demostrando ruta nueva offline y descargas Maps/Navigation, pero no renderizado cartográfico. No aceptar PR #61 hasta obtener `style_loaded`, `map_loaded`, `full_frame`, `idle`, cero fallos reales, PNG válido, reapertura/reinicio y validación del APK exacto en dispositivo físico.
 
-La nueva guarda `tool/test_mapbox_tile_store_mode.py` exige el orden: asignación inicial del TileStore < Navigation bootstrap < reaplicación < OfflineManager. Esto es una corrección de orden documentada, no una causa raíz demostrada todavía. La siguiente ejecución debe comprobar si disminuyen los misses `DATABASE/TILE_STORE` y desaparecen los errores `IN_OFFLINE_MODE/NETWORK/TILE`.
+### Aceptación global
 
-Commits: `037b71a` (configuración nativa) y `94c6ce3` (guarda de orden). Las 12 comprobaciones estáticas cruzadas sobre los archivos actuales de la rama pasan en el entorno de revisión; no sustituyen la CI ni la ejecución Android.
+- Android release compilado: sí, para source commit 387003f; el workflow HEAD 7fb4 aún no está validado.
+- Routing online/offline: evidencia positiva previa en emulador.
+- Mapa online/offline visible: no aceptado; el smoke online reciente muestra una captura casi negra.
+- Perfil compartido real web/Android: pendiente.
+- Keycloak/PostgreSQL de producción, TLS, Valhalla y dominio web: pendientes de verificación externa.
+- Dispositivo OPPO, reinicio físico y APK candidato final: pendientes.
 
-## Sincronización de PR #61 y verificación de descriptor — 16/11/2026
+No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado cartográfico y completar las validaciones funcionales.
 
-La rama de PR #61 se ha sincronizado con `main` mediante un merge commit no destructivo: `607524fdbb01464eec427444e47d8ceeb40e9b1c`. El merge base ahora es el HEAD de `main` `7716a11c4684e14f53957824483c7e23583b0740`; se conservaron los 43 archivos de la PR y se integraron los cambios documentales recientes de `main` en este archivo.
+## Snapshot de PR #61 — diagnóstico de estilo offline (16/11/2026)
 
-El último incremento de código añade `verifyOfflineRegion` (solo debug), que consulta `tileRegionContainsDescriptors` a través de `MapboxMapsOptions.tileStore`, compara identidad con el TileStore de Navigation, exige `READ_ONLY` y verifica el mismo pixel ratio/descriptor guardado al descargar. La integración ejecuta esa comprobación antes de desconectar y tras force-stop/reapertura. La prueba sigue siendo diagnóstica: no sustituye callbacks de mapa completos, cero errores de teselas, PNG válido ni reinicio físico.
+La PR #61 continúa en draft y no debe fusionarse hasta superar sus puertas de renderizado. La última prueba funcional disponible antes de esta sincronización es [Android staging 43818184089](https://github.com/Baltas80/espana-outdoor/actions/runs/43818184089): la ruta peatonal nueva se calculó con origen nativo `OFFLINE`, pero el MapWidget no completó el viewport. La captura auténtica muestra fondo de terreno y agua, sin calles ni etiquetas; el registro del source `composite` contiene 43 eventos de tesela no cargada y solo 3 cargados. El TileStore, el descriptor Maps, el style pack y las dos regiones aparecen presentes, por lo que su mera existencia no demuestra que el renderer pueda recuperar todos los tile packs.
 
-La siguiente ejecución debe validar el nuevo HEAD sincronizado. Hasta entonces, la última evidencia funcional sigue siendo la del run 43774889122 sobre el código anterior: ruta peatonal nueva offline correcta, mapa no renderizado (14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`). No aceptar el mapa offline ni fusionar por el mero hecho de sincronizar la rama.
+La documentación confirma que Outdoors v12 usa Streets v8, Terrain v2 y Bathymetry v2, y advierte de limitaciones de fuentes compuestas en escenarios offline. Se ha añadido un experimento A/B de estilo: el valor predeterminado de producción sigue siendo Outdoors v12, mientras el integration test recibe temporalmente `mapbox://styles/mapbox/standard` mediante `MAPBOX_STYLE_URI`. La pantalla de descarga y el MapWidget comparten una única constante para evitar divergencias de estilo. El experimento no cambia el APK release ni certifica todavía Standard.
 
+Commits de diagnóstico: [79bfd242](https://github.com/Baltas80/espana-outdoor/commit/79bfd2422a2e0e09abfc2ef62e37728b76c4af76), [62e4ee6](https://github.com/Baltas80/espana-outdoor/commit/62e4ee655b9df2eb1adf034bc052752ef2b9aabb) y [90835fb](https://github.com/Baltas80/espana-outdoor/commit/90835fb590b3d73af33760d802e3e00c18f7e59c). Se debe ejecutar CI sobre el HEAD sincronizado, descargar PNG y logcat, y comparar los resultados antes de decidir un cambio de producción.
+
+Puertas pendientes: APK del HEAD final con hash verificado; style pack y Maps/Navigation TileRegions completos; modo avión con Wi-Fi desactivado; ruta nueva offline; callbacks `MAP_LOADED`, `FULL_FRAME` e `IDLE`; cero fallos de recursos; PNG cartográfico válido; reapertura tras force-stop y reinicio; validación del APK exacto en el OPPO físico.

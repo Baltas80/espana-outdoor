@@ -29,6 +29,11 @@ services:
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set in .env}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?set in .env}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set in .env}
+      # Pin the public issuer URL; do not derive it from an untrusted Host header.
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:?set in .env}
+      KC_HOSTNAME_STRICT: "true"
+      # The TLS-terminating reverse proxy must overwrite X-Forwarded-* headers.
+      KC_PROXY_HEADERS: ${KEYCLOAK_PROXY_HEADERS:-xforwarded}
       KC_HTTP_ENABLED: "true"
     depends_on:
       postgres:
