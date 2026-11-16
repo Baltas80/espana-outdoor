@@ -50,10 +50,11 @@ for marker in ("adb logcat -d", "ui_dump", "adb exec-out screencap -p"):
 if "limit=15" not in source or "limit=120" not in source or "limit=180" not in source:
     raise SystemExit("adb wrapper must give UIAutomator, device boot, and APK install explicit bounds.")
 
-if source.index("MAP_SMOKE_FOREGROUND") > source.index('adb exec-out screencap -p'):
-    raise SystemExit("Foreground verification must happen before the screenshot is captured.")
-if source.index("verify_android_map_screenshot.py") < source.index('adb exec-out screencap -p'):
-    raise SystemExit("Screenshot validation must happen after the PNG is captured.")
+screenshot_capture = source.rindex('adb exec-out screencap -p')
+if source.index("MAP_SMOKE_FOREGROUND") > screenshot_capture:
+    raise SystemExit("Foreground verification must happen before the application screenshot is captured.")
+if source.index("verify_android_map_screenshot.py") < screenshot_capture:
+    raise SystemExit("Screenshot validation must happen after the application PNG is captured.")
 if source.index("verify_android_map_screenshot.py") > source.index('echo "PASS: Mapbox map remained alive'):
     raise SystemExit("The smoke must validate the screenshot before reporting PASS.")
 
