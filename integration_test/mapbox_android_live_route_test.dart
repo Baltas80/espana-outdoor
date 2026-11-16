@@ -108,6 +108,15 @@ void main() {
       expect(download?['mapTiles'], isTrue);
       expect(download?['routingTiles'], isTrue);
       expect(download?['routingProfile'], 'walking');
+      final nativePixelRatio = (download?['mapPixelRatio'] as num?)?.toDouble();
+      final flutterPixelRatio =
+          WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+      expect(nativePixelRatio, isNotNull);
+      expect(
+        (nativePixelRatio! - flutterPixelRatio).abs(),
+        lessThan(0.01),
+        reason: 'The Mapbox tileset descriptor and MapWidget must use the same pixel ratio.',
+      );
       expect(
         download?['mapCompletedResourceCount'],
         greaterThan(0),
@@ -183,6 +192,28 @@ void main() {
         isTrue,
         reason: 'Map and walking-routing tiles must be stored before disconnecting.',
       );
+      final tileStoreVerification =
+          await _navigationChannel.invokeMethod<Map<Object?, Object?>>(
+        'verifyOfflineRegion',
+        {'regionId': _regionId},
+      );
+      expect(tileStoreVerification?['mapTileStoreSameInstance'], isTrue);
+      expect(tileStoreVerification?['mapDescriptorCheckCompleted'], isTrue);
+      expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
+      expect(tileStoreVerification?['mapRegionPresent'], isTrue);
+      expect(tileStoreVerification?['routingRegionPresent'], isTrue);
+      expect(tileStoreVerification?['tileStoreUsageModeReadOnly'], isTrue);
+      // ignore: avoid_print
+      print(
+        'MAPBOX_TILESTORE_VERIFICATION '
+        'same_instance=${tileStoreVerification?['mapTileStoreSameInstance']} '
+        'descriptor_checked=${tileStoreVerification?['mapDescriptorCheckCompleted']} '
+        'descriptor_present=${tileStoreVerification?['mapDescriptorPresentInMapsStore']} '
+        'map_region=${tileStoreVerification?['mapRegionPresent']} '
+        'routing_region=${tileStoreVerification?['routingRegionPresent']} '
+        'read_only=${tileStoreVerification?['tileStoreUsageModeReadOnly']} '
+        'pixel_ratio=${tileStoreVerification?['mapPixelRatio']}',
+      );
       // ignore: avoid_print
       print('MAPBOX_OFFLINE_REGION_READY id=$_regionId');
       return;
@@ -197,6 +228,28 @@ void main() {
         downloaded,
         isTrue,
         reason: 'The same persistent TileStore must survive force-stop and app restart.',
+      );
+      final tileStoreVerification =
+          await _navigationChannel.invokeMethod<Map<Object?, Object?>>(
+        'verifyOfflineRegion',
+        {'regionId': _regionId},
+      );
+      expect(tileStoreVerification?['mapTileStoreSameInstance'], isTrue);
+      expect(tileStoreVerification?['mapDescriptorCheckCompleted'], isTrue);
+      expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
+      expect(tileStoreVerification?['mapRegionPresent'], isTrue);
+      expect(tileStoreVerification?['routingRegionPresent'], isTrue);
+      expect(tileStoreVerification?['tileStoreUsageModeReadOnly'], isTrue);
+      // ignore: avoid_print
+      print(
+        'MAPBOX_TILESTORE_VERIFICATION '
+        'same_instance=${tileStoreVerification?['mapTileStoreSameInstance']} '
+        'descriptor_checked=${tileStoreVerification?['mapDescriptorCheckCompleted']} '
+        'descriptor_present=${tileStoreVerification?['mapDescriptorPresentInMapsStore']} '
+        'map_region=${tileStoreVerification?['mapRegionPresent']} '
+        'routing_region=${tileStoreVerification?['routingRegionPresent']} '
+        'read_only=${tileStoreVerification?['tileStoreUsageModeReadOnly']} '
+        'pixel_ratio=${tileStoreVerification?['mapPixelRatio']}',
       );
 
       // This is a new request, not a cached copy of the connected route.
