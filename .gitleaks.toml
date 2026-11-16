@@ -14,6 +14,12 @@ commits = ["7f6398a4aae9335a32bcbe3fa7fa41f930b6d092"]
 paths = ['''^lib/core/navigation/waypoint_controller\.dart$''']
 
 [[rules.allowlists]]
+description = "Rename-only diff in the SharedPreferences controller; the value is the existing non-secret local preference key."
+condition = "AND"
+commits = ["96068877be13a205162167a0f56198ba1dc330ef"]
+paths = ['''^lib/core/navigation/waypoint_controller\.dart$''']
+
+[[rules.allowlists]]
 description = "Historical .env.example placeholder; current template leaves LOCATION_ENCRYPTION_KEY blank."
 condition = "AND"
 commits = ["33c3ab2cc3f8cd9a1339c370d23a44c20e93df2f"]
