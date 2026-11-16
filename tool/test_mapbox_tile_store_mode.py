@@ -32,6 +32,9 @@ required = (
     '"offline:$regionId:styleUri"',
     '"offline:$regionId:pixelRatio"',
     'fun verifyOfflineRegion(',
+    'mapsOffline.getStylePack(styleUri)',
+    'OFFLINE_STYLE_PACK_INCOMPLETE',
+    'offline:$regionId:stylePack',
     'tileRegionContainsDescriptors(mapRegionId',
     'MapboxMapsOptions.tileStore === store',
     'descriptorExpected.value == true',
@@ -158,6 +161,9 @@ for fragment in (
     "mapDescriptorPresentInMapsStore",
     "mapTileStoreSameInstance",
     "mapPixelRatio",
+    "stylePackPresent",
+    "MAPBOX_TILESTORE_POST_MAP_WIDGET",
+    "offline_tile_store_miss",
 ):
     if fragment not in integration_test:
         raise SystemExit(
