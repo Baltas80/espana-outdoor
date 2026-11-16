@@ -267,3 +267,51 @@ El primer intento del job Android de [run 43774889122](https://github.com/Baltas
 El APK y su manifiesto sí se conservaron y verificaron en el apartado anterior. Se solicitó repetir exclusivamente el job fallido mediante GitHub Actions; GitHub aceptó la operación y la nueva tentativa comenzó desde `Set up job`. El estado de esta nueva tentativa queda pendiente.
 
 No aceptar el modo offline, no fusionar PR #61 y no clasificar el fallo como funcional hasta disponer de logs y artefactos del reintento.
+
+
+## Actualización 16/11/2026 03:25 CET — revisión de Keycloak y evidencia visual del smoke Android
+
+### PR #61 — Mapbox offline
+
+HEAD actual: `82da1995ce545af4c28e27e46b9afe4159b1ce51` (`test(android): guard persistent offline TileStore lifecycle`). Comparación observada con `main`: 217 commits por delante y 3 por detrás. PR abierta, draft; no fusionada.
+
+Se ha añadido una guarda estática para exigir que el TileStore:
+- Fije `TileStore.setRootPath(path)` antes de `TileStore.create()`.
+- Use `noBackupFilesDir/mapbox-tiles`, no un directorio de caché evictable.
+- Compruebe la creación del directorio y el resultado de `setRootPath`.
+- No se elimine al destruir el puente de navegación.
+
+La última evidencia funcional completa sigue siendo del APK construido desde el commit `9b3b0fbe`: descarga Maps (29 recursos / 32.892.088 bytes), Navigation walking (4 recursos / 9.955.518 bytes) y ruta peatonal nueva con origen `OFFLINE` correctas; el renderizado no se completó (`map_loaded=false`, `full_frame=false`, `idle=false`, 14 fallos `IN_OFFLINE_MODE/NETWORK/TILE`). Las correcciones posteriores del puente y del harness no cuentan como validadas funcionalmente hasta que Android staging ejecute ese HEAD.
+
+### Evidencia de falso positivo en el smoke de main
+
+En el run [43786917459](https://github.com/Baltas80/espana-outdoor/actions/runs/43786917459), el job `Android map native smoke` terminó correctamente y publicó el artefacto [14191885065](https://github.com/Baltas80/espana-outdoor/actions/runs/43786917459/artifacts/14191885065). Se descargó y abrió `espana-outdoor-map.png`: la aplicación estaba en primer plano, pero el viewport cartográfico aparecía prácticamente negro y sin cartografía visible suficiente.
+
+Métricas calculadas sobre la zona central del PNG de 1080×2400: 38 colores cuantizados, opacidad 1.000, entropía 0.650 bits y color dominante 0.901. El validador de captura de PR #61 exige entropía >1.2 y color dominante <0.85; por tanto, rechazaría esa imagen. El smoke de `main` no debe contarse como prueba de renderizado: su script solo comprobaba que la app siguiera viva y que no apareciera el estado textual de error, no los callbacks completos del motor cartográfico.
+
+### PR #70 — hostname público de Keycloak
+
+[PR #70](https://github.com/Baltas80/espana-outdoor/pull/70), rama `fix/keycloak-public-hostname-20261116`, HEAD `2a2d1c65e9224a65cca2ed1074bd6cf8da0c24f0`, 7 commits por delante y 0 por detrás de `main`. Sigue en draft.
+
+Durante una revisión adicional se detectó que Compose consume `OIDC_ISSUER`, mientras que `PRODUCTION_ENDPOINTS.template.env` declaraba `OIDC_ISSUER_URL`. La plantilla podía dejar el issuer de Source Gateway sin configurar. Se corrigió la plantilla para usar `OIDC_ISSUER=https://auth.espanaoutdoor.es/realms/espana-outdoor` y se amplió `tool/test_rescue_link_compose.py` para exigir que los issuers local y de producción coincidan con sus hostnames y con el nombre de variable consumido por Compose.
+
+Ejecuciones sobre el HEAD `2a2d1c65`:
+- Security baseline [43792308634](https://github.com/Baltas80/espana-outdoor/actions/runs/43792308634): 8/8 trabajos correctos.
+- CI [43792308624](https://github.com/Baltas80/espana-outdoor/actions/runs/43792308624): Source Gateway y Rescue Link correctos; Flutter e iOS seguían en ejecución en la última consulta.
+- Android staging [43792308581](https://github.com/Baltas80/espana-outdoor/actions/runs/43792308581): análisis y tests seguían en ejecución; compilación y emulador pendientes.
+
+Los resultados del run anterior [43786917459](https://github.com/Baltas80/espana-outdoor/actions/runs/43786917459) fueron 8/8 en Security y 4/4 en CI, pero su smoke Android no demuestra renderizado cartográfico (véase la evidencia anterior).
+
+### Estado de aceptación
+
+- Ruta peatonal online: demostrada en emulador.
+- Ruta peatonal nueva offline: demostrada en emulador.
+- Descarga independiente Maps/Navigation: demostrada en el APK histórico `9b3b0fbe`.
+- Mapa offline renderizado y captura válida: no aceptados.
+- Persistencia tras force-stop y reinicio: guard estática añadida; prueba funcional pendiente.
+- APK candidato instalado y validado en OPPO físico: pendiente.
+- Keycloak discovery público y flujo de cuenta real web/Android: pendiente.
+- PostgreSQL TLS, Valhalla y endpoints de producción: pendientes de verificación externa.
+- PR #61 y PR #70: abiertas, draft; no fusionadas.
+
+No desplegar ni declarar producción hasta que se completen las pruebas funcionales y externas indicadas.
