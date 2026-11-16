@@ -110,6 +110,10 @@ void main() {
     'ROUTE_TEST_MODE',
     defaultValue: 'online_and_download',
   );
+  const tileStoreUsageMode = String.fromEnvironment(
+    'MAPBOX_TILESTORE_USAGE_MODE',
+    defaultValue: 'READ_ONLY',
+  );
 
   testWidgets('Mapbox real route validation ($mode)', (tester) async {
     expect(
@@ -121,8 +125,14 @@ void main() {
     // Match production startup ordering: configure the persistent native
     // TileStore before any route request or MapWidget exists in this test.
     MapboxOptions.setAccessToken(accessToken);
+    expect(
+      <String>{'READ_ONLY', 'READ_AND_UPDATE'},
+      contains(tileStoreUsageMode),
+      reason: 'The integration test only supports explicit Mapbox TileStore modes.',
+    );
     await _navigationChannel.invokeMethod<void>('configure', {
       'accessToken': accessToken,
+      'tileStoreUsageMode': tileStoreUsageMode,
     });
     final service = MapboxNavigationRoutingService(accessToken: accessToken);
 
@@ -252,7 +262,7 @@ void main() {
       expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
       expect(tileStoreVerification?['mapRegionPresent'], isTrue);
       expect(tileStoreVerification?['routingRegionPresent'], isTrue);
-      expect(tileStoreVerification?['tileStoreUsageModeReadOnly'], isTrue);
+      expect(tileStoreVerification?['tileStoreUsageMode'], tileStoreUsageMode);
       // ignore: avoid_print
       print(
         'MAPBOX_TILESTORE_VERIFICATION '
@@ -261,7 +271,7 @@ void main() {
         'descriptor_present=${tileStoreVerification?['mapDescriptorPresentInMapsStore']} '
         'map_region=${tileStoreVerification?['mapRegionPresent']} '
         'routing_region=${tileStoreVerification?['routingRegionPresent']} '
-        'read_only=${tileStoreVerification?['tileStoreUsageModeReadOnly']} '
+        'usage_mode=${tileStoreVerification?['tileStoreUsageMode']} '
         'pixel_ratio=${tileStoreVerification?['mapPixelRatio']}',
       );
       // ignore: avoid_print
@@ -289,7 +299,7 @@ void main() {
       expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
       expect(tileStoreVerification?['mapRegionPresent'], isTrue);
       expect(tileStoreVerification?['routingRegionPresent'], isTrue);
-      expect(tileStoreVerification?['tileStoreUsageModeReadOnly'], isTrue);
+      expect(tileStoreVerification?['tileStoreUsageMode'], tileStoreUsageMode);
       // ignore: avoid_print
       print(
         'MAPBOX_TILESTORE_VERIFICATION '
@@ -298,7 +308,7 @@ void main() {
         'descriptor_present=${tileStoreVerification?['mapDescriptorPresentInMapsStore']} '
         'map_region=${tileStoreVerification?['mapRegionPresent']} '
         'routing_region=${tileStoreVerification?['routingRegionPresent']} '
-        'read_only=${tileStoreVerification?['tileStoreUsageModeReadOnly']} '
+        'usage_mode=${tileStoreVerification?['tileStoreUsageMode']} '
         'pixel_ratio=${tileStoreVerification?['mapPixelRatio']}',
       );
 
