@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs from the official Postgres image's docker-entrypoint-initdb.d hook.
-# The entrypoint sources non-executable .sh files, so this script works with
-# the repository's read-only bind mount without requiring chmod in Git.
+# The entrypoint sources non-executable .sh files, so this works with the
+# repository's read-only bind mount without requiring chmod in Git.
 set -Eeuo pipefail
 
 : "${POSTGRES_USER:?POSTGRES_USER must be set by the Postgres image}"
@@ -11,8 +11,9 @@ set -Eeuo pipefail
 psql \
   --username "${POSTGRES_USER}" \
   --dbname "${POSTGRES_DB}" \
-  --set ON_ERROR_STOP=1 \
-  --set keycloak_password="${KEYCLOAK_DB_PASSWORD}" <<'SQL'
+  --set ON_ERROR_STOP=1 <<'SQL'
+\getenv keycloak_password KEYCLOAK_DB_PASSWORD
+
 SELECT format('CREATE ROLE keycloak LOGIN PASSWORD %L', :'keycloak_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'keycloak')
 \gexec
