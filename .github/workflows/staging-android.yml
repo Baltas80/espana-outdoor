@@ -169,6 +169,8 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
+        env:
+          ANDROID_EMULATOR_CI: "true"
         if: success() && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
