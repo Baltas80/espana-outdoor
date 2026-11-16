@@ -354,3 +354,18 @@ La siguiente prueba no se limita a comprobar que existe un ID de TileRegion y qu
 El test registra `MAPBOX_TILESTORE_VERIFICATION` antes de desconectar y después de reabrir la app. Si el descriptor no está presente en el TileStore que Maps recibe, la prueba falla antes de atribuir el problema a las teselas del viewport. El pixel ratio nativo del descriptor se compara con el del `MapWidget` de Flutter con tolerancia de 0,01.
 
 Este diagnóstico separa cuatro condiciones: región persistida, descriptor incluido en la región, identidad del TileStore compartido y configuración de uso. No sustituye el renderizado: siguen siendo obligatorios `MAPBOX_MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y una captura PNG válida en modo avión.
+
+## Cobertura geométrica del viewport offline — run 43799514133
+
+La ejecución del emulador sobre HEAD `470a194` aportó una señal nueva: Maps y Navigation compartían la misma instancia persistente, el descriptor Maps estaba presente en ese TileStore y ambos TileRegions existían. Sin embargo, Mapbox Maps solicitó tiles z13 `x=3986..3987`, `y=3162..3164`; 14 solicitudes fallaron con `NOT_FOUND/TILE_STORE` y el mapa no completó `FULL_FRAME` ni `IDLE`.
+
+La geometría del fixture anterior tenía latitud `37.85..37.93`. La fila Web Mercator z13/y3164 ocupa aproximadamente `37.8228..37.8575`; el polígono solo cubría una franja de esa fila. Por tanto, la región de prueba no garantizaba cubrir por completo el tile que el viewport realmente solicitaba. Esto es un defecto geométrico reproducible del fixture y una hipótesis concreta para parte de los misses; todavía no demuestra que sea la única causa.
+
+La región del test se amplía a latitud `37.78..37.97`, manteniendo la longitud `-4.84..-4.72`. Se añaden dos controles:
+
+- El guard `tool/test_mapbox_offline_region_coverage.py` calcula los límites Web Mercator y exige que el polígono cubra por completo los seis tiles z13 observados en el viewport anterior.
+- La integración registra únicamente coordenadas z/x/y extraídas de `SourceDataLoadedEventData` y de la ruta de URL de recurso. Nunca registra URLs, query strings ni tokens. Comprueba además que cada tile z13 observado queda completamente dentro del polígono descargado.
+
+La nueva prueba debe confirmar si desaparecen los misses de TileStore tras ampliar la geometría. Si persisten en tiles totalmente cubiertos, el siguiente diagnóstico será comparar las coordenadas de los recursos fallidos y la resolución real del descriptor/tileset, no ampliar la región a ciegas.
+
+**Estado:** corrección geométrica del fixture incorporada; pendiente de ejecución Android sobre el nuevo HEAD. No se acepta todavía el mapa offline. Siguen siendo obligatorios cero fallos de recursos, `MAP_LOADED`, `FULL_FRAME`, `IDLE`, PNG válido, reapertura/reinicio y prueba física OPPO.
