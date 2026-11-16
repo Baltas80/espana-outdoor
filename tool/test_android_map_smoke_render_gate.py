@@ -14,8 +14,12 @@ WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
 MAPBOX_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+MAPBOX_PAGE = ROOT / "lib" / "features" / "map" / "mapbox_map_page.dart"
 MAP_SCREEN_VERIFIER = ROOT / "tool" / "verify_android_map_screen.py"
 source = SMOKE.read_text(encoding="utf-8")
+if not MAPBOX_PAGE.is_file():
+    raise SystemExit("Android map smoke requires the main Mapbox page.")
+mapbox_page = MAPBOX_PAGE.read_text(encoding="utf-8")
 if not MAP_SCREEN_VERIFIER.is_file():
     raise SystemExit("Android map smoke requires the actual map-page hierarchy verifier.")
 map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
@@ -119,14 +123,14 @@ if source.index("verify_android_map_screen.py") > source.index("MAPBOX_RENDER_WA
     raise SystemExit("The smoke must prove the map page is open before waiting for Mapbox render callbacks.")
 for marker in (
     "REQUIRED_CONTROLS",
-    "Centrar mapa",
-    "Mapas offline",
-    "Navegación GPS",
+    "Mapa cartográfico",
     "window_owned_by_",
     "home_page_still_visible",
 ):
     if marker not in map_screen_verifier:
         raise SystemExit(f"Map page hierarchy verifier is missing: {marker}")
+if "label: 'Mapa cartográfico'" not in mapbox_page or "explicitChildNodes: true" not in mapbox_page:
+    raise SystemExit("The Mapbox viewport must expose its stable accessibility marker.")
 map_screen_test = subprocess.run(
     [sys.executable, str(MAP_SCREEN_VERIFIER), "--self-test"],
     capture_output=True,
