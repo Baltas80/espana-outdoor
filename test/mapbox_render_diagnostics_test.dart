@@ -2,6 +2,21 @@ import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Mapbox style selection', () {
+    test('honors the build define and defaults to Outdoors v12', () {
+      const requestedStyle = String.fromEnvironment('MAPBOX_STYLE_URI');
+      const outdoorsDefault = 'mapbox://styles/mapbox/outdoors-v12';
+      expect(mapboxStyleUri, requestedStyle.isEmpty ? outdoorsDefault : requestedStyle);
+      expect(
+        mapboxStyleUri,
+        anyOf(
+          outdoorsDefault,
+          'mapbox://styles/mapbox/standard',
+        ),
+      );
+    });
+  });
+
   group('formatMapboxTileId', () {
     test('prints canonical z/x/y coordinates', () {
       expect(formatMapboxTileId(z: 14, x: 8213, y: 6214), '14/8213/6214');
