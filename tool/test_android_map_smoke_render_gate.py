@@ -19,6 +19,9 @@ required = (
     "adb() {",
     "timeout --foreground --signal=TERM",
     "UIAutomator dump failed or timed out",
+    "capture_failure_evidence()",
+    "trap 'exit 124' TERM",
+    "trap capture_failure_evidence EXIT",
     "dumpsys window windows",
     "mCurrentFocus|mFocusedApp",
     "mResumedActivity|topResumedActivity",
@@ -37,6 +40,13 @@ for marker in required:
 ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
 if "|| true" in ui_dump_body:
     raise SystemExit("UIAutomator dump failures/timeouts must not be swallowed.")
+if source.index('logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"') > source.index("trap capture_failure_evidence EXIT"):
+    raise SystemExit("Failure-evidence paths must be initialized before installing the EXIT trap.")
+capture_body = source.split("capture_failure_evidence() {", 1)[1].split("\n}", 1)[0]
+for marker in ("adb logcat -d", "ui_dump", "adb exec-out screencap -p"):
+    if marker not in capture_body:
+        raise SystemExit(f"Failure evidence trap is missing: {marker}")
+
 if "limit=15" not in source or "limit=120" not in source or "limit=180" not in source:
     raise SystemExit("adb wrapper must give UIAutomator, device boot, and APK install explicit bounds.")
 
