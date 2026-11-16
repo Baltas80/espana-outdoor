@@ -369,3 +369,13 @@ La región del test y la región que descarga `OfflinePage` en producción se am
 La nueva prueba debe confirmar si desaparecen los misses de TileStore tras ampliar la geometría. Si persisten en tiles totalmente cubiertos, el siguiente diagnóstico será comparar las coordenadas de los recursos fallidos y la resolución real del descriptor/tileset, no ampliar la región a ciegas.
 
 **Estado:** corrección geométrica del fixture incorporada; pendiente de ejecución Android sobre el nuevo HEAD. No se acepta todavía el mapa offline. Siguen siendo obligatorios cero fallos de recursos, `MAP_LOADED`, `FULL_FRAME`, `IDLE`, PNG válido, reapertura/reinicio y prueba física OPPO.
+
+
+## Experimento controlado de TileStoreUsageMode — 16/11/2026
+
+La evidencia del run 43804464921 muestra que el descriptor y las dos regiones existen, pero el MapWidget en `READ_ONLY` solicita tiles individuales que terminan en `IN_OFFLINE_MODE/NETWORK/TILE`. La documentación oficial de Mapbox distingue:
+
+- `READ_ONLY`: consulta tile packs ya cargados y, si falta un tile, recurre a una solicitud individual.
+- `READ_AND_UPDATE`: convierte las solicitudes de mapa en solicitudes de tile packs; no usa solicitudes individuales.
+
+Se añade un experimento aislado: la fase online/descarga sigue usando `READ_ONLY`; tras force-stop, la fase sin conectividad configura `READ_AND_UPDATE` antes de crear el MapWidget. El valor por defecto de producción sigue siendo `READ_ONLY`; no se cambia hasta demostrar que el experimento resuelve el renderizado y evaluar el comportamiento al desplazar el mapa fuera de una región descargada. La prueba registra el modo efectivo desde el puente nativo y mantiene los mismos criterios de aceptación: `MAP_LOADED`, `FULL_FRAME`, `IDLE`, cero fallos de recursos y PNG válido.
