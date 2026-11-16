@@ -9,7 +9,7 @@ final waypointControllerProvider =
     NotifierProvider<WaypointController, List<OutdoorWaypoint>>(WaypointController.new);
 
 class WaypointController extends Notifier<List<OutdoorWaypoint>> {
-  static const _storageKey = 'espana_outdoor_waypoints_v1';
+  static const _preferencesListKey = 'espana_outdoor_waypoints_v1';
 
   @override
   List<OutdoorWaypoint> build() {
@@ -19,7 +19,7 @@ class WaypointController extends Notifier<List<OutdoorWaypoint>> {
 
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_storageKey) ?? const [];
+    final raw = prefs.getStringList(_preferencesListKey) ?? const [];
     final restored = <OutdoorWaypoint>[];
     for (final value in raw) {
       try {
@@ -62,7 +62,7 @@ class WaypointController extends Notifier<List<OutdoorWaypoint>> {
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
-      _storageKey,
+      _preferencesListKey,
       state.map((item) => jsonEncode(item.toJson())).toList(growable: false),
     );
   }

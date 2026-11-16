@@ -1,0 +1,41 @@
+# Keep the default Gitleaks rules. These allowlists suppress only reviewed
+# historical false positives at the exact introducing commit AND file path.
+# Do not add broad path, regex, or directory exclusions here.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Historical SharedPreferences key, not a credential; variable is renamed in current code."
+condition = "AND"
+commits = ["7f6398a4aae9335a32bcbe3fa7fa41f930b6d092"]
+paths = ['''^lib/core/navigation/waypoint_controller\.dart$''']
+
+[[rules.allowlists]]
+description = "Rename-only diff in the SharedPreferences controller; the value is the existing non-secret local preference key."
+condition = "AND"
+commits = ["96068877be13a205162167a0f56198ba1dc330ef"]
+paths = ['''^lib/core/navigation/waypoint_controller\.dart$''']
+
+[[rules.allowlists]]
+description = "Historical .env.example placeholder; current template leaves LOCATION_ENCRYPTION_KEY blank."
+condition = "AND"
+commits = ["33c3ab2cc3f8cd9a1339c370d23a44c20e93df2f"]
+paths = ['''^infra/\.env\.example$''']
+
+[[rules.allowlists]]
+description = "Deprecated OIDC adapter compatibility parameter; the library is now an empty compatibility shim and AppAuth is used."
+condition = "AND"
+commits = ["53c1901bd9b24ae4c5455a68af095ef90c33fa70"]
+paths = ['''^lib/infrastructure/auth/openidconnect_auth_service\.dart$''']
+
+[[rules]]
+id = "jwt"
+
+[[rules.allowlists]]
+description = "Expired CloudFront-signed hero image URL from a generated media artifact; current site uses a first-party image."
+condition = "AND"
+commits = ["7d9c0f2939a11b691e949184eb738226d0968a2e"]
+paths = ['''^site/index\.html$''']
