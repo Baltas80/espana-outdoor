@@ -4,6 +4,18 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 const mapboxStyleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+String sanitizeMapboxDiagnostic(String message) {
+  return message
+      .replaceAll(
+        RegExp(r'access_token=[^&\\s]+', caseSensitive: false),
+        'access_token=[REDACTED]',
+      )
+      .replaceAll(
+        RegExp(r'Bearer\\s+[A-Za-z0-9._~+/-]+=*', caseSensitive: false),
+        'Bearer [REDACTED]',
+      );
+}
+
 /// Shared Mapbox surface for the main map, route planner and GPX detail.
 class MapboxMapViewport extends StatefulWidget {
   const MapboxMapViewport({
@@ -35,6 +47,15 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   CircleAnnotationManager? _circleManager;
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
+  int _sourceDataEventsLogged = 0;
+  String? _lastRenderMode;
+
+  static const _maxSourceDataEventsToLog = 250;
+
+  void _logMapboxDiagnostic(String event, [String details = '']) {
+    final suffix = details.isEmpty ? '' : ' $details';
+    debugPrint('MAPBOX_DIAGNOSTIC event=$event$suffix');
+  }
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
     if (first.length != second.length) return false;
@@ -174,6 +195,52 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         pitch: 0,
       ),
       onMapCreated: _onMapCreated,
+      onStyleLoadedListener: (_) {
+        _logMapboxDiagnostic('STYLE_LOADED');
+      },
+      onMapLoadedListener: (_) {
+        _logMapboxDiagnostic('MAP_LOADED');
+      },
+      onMapIdleListener: (_) {
+        _logMapboxDiagnostic('MAP_IDLE');
+      },
+      onMapLoadErrorListener: (event) {
+        _logMapboxDiagnostic(
+          'MAP_LOAD_ERROR',
+          'type=${event.type} source=${event.sourceId ?? '-'} '
+              'tile=${event.tileId ?? '-'} '
+              'message=${sanitizeMapboxDiagnostic(event.message)}',
+        );
+      },
+      onStyleDataLoadedListener: (event) {
+        _logMapboxDiagnostic('STYLE_DATA', 'type=${event.type}');
+      },
+      onSourceAddedListener: (event) {
+        _logMapboxDiagnostic('SOURCE_ADDED', 'id=${event.id}');
+      },
+      onSourceDataLoadedListener: (event) {
+        if (_sourceDataEventsLogged >= _maxSourceDataEventsToLog) return;
+        _sourceDataEventsLogged++;
+        _logMapboxDiagnostic(
+          'SOURCE_DATA',
+          'id=${event.id} type=${event.type} '
+              'loaded=${event.loaded ?? 'unknown'} '
+              'tile=${event.tileID ?? '-'}',
+        );
+      },
+      onStyleImageMissingListener: (event) {
+        _logMapboxDiagnostic('STYLE_IMAGE_MISSING', 'id=${event.id}');
+      },
+      onRenderFrameFinishedListener: (event) {
+        final renderMode = event.renderMode.toString();
+        if (_lastRenderMode == renderMode) return;
+        _lastRenderMode = renderMode;
+        _logMapboxDiagnostic(
+          'RENDER_FRAME',
+          'mode=$renderMode needs_repaint=${event.needsRepaint} '
+              'placement_changed=${event.placementChanged}',
+        );
+      },
     );
   }
 }
