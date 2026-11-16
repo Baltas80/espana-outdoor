@@ -222,3 +222,42 @@ jobs:
             ${{ runner.temp }}/espana-window-post-map.xml
             ${{ runner.temp }}/espana-outdoor-map.png
           if-no-files-found: ignore
+
+  # One-time repair for the committed Pub lockfile on PR #71. This job is
+  # restricted to this same-repository branch and writes only pubspec.lock.
+  # It is removed after the refreshed lockfile is committed; subsequent builds
+  # return to --enforce-lockfile.
+  refresh-pub-lockfile:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/android-community-api-build-define-20261116'
+    needs: android-staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Resolve and commit the refreshed lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter pub get
+          if git diff --quiet -- pubspec.lock; then
+            echo "Committed pubspec.lock is already current."
+            exit 0
+          fi
+          git diff --stat -- pubspec.lock
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.lock
+          git commit -m "chore(deps): refresh Flutter pub lockfile"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
