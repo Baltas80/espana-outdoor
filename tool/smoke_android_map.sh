@@ -21,11 +21,10 @@ adb() {
     wait-for-device) limit=120 ;;
     install) limit=180 ;;
     logcat) limit=60 ;;
-    exec-out)
-      if [[ "${2:-}" == "uiautomator" ]]; then limit=15; else limit=30; fi
-      ;;
+    exec-out) limit=30 ;;
     shell)
       case "${2:-}" in
+        uiautomator) limit=45 ;;
         dumpsys) limit=20 ;;
         monkey) limit=30 ;;
         *) limit=15 ;;
@@ -72,8 +71,19 @@ adb install -r "${apk_path}"
 
 ui_dump() {
   local file="$1"
-  if ! adb exec-out uiautomator dump /dev/tty >"${file}" 2>/dev/null; then
-    echo "ERROR: UIAutomator dump failed or timed out (15s)." >&2
+  local remote_file="/sdcard/espana-outdoor-uiautomator.xml"
+  # UIAutomator expects a regular device-side output file. Writing to /dev/tty
+  # is unreliable on non-interactive adb exec-out sessions (no controlling TTY).
+  if ! adb shell uiautomator dump "$remote_file" >/dev/null 2>&1; then
+    echo "ERROR: UIAutomator dump failed or timed out (45s)." >&2
+    return 1
+  fi
+  if ! adb shell cat "$remote_file" >"${file}"; then
+    echo "ERROR: unable to retrieve the UIAutomator hierarchy from the device." >&2
+    return 1
+  fi
+  if ! grep -q '<hierarchy' "${file}"; then
+    echo "ERROR: UIAutomator returned no hierarchy XML." >&2
     return 1
   fi
 }
