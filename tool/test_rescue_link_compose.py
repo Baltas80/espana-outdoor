@@ -31,7 +31,7 @@ for fragment in (
 ):
     if fragment not in keycloak:
         raise SystemExit(f"Keycloak must pin its issuer and trust the configured reverse-proxy headers: {fragment}")
-if "KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set in .env}" not in postgres:
+if "POSTGRES_DB: espana_outdoor" not in postgres or "POSTGRES_USER: espana" not in postgres:
     raise SystemExit("PostgreSQL must receive the dedicated Keycloak database password.")
 if "./postgres/init:/docker-entrypoint-initdb.d:ro" not in postgres:
     raise SystemExit("PostgreSQL must mount its initialization scripts read-only.")
@@ -40,7 +40,7 @@ for fragment in (
     "ALTER ROLE keycloak WITH LOGIN PASSWORD",
     "CREATE DATABASE keycloak OWNER keycloak",
     "ALTER DATABASE keycloak OWNER TO keycloak",
-    '--set keycloak_password="${KEYCLOAK_DB_PASSWORD}"',
+    "\\\\getenv keycloak_password KEYCLOAK_DB_PASSWORD",
 ):
     if fragment not in keycloak_db_init:
         raise SystemExit(f"Dedicated Keycloak database bootstrap is incomplete: {fragment}")
