@@ -81,6 +81,17 @@ Ejecución [Android staging 43918396180](https://github.com/Baltas80/espana-outd
 
 Interpretación: la carga del estilo y varias respuestas de recursos funcionan; la fuente vectorial no llega a confirmar el viewport completo. Los misses de TileStore son compatibles con un arranque online sin región previamente descargada y no explican por sí solos el fallo. Aún no se puede distinguir entre procesamiento/decodificación de teselas, comportamiento del estilo Outdoors, renderizador SwiftShader/Impeller del emulador o un problema del SDK. Se necesita una comparación A/B con Mapbox Standard y una ejecución en dispositivo físico antes de cambiar el estilo de producción.
 
+### Experimento A/B de estilos (staging)
+
+La PR #79 permite seleccionar el estilo en el workflow **Android staging** mediante `workflow_dispatch`:
+
+- `outdoors-v12`: opción predeterminada para pushes/PRs y para ejecuciones manuales sin cambio.
+- `standard`: experimento manual explícito para comparar la misma pantalla, centro, zoom y emulador con Mapbox Standard.
+
+El workflow pasa el valor como `MAPBOX_STYLE_URI` al build Dart y lo registra en `android-staging-validation.txt`. La app emite `MAPBOX_DIAGNOSTIC event=STYLE_URI` para que la captura quede asociada al estilo exacto. CI compila el test de selección con el define Standard y comprueba que el valor se propaga.
+
+Este control no cambia el estilo predeterminado de producción, no modifica los estilos de cuentas de Mapbox y no habilita Standard en una release. La comparación solo será válida si ambos APK se construyen desde el mismo commit y usan el mismo emulador/configuración. El resultado de Standard debe revisarse junto con la captura y los eventos de Mapbox; no basta con que el workflow compile.
+
 Artefactos:
 - [APK y manifiesto](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14255086327).
 - [PNG, jerarquía y logs](https://github.com/Baltas80/espana-outdoor/actions/runs/43918396180/artifacts/14253759170).
