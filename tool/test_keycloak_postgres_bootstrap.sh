@@ -32,7 +32,8 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 if [[ "$ready" != true ]]; then
-  docker logs "$CONTAINER"
+  docker inspect --format 'container_status={{.State.Status}} exit_code={{.State.ExitCode}} error={{.State.Error}}' "$CONTAINER" || true
+  docker logs "$CONTAINER" || true
   echo "PostgreSQL did not become ready." >&2
   exit 1
 fi
