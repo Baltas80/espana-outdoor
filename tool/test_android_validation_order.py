@@ -46,6 +46,16 @@ if "| sed -u -E " not in (ROOT / "tool" / "staging_android_route_integration.sh"
 
 route_script = (ROOT / "tool" / "staging_android_route_integration.sh").read_text(encoding="utf-8")
 integration_test = (ROOT / "integration_test" / "mapbox_android_live_route_test.dart").read_text(encoding="utf-8")
+viewport = (ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart").read_text(encoding="utf-8")
+if "svc data disable" not in route_script or "ORIGINAL_DATA" not in route_script:
+    raise SystemExit("Offline routing validation must disable and restore mobile data as well as Wi-Fi.")
+if "verify_android_offline_map_log.py" not in route_script:
+    raise SystemExit("Offline acceptance must inspect native MapboxMapViewport logcat, not only the screenshot.")
+if "pumpWidget(" in integration_test or "find.bySemanticsLabel('Mapa')" not in integration_test:
+    raise SystemExit("Offline map validation must navigate the production app's Mapa tab instead of mounting a second MapWidget.")
+if "tile_id=$tileId" not in viewport:
+    raise SystemExit("Production MapboxMapViewport must expose safe z/x/y tile IDs for offline coverage verification.")
+
 if "adb -s \"$DEVICE_SERIAL\" logcat -c" not in route_script:
     raise SystemExit("Clear stale Android logcat before waiting for the offline screenshot marker.")
 if "logcat -d -s EspanaOfflineTest:I" not in route_script or "offline_logcat" not in route_script:
