@@ -350,23 +350,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 900
-          script: |
-            set +e
-            mkdir -p "$RUNNER_TEMP/primary" "$RUNNER_TEMP/standard"
-            primary_apk="$RUNNER_TEMP/primary-build/app-release.apk"
-            standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"
-            primary_status=0
-            RUNNER_TEMP="$RUNNER_TEMP/primary" timeout --foreground --signal=TERM --kill-after=150s 20m bash tool/smoke_android_map.sh "$primary_apk" online
-            primary_status=$?
-            standard_status=0
-            standard_run=false
-            if [[ -s "$standard_apk" ]]; then
-              standard_run=true
-              RUNNER_TEMP="$RUNNER_TEMP/standard" timeout --foreground --signal=TERM --kill-after=150s 20m bash tool/smoke_android_map.sh "$standard_apk" online
-              standard_status=$?
-            fi
-            echo "MAPBOX_STYLE_AB primary_style=$MAPBOX_STYLE_URI primary_status=$primary_status standard_run=$standard_run standard_status=$standard_status"
-            if (( primary_status != 0 || standard_status != 0 )); then exit 1; fi
+          script: bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_STYLE_URI"
       - name: Upload Android map smoke evidence
         if: always()
         uses: actions/upload-artifact@v7.0.0
