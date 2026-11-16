@@ -262,6 +262,7 @@ void main() {
       expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
       expect(tileStoreVerification?['mapRegionPresent'], isTrue);
       expect(tileStoreVerification?['routingRegionPresent'], isTrue);
+      expect(tileStoreVerification?['stylePackPresent'], isTrue);
       expect(tileStoreVerification?['tileStoreUsageMode'], tileStoreUsageMode);
       // ignore: avoid_print
       print(
@@ -271,6 +272,9 @@ void main() {
         'descriptor_present=${tileStoreVerification?['mapDescriptorPresentInMapsStore']} '
         'map_region=${tileStoreVerification?['mapRegionPresent']} '
         'routing_region=${tileStoreVerification?['routingRegionPresent']} '
+        'style_pack=${tileStoreVerification?['stylePackPresent']} '
+        'style_pack_resources=${tileStoreVerification?['stylePackCompletedResourceCount']} '
+        'style_pack_bytes=${tileStoreVerification?['stylePackCompletedResourceSize']} '
         'usage_mode=${tileStoreVerification?['tileStoreUsageMode']} '
         'pixel_ratio=${tileStoreVerification?['mapPixelRatio']}',
       );
@@ -299,6 +303,7 @@ void main() {
       expect(tileStoreVerification?['mapDescriptorPresentInMapsStore'], isTrue);
       expect(tileStoreVerification?['mapRegionPresent'], isTrue);
       expect(tileStoreVerification?['routingRegionPresent'], isTrue);
+      expect(tileStoreVerification?['stylePackPresent'], isTrue);
       expect(tileStoreVerification?['tileStoreUsageMode'], tileStoreUsageMode);
       // ignore: avoid_print
       print(
@@ -331,7 +336,7 @@ void main() {
         'geometry_points=${offlineRoute.points.length}',
       );
       // ignore: avoid_print
-      await _expectOfflineMapRendered(tester);
+      await _expectOfflineMapRendered(tester, tileStoreUsageMode);
       return;
     }
 
@@ -340,7 +345,10 @@ void main() {
 }
 
 
-Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
+Future<void> _expectOfflineMapRendered(
+  WidgetTester tester,
+  String tileStoreUsageMode,
+) async {
   final styleLoaded = Completer<void>();
   final mapLoaded = Completer<void>();
   final fullFrameRendered = Completer<void>();
@@ -421,19 +429,36 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
             }
           },
           onResourceRequestListener: (event) {
-            if (event.cancelled) return;
             final response = event.response;
             final error = response?.error;
-            if (error == null) return;
-            final reason = error.reason.name;
             final source = response?.source.name ?? 'unknown';
             final dataSource = event.dataSource.name;
+            if (event.cancelled) {
+              // In READ_AND_UPDATE, a tile-store miss cannot fall back to
+              // individual network tiles. Count it as an offline failure.
+              if (tileStoreUsageMode == 'READ_AND_UPDATE' &&
+                  event.request.kind.name == 'TILE' &&
+                  source == 'TILE_STORE' &&
+                  error?.reason.name == 'NOT_FOUND') {
+                final tileId = _safeTileIdFromResourceUrl(event.request.url);
+                resourceFailures.add('offline_tile_store_miss/tile=$tileId');
+              }
+              return;
+            }
+            if (error == null) return;
+            final reason = error.reason.name;
             // A database lookup miss is expected before Mapbox falls back to
             // an individual network tile (online) or reports a true offline
             // miss. Do not confuse it with a failed resource response.
             if (reason == 'NOT_FOUND' &&
                 dataSource == 'DATABASE' &&
                 (source == 'CACHE' || source == 'TILE_STORE')) {
+              if (tileStoreUsageMode == 'READ_AND_UPDATE' &&
+                  event.request.kind.name == 'TILE' &&
+                  source == 'TILE_STORE') {
+                final tileId = _safeTileIdFromResourceUrl(event.request.url);
+                resourceFailures.add('offline_tile_store_lookup_miss/tile=$tileId');
+              }
               return;
             }
             // ResourceRequest.url can contain an access token. Extract only a
@@ -465,6 +490,27 @@ Future<void> _expectOfflineMapRendered(WidgetTester tester) async {
       break;
     }
   }
+
+  // Re-check the native configuration after the platform MapWidget has
+  // been created. This catches a plugin initializer replacing the shared
+  // TileStore or usage mode after the pre-render verification.
+  final postMapWidgetVerification =
+      await _navigationChannel.invokeMethod<Map<Object?, Object?>>(
+    'verifyOfflineRegion',
+    {'regionId': _regionId},
+  );
+  expect(postMapWidgetVerification?['mapTileStoreSameInstance'], isTrue);
+  expect(postMapWidgetVerification?['mapDescriptorPresentInMapsStore'], isTrue);
+  expect(postMapWidgetVerification?['stylePackPresent'], isTrue);
+  expect(postMapWidgetVerification?['tileStoreUsageMode'], tileStoreUsageMode);
+  // ignore: avoid_print
+  print(
+    'MAPBOX_TILESTORE_POST_MAP_WIDGET '
+    'same_instance=${postMapWidgetVerification?['mapTileStoreSameInstance']} '
+    'descriptor_present=${postMapWidgetVerification?['mapDescriptorPresentInMapsStore']} '
+    'style_pack=${postMapWidgetVerification?['stylePackPresent']} '
+    'usage_mode=${postMapWidgetVerification?['tileStoreUsageMode']}',
+  );
 
   // Flutter's integration_test screenshot channel is not registered by this
   // flutter test runner. The host script captures the native platform view with
