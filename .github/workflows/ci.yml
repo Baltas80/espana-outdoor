@@ -66,6 +66,10 @@ jobs:
         uses: actions/checkout@v7.0.1
       - name: Test Android native signing configuration
         run: python3 tool/test_configure_mobile_native.py
+      - name: Test Android staging lockfile preservation
+        run: python3 tool/test_staging_lockfile_preservation.py
+      - name: Test mobile build profile validation
+        run: python3 tool/test_verify_build_profile.py
       - name: Test Android map smoke render gate
         run: |
           python3 tool/verify_android_map_screenshot.py --self-test
