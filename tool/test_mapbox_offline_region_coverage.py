@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Guard the known Android offline viewport against undersized download geometry.
+"""Guard production and emulator download geometry against viewport tile misses.
 
-The z13 tile IDs were captured from the real Mapbox integration run
-43799514133. If the test camera or viewport changes, refresh this fixture from
-the next emulator's MAPBOX_SOURCE_DATA evidence.
+The z13 tile IDs were captured from Mapbox integration run 43799514133. If the
+camera/viewport changes, refresh this fixture from MAPBOX_SOURCE_DATA evidence.
 """
 from __future__ import annotations
 
@@ -13,24 +12,36 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST = ROOT / "integration_test" / "mapbox_android_live_route_test.dart"
-source = TEST.read_text(encoding="utf-8")
-match = re.search(
-    r"const _regionRing = <List<double>>\[(.*?)\];",
-    source,
-    flags=re.DOTALL,
-)
-if match is None:
-    raise SystemExit("Could not find the offline region polygon in the integration test.")
+OFFLINE_PAGE = ROOT / "lib" / "features" / "offline" / "offline_page.dart"
 
-ring = [
-    (float(lon), float(lat))
-    for lon, lat in re.findall(
-        r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]",
-        match.group(1),
+
+def parse_ring(path: Path, identifier: str) -> list[tuple[float, float]]:
+    source = path.read_text(encoding="utf-8")
+    match = re.search(
+        rf"const {re.escape(identifier)} = <List<double>>\[(.*?)\];",
+        source,
+        flags=re.DOTALL,
     )
-]
-if len(ring) < 5 or ring[0] != ring[-1]:
-    raise SystemExit("The offline region must be a closed polygon ring.")
+    if match is None:
+        raise SystemExit(f"Could not find {identifier} in {path.relative_to(ROOT)}.")
+    ring = [
+        (float(lon), float(lat))
+        for lon, lat in re.findall(
+            r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]",
+            match.group(1),
+        )
+    ]
+    if len(ring) < 5 or ring[0] != ring[-1]:
+        raise SystemExit(f"{identifier} must be a closed polygon ring.")
+    return ring
+
+
+ring = parse_ring(TEST, "_regionRing")
+production_ring = parse_ring(OFFLINE_PAGE, "_cordobaRing")
+if ring != production_ring:
+    raise SystemExit(
+        "The Android integration fixture and OfflinePage must download the same polygon."
+    )
 
 min_lon = min(point[0] for point in ring)
 max_lon = max(point[0] for point in ring)
@@ -80,5 +91,6 @@ if uncovered:
 print(
     "MAPBOX_OFFLINE_REGION_COVERAGE "
     f"tiles={len(expected_tiles)} "
-    f"bounds=lon:{min_lon}..{max_lon},lat:{min_lat}..{max_lat}"
+    f"bounds=lon:{min_lon}..{max_lon},lat:{min_lat}..{max_lat} "
+    "integration_and_production_geometry=identical"
 )
