@@ -7,7 +7,8 @@ void main() {
       final accessTokenParameter =
           '${['access', 'token'].join('_')}=pk.example-value';
       final bearerPrefix = ['Bear', 'er'].join('');
-      final message = 'request $accessTokenParameter $bearerPrefix abc.def.ghi';
+      final message =
+          'request $accessTokenParameter $bearerPrefix abc.def.ghi';
 
       final sanitized = sanitizeMapboxDiagnostic(message);
 
@@ -20,14 +21,14 @@ void main() {
     test(
       'redacts token parameter case-insensitively without dropping later parameters',
       () {
-      final key = ['ACCESS', 'TOKEN'].join('_');
-      final message =
-          'https://api.mapbox.com/style?$key=demo-value&style=outdoors';
+        final key = ['ACCESS', 'TOKEN'].join('_');
+        final message =
+            'https://api.mapbox.com/style?$key=demo-value&style=outdoors';
 
-      expect(
-        sanitizeMapboxDiagnostic(message),
-        'https://api.mapbox.com/style?access_token=[REDACTED]&style=outdoors',
-      );
+        expect(
+          sanitizeMapboxDiagnostic(message),
+          'https://api.mapbox.com/style?access_token=[REDACTED]&style=outdoors',
+        );
       },
     );
 
