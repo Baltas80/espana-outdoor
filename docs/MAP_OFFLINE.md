@@ -164,7 +164,7 @@ Corrección aplicada en esta PR:
 
 - En el emulador CI desechable, detener y deshabilitar para el usuario 0 el paquete de primer arranque `com.google.android.googlesdksetup` si está instalado. Esta operación no se ejecuta en el dispositivo físico ni en producción.
 - Si reaparece su diálogo ANR, cerrarlo explícitamente en lugar de seguir eligiendo “Wait”.
-- Añadir `tool/verify_android_map_screen.py`: exige que la ventana superior pertenezca al paquete de la app y que la jerarquía contenga los controles exclusivos de la página Mapa (`Centrar mapa`, `Mapas offline`, `Navegación GPS`). Rechaza la pantalla de inicio y cualquier ventana de sistema.
+- Añadir `tool/verify_android_map_screen.py`: exige que la ventana superior pertenezca al paquete de la app y que la jerarquía contenga el marcador de accesibilidad `Mapa cartográfico`, expuesto explícitamente por el viewport Mapbox. Rechaza la pantalla de inicio y cualquier ventana de sistema.
 - Ejecutar esta verificación después del toque y de nuevo justo antes de capturar el PNG. La entropía del screenshot ya no puede convertir la pantalla de inicio en una falsa prueba de mapa.
 - Añadir un self-test con casos positivos de la página Mapa, pantalla de inicio y diálogo del sistema.
 
