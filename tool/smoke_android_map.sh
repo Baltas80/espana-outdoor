@@ -280,10 +280,38 @@ fi
 
 echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
-sleep 15
 
 logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
 screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+mapbox_diag_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-diagnostics.txt"
+mapbox_wait_seconds="${MAPBOX_RENDER_WAIT_SECONDS:-60}"
+if ! [[ "${mapbox_wait_seconds}" =~ ^[1-9][0-9]{0,2}$ ]] || (( mapbox_wait_seconds < 15 || mapbox_wait_seconds > 120 )); then
+  echo "ERROR: MAPBOX_RENDER_WAIT_SECONDS must be between 15 and 120."
+  exit 2
+fi
+
+# Do not capture a transient partial frame immediately after style load.
+# Wait for visible tiles, a FULL frame and an idle map; keep evidence on timeout.
+mapbox_ready=false
+mapbox_poll_count=$(( (mapbox_wait_seconds + 2) / 3 ))
+for attempt in $(seq 1 "${mapbox_poll_count}"); do
+  adb logcat -d -s flutter:I >"${mapbox_diag_file}"
+  if grep -Fq 'MAPBOX_DIAGNOSTIC event=MAP_LOADED' "${mapbox_diag_file}" &&
+     grep -Fq 'MAPBOX_DIAGNOSTIC event=MAP_IDLE' "${mapbox_diag_file}" &&
+     grep -Fq 'MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL' "${mapbox_diag_file}"; then
+    mapbox_ready=true
+    echo "MAPBOX_RENDER_READY elapsed_seconds=$((attempt * 3)) map_loaded=true full_frame=true idle=true"
+    break
+  fi
+  if (( attempt % 5 == 0 )); then
+    echo "MAPBOX_RENDER_WAIT elapsed_seconds=$((attempt * 3)) map_loaded=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=MAP_LOADED' "${mapbox_diag_file}" || true) full_frame=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL' "${mapbox_diag_file}" || true) idle=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=MAP_IDLE' "${mapbox_diag_file}" || true)"
+  fi
+  sleep 3
+done
+if [[ "${mapbox_ready}" != "true" ]]; then
+  echo "MAPBOX_RENDER_NOT_READY deadline_seconds=${mapbox_wait_seconds}"
+  grep 'MAPBOX_DIAGNOSTIC' "${mapbox_diag_file}" | tail -n 80 || true
+fi
 
 # The process can remain alive in the background while the launcher or a
 # system dialog owns the screen. Never accept a screenshot without proving
@@ -332,7 +360,18 @@ fi
 # A live process and absence of a loader message do not prove that the
 # cartographic viewport rendered. Reject blank/partial maps before uploading
 # the smoke evidence or reporting a successful Android staging run.
+set +e
 python3 tool/verify_android_map_screenshot.py "${screenshot_file}" --foreground-package "${package_name}"
+screenshot_status=$?
+set -e
 
-echo "PASS: Mapbox map remained alive and the visible UI is not in the loader error state."
+if [[ "${mapbox_ready}" != "true" ]]; then
+  echo "FAIL: Mapbox did not reach MAP_LOADED + FULL_FRAME + MAP_IDLE before the bounded render deadline."
+  exit 1
+fi
+if (( screenshot_status != 0 )); then
+  exit "${screenshot_status}"
+fi
+
+echo "PASS: Mapbox reached a complete idle viewport and the screenshot passed the visual gate."
 grep -Ei "Mapbox|MapboxSDK|MapboxStyle|tile|Range" "${logcat_file}" | tail -n 200 || true
