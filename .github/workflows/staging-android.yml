@@ -155,7 +155,7 @@ jobs:
           test -n "$apk"
           python3 tool/verify_android_release.py --apk "$apk"
       - name: Upload Android staging APK
-        if: always()
+        if: always() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: android-staging-apk
@@ -165,8 +165,7 @@ jobs:
           if-no-files-found: error
       - name: Enable KVM for Android emulator
         id: kvm_setup
-        if: always()
-        continue-on-error: true
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         shell: bash
         run: |
           set -euxo pipefail
@@ -182,7 +181,7 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        if: success() && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != ''
+        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
