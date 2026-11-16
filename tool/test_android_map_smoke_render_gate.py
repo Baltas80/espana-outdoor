@@ -134,5 +134,36 @@ if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
 if "timeout-minutes: 25" not in smoke_job or "--kill-after=150s 20m bash tool/smoke_android_map.sh" not in smoke_job:
     raise SystemExit("The Android map smoke action and script must have explicit upper time bounds.")
 
+standard_build = workflow.split("- name: Build Mapbox Standard A/B APK", 1)[1]
+standard_build = standard_build.split("- name: Upload Android staging APK", 1)[0]
+for marker in (
+    "github.event.pull_request.number == 79",
+    "--build-dir=build/standard",
+    '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
+    "build/standard/android-staging-validation.txt",
+    "mapbox_style_uri=mapbox://styles/mapbox/standard",
+):
+    if marker not in standard_build:
+        raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
+
+for marker in (
+    'RUNNER_TEMP="$RUNNER_TEMP/outdoors"',
+    'RUNNER_TEMP="$RUNNER_TEMP/standard"',
+    "outdoors_status=$?",
+    "standard_status=$?",
+    "MAPBOX_STYLE_AB outdoors_status=",
+):
+    if marker not in smoke_job:
+        raise SystemExit(f"Android smoke must execute both styles and retain both results: {marker}")
+
+evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
+for marker in (
+    "${{ runner.temp }}/outdoors/espana-outdoor-map.png",
+    "${{ runner.temp }}/standard/espana-outdoor-map.png",
+    "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
+):
+    if marker not in evidence_upload:
+        raise SystemExit(f"Android smoke evidence upload is missing A/B artifact path: {marker}")
+
 print("android_map_smoke_network_preflight=true")
 print("android_map_smoke_render_gate=true")
