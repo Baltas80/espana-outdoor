@@ -131,13 +131,9 @@ Android compila con NDK 28.2.13676358 para satisfacer los plugins Flutter nativo
 
 ### Captura nativa de la prueba offline
 
-El integration test no usa `convertFlutterSurfaceToImage()` ni
-`takeScreenshot()`: en el runner actual de `flutter test` el canal
-`plugins.flutter.io/integration_test` no está registrado y provocaba una
-`MissingPluginException` después de que Navigation ya hubiera calculado una
-ruta nueva con origen `OFFLINE`. El test emite
-`MAPBOX_OFFLINE_SCREENSHOT_READY`; el script host captura la vista nativa con
-`adb exec-out screencap -p` mientras el test app permanece abierto.
+El integration test no monta un segundo `MapWidget` independiente. Navega al destino `Mapa` de la aplicación real y conserva el `MapboxMapViewport` de producción. La prueba anterior bombeaba un segundo PlatformView y podía observar callbacks de una instancia distinta de la que aparecía en pantalla; la evidencia de CI mostraba `style_loaded=true`, pero cero eventos de fuente en el widget instrumentado. El test emite `MAPBOX_OFFLINE_SCREENSHOT_READY`; el script host captura la vista nativa con `adb exec-out screencap -p` mientras la pantalla real de Mapa permanece en primer plano.
+
+La aceptación lee el logcat del `MapboxMapViewport` real mediante `tool/verify_android_offline_map_log.py`: exige estilo cargado, mapa cargado, frame completo, estado idle, eventos de teselas z13 dentro del polígono descargado, cero misses/cancelaciones del TileStore y cero respuestas de recursos desde NETWORK durante la fase offline. El harness deshabilita además datos móviles y Wi-Fi; el origen de ruta debe seguir siendo `OFFLINE`.
 
 `tool/verify_android_map_screenshot.py` valida el PNG sin dependencias
 externas, comprueba que no sea un viewport casi uniforme y emite
