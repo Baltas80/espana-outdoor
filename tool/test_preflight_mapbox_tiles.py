@@ -49,15 +49,23 @@ def _bytes_field(number: int, value: bytes) -> bytes:
     return _varint((number << 3) | 2) + _varint(len(value)) + value
 
 
-def _mvt_tile(*, road_features: int = 1, other_layer: str = "water") -> bytes:
+def _mvt_tile(
+    *,
+    road_features: int = 1,
+    other_layer: str = "water",
+    include_road: bool = True,
+) -> bytes:
     # MVT Tile.layers is field 3. Layer.name is field 1 and repeated
     # Layer.features is field 2. Feature.type=2 means LINESTRING.
-    road_layer = _bytes_field(1, b"road")
-    for _ in range(road_features):
-        road_layer += _bytes_field(2, _varint_field(3, 2))
-    road_layer += _varint_field(15, 2)  # MVT layer version.
+    tile = b""
+    if include_road:
+        road_layer = _bytes_field(1, b"road")
+        for _ in range(road_features):
+            road_layer += _bytes_field(2, _varint_field(3, 2))
+        road_layer += _varint_field(15, 2)  # MVT layer version.
+        tile += _bytes_field(3, road_layer)
     other = _bytes_field(1, other_layer.encode("utf-8")) + _varint_field(15, 2)
-    return _bytes_field(3, road_layer) + _bytes_field(3, other)
+    return tile + _bytes_field(3, other)
 
 
 def main() -> int:
@@ -126,7 +134,7 @@ def main() -> int:
         raise AssertionError("A vector tile without road features must fail closed.")
 
     try:
-        inspect_vector_tile(_mvt_tile(road_features=1, other_layer="transportation"))
+        inspect_vector_tile(_mvt_tile(include_road=False, other_layer="transportation"))
     except PreflightError as error:
         assert str(error) == "vector_tile_road_layer_missing"
     else:
