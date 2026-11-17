@@ -23,7 +23,7 @@ source = SMOKE.read_text(encoding="utf-8")
 # UIAutomator can transiently return success before the device-side hierarchy
 # file exists on a cold emulator. Exercise the exact shell function with a
 # fake ADB transport: two missing files must retry, then a valid XML succeeds.
-ui_dump_block = source.split("ui_dump() {", 1)[1].split("\\n}\\n\\nwindow_file=", 1)[0]
+ui_dump_block = source.split("ui_dump() {", 1)[1].split("\n}\n\nwindow_file=", 1)[0]
 for marker in (
     "for attempt in $(seq 1 4)",
     'adb shell rm -f "${remote_file}"',
@@ -38,7 +38,7 @@ if ui_dump_block.index('adb shell test -s "${remote_file}"') > ui_dump_block.ind
 if 'node.attrib.get("clickable") != "true"' not in source or 'desc not in ("Mapa", "Mapa\\\\nMapa")' not in source:
     raise SystemExit("Android smoke must tap a clickable Mapa navigation node, not its decorative icon.")
 
-ui_dump_harness = r\'''set -euo pipefail
+ui_dump_harness = r'''set -euo pipefail
 remote_present=0
 dump_calls=0
 adb() {
@@ -67,13 +67,13 @@ adb() {
   return 99
 }
 sleep() { :; }
-\'''
+'''
 ui_dump_script = (
     ui_dump_harness
     + "ui_dump() {"
     + ui_dump_block
-    + "\\n}\\nif ui_dump \"$1\"; then echo \"UI_DUMP_RESULT=success dump_calls=$dump_calls\"; "
-    + "else echo \"UI_DUMP_RESULT=failure dump_calls=$dump_calls\"; exit 17; fi\\n"
+    + "\n}\nif ui_dump \"$1\"; then echo \"UI_DUMP_RESULT=success dump_calls=$dump_calls\"; "
+    + "else echo \"UI_DUMP_RESULT=failure dump_calls=$dump_calls\"; exit 17; fi\n"
 )
 with tempfile.TemporaryDirectory(prefix="android-uiautomator-retry-") as directory:
     hierarchy = Path(directory) / "hierarchy.xml"
