@@ -1,5 +1,30 @@
 # Cartografía y modo offline
 
+## A/B Android aislado — 17/11/2026, run 44075481486
+
+Run [44075481486](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481486), source commit `b4b803e545ae008004d84da899091d224e21f720`, workflow merge commit `596dcc3af18173b414fd2dc95a96c7802d333b54`.
+
+Se construyeron, verificaron por manifiesto/SHA-256, instalaron y ejecutaron los tres APK en el mismo emulador API 35. Los tres llegaron a la pantalla Mapa y confirmaron el modo de ejecución en runtime:
+
+| Variante | SHA-256 del APK | Renderer runtime | TileStore runtime |
+|---|---|---|---|
+| Principal | `0c98f86775cd9af2f7a7a59e82787a3036ebc81a611809f4a4bffca739fda85c` | Impeller | `READ_ONLY` |
+| Skia | `ec4ca35d6f962fba9813d95b8c938023847b091bdce6b6efc98667bcd72f08e6` | Skia | `READ_ONLY` |
+| TileStore desactivado | `dd5174e9aef8846bb6723d6afa4ecf902f50d961aab928ffb21664af5fc5f913` | Impeller | `DISABLED` |
+
+Los tres comparten Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, Flutter 3.47.5, estilo Outdoors v12 y Snapshotter desactivado. Los artefactos APK/manifiesto son [primary 14326296755](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481486/artifacts/14326296755), [Skia 14325633482](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481486/artifacts/14325633482) y [TileStore-disabled 14324749796](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481486/artifacts/14324749796). Las capturas y logcat están en [14327080907](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481486/artifacts/14327080907).
+
+Resultados comunes:
+- `STYLE_LOADED=1`, 148 capas, una fuente compuesta y fondo declarado `hsl(60, 20%, 85%)`.
+- `MAP_LOADED=0`, `MAP_IDLE=0`, `RenderMode.FULL=0`, `RenderMode.PARTIAL=1`, `MAP_LOAD_ERROR=0`.
+- La fuente `composite` confirmó 3 teselas con `loaded=true` en cada variante; las restantes registraron `loaded=false` (53 Impeller, 85 Skia y 65 TileStore-disabled). Hubo 7 respuestas de red de teselas no vacías y sin error explícito por variante.
+- Las tres capturas siguen mostrando el viewport casi negro. En el recorte central, primary y TileStore-disabled son idénticos; Skia solo difiere en 2.372 de 1.598.400 píxeles (diferencias de rasterización menores), sin mejora cartográfica utilizable.
+- El job Android terminó fallando únicamente en el gate obligatorio `Require Android map native smoke`; los tres APK se construyeron, verificaron e instalaron. CI general [44075481399](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481399) y Security [44075481432](https://github.com/Baltas80/espana-outdoor/actions/runs/44075481432) finalizaron correctamente; Security completó 8/8 controles.
+
+**Conclusión:** el cambio de Impeller a Skia y el bypass de TileStore no resuelven el viewport Outdoors en SwiftShader. La matriz sí es válida: los manifiestos y los eventos runtime confirman las tres configuraciones. No se debe seguir presentando TileStore como causa principal ni aceptar el mapa por el hecho de que el estilo cargue.
+
+**Siguiente experimento de staging:** en PR #79, el evento pull_request seleccionará automáticamente Mapbox Standard para el APK principal (un único experimento Impeller/TileStore predeterminado). Los builds Skia y TileStore-disabled se omiten en ese modo porque ya se compararon con Outdoors. El selector manual workflow_dispatch conserva Outdoors como predeterminado y permite Standard explícitamente. El valor predeterminado del código de producción sigue siendo Outdoors v12. Si Standard también queda en PARTIAL, detener nuevas variaciones del emulador y priorizar la validación del APK exacto en el OPPO físico.
+
 ## Resultado Android A/B — 17/11/2026, run 44055960774
 
 El run [44055960774](https://github.com/Baltas80/espana-outdoor/actions/runs/44055960774) construyó, verificó e instaló los tres APK (Impeller/TileStore predeterminado, Skia/TileStore predeterminado y TileStore desactivado). Los tres llegaron a la pantalla cartográfica, pero ninguno alcanzó `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; todos quedaron en `RenderMode.PARTIAL` y el gate visual rechazó las capturas.

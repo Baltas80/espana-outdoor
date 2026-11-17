@@ -47,7 +47,7 @@ env:
   OIDC_ISSUER: https://auth.espanaoutdoor.es/realms/espana-outdoor
   OIDC_CLIENT_ID: espana-outdoors-mobile
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
-  MAPBOX_STYLE_URI: ${{ inputs.mapbox_style_variant == 'standard' && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
+  MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
 
 jobs:
   android-staging:

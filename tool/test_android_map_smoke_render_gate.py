@@ -297,18 +297,30 @@ if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app
 if "cancel-in-progress: true" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
     raise SystemExit("A newer Android staging commit must supersede queued stale runs on the same branch.")
 
-# A/B style selection is a staging-only build input. The default and all PR
-# builds remain Outdoors; Standard can be selected explicitly on workflow_dispatch.
+# Style A/B is staging-only. The normal workflow_dispatch default and
+# production MapWidget default remain Outdoors; PR #79 automatically runs a
+# Standard-only diagnostic so the style itself is isolated from the renderer.
 for marker in (
     "mapbox_style_variant",
     "type: choice",
     "default: outdoors-v12",
+    "inputs.mapbox_style_variant == 'standard'",
+    "github.event_name == 'pull_request' && github.event.pull_request.number == 79",
     "mapbox://styles/mapbox/standard",
+    "mapbox://styles/mapbox/outdoors-v12",
     '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI"',
     'echo "mapbox_style_uri=$MAPBOX_STYLE_URI"',
 ):
     if marker not in workflow:
         raise SystemExit(f"Android staging workflow is missing controlled style selection: {marker}")
+for step_name in (
+    "- name: Build Mapbox Skia comparison APK (Impeller disabled)",
+    "- name: Build Mapbox TileStore-disabled diagnostic APK",
+):
+    step = workflow.split(step_name, 1)[1].split("\n      - name:", 1)[0]
+    if "env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'" not in step:
+        raise SystemExit("Renderer and TileStore A/B APKs must run only in the Outdoors experiment.")
+
 if "defaultValue: 'mapbox://styles/mapbox/outdoors-v12'" not in mapbox_viewport:
     raise SystemExit("Production Mapbox style default must remain Outdoors v12.")
 if "'MAPBOX_STYLE_URI'" not in mapbox_viewport or "String.fromEnvironment(" not in mapbox_viewport:
