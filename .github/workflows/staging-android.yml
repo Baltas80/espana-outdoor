@@ -57,7 +57,7 @@ env:
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
   MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
   MAPBOX_ANDROID_VIEW_MODE: ${{ (inputs.android_view_mode == 'virtual-texture' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'virtual-texture' || 'hybrid-surface' }}
-  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'baseline' || 'none' }}
+  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'vector' || 'none' }}
 
 jobs:
   android-staging:
