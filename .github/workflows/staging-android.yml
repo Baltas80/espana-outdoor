@@ -581,7 +581,7 @@ jobs:
           grep -Fxq "impeller_enabled=false" "$renderer_manifest"
 
       - name: Require Mapbox TileStore-disabled diagnostic APK
-        if: always() && steps.build_tile_store_disabled_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        if: always() && steps.build_tile_store_disabled_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79
         shell: bash
         run: |
           set -euo pipefail
