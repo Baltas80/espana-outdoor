@@ -86,6 +86,31 @@ String formatMapboxTileId({int? z, int? x, int? y}) {
   return '$z/$x/$y';
 }
 
+/// Normalizes Mapbox resource enum labels for stable diagnostic grouping.
+String mapboxResourceDiagnosticKind(Object rawKind) {
+  final value = rawKind.toString().trim();
+  final separator = value.lastIndexOf('.');
+  return (separator < 0 ? value : value.substring(separator + 1)).toUpperCase();
+}
+
+/// Reserve diagnostic capacity for vector tiles before noisy 3D model traffic.
+/// Standard styles can emit many model requests before tile fallback completes.
+int mapboxResourceDiagnosticLimit(Object rawKind) {
+  switch (mapboxResourceDiagnosticKind(rawKind)) {
+    case 'TILE':
+      return 300;
+    case 'MODEL':
+      return 16;
+    case 'STYLE':
+      return 32;
+    case 'SPRITE_IMAGE':
+    case 'SPRITE_JSON':
+      return 24;
+    default:
+      return 24;
+  }
+}
+
 String sanitizeMapboxDiagnostic(String message) {
   return message
       .replaceAll(
@@ -298,13 +323,14 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
   int _sourceDataEventsLogged = 0;
-  int _resourceEventsLogged = 0;
+  final Map<String, int> _resourceEventsLoggedByKind = <String, int>{};
+  final Map<String, int> _resourceEventsSuppressedByKind = <String, int>{};
+  final Set<String> _resourceSuppressionLogged = <String>{};
   String? _lastRenderMode;
   bool _mapOptionsLogged = false;
   bool _snapshotterCaptureStarted = false;
 
   static const _maxSourceDataEventsToLog = 250;
-  static const _maxResourceEventsToLog = 100;
 
   void _logMapboxDiagnostic(String event, [String details = '']) {
     final suffix = details.isEmpty ? '' : ' $details';
@@ -715,14 +741,27 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         );
       },
       onResourceRequestListener: (event) {
-        if (_resourceEventsLogged >= _maxResourceEventsToLog) return;
-        _resourceEventsLogged++;
+        final kind = mapboxResourceDiagnosticKind(event.request.kind);
+        final limit = mapboxResourceDiagnosticLimit(kind);
+        final logged = _resourceEventsLoggedByKind[kind] ?? 0;
+        if (logged >= limit) {
+          _resourceEventsSuppressedByKind[kind] =
+              (_resourceEventsSuppressedByKind[kind] ?? 0) + 1;
+          if (_resourceSuppressionLogged.add(kind)) {
+            _logMapboxDiagnostic(
+              'RESOURCE_SUPPRESSED',
+              'kind=$kind limit=$limit',
+            );
+          }
+          return;
+        }
+        _resourceEventsLoggedByKind[kind] = logged + 1;
         final response = event.response;
         final error = response?.error;
         final requestHost = Uri.tryParse(event.request.url)?.host ?? 'unknown';
         _logMapboxDiagnostic(
           'RESOURCE',
-          'kind=${event.request.kind} host=$requestHost '
+          'kind=$kind host=$requestHost '
               'data_source=${event.dataSource} '
               'response_source=${response?.source ?? 'pending'} '
               'size=${response?.size ?? -1} '
