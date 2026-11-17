@@ -52,8 +52,9 @@ for marker in (
     ".timeout(const Duration(seconds: 30))",
     ".timeout(const Duration(seconds: 15))",
     "activeSnapshotter.dispose().timeout(const Duration(seconds: 10))",
-    "MAPBOX_SNAPSHOTTER_PNG_CHUNK",
-    "MAPBOX_SNAPSHOTTER_VECTOR_PNG_CHUNK",
+    "MAPBOX_SNAPSHOTTER_PNG",
+    "MAPBOX_SNAPSHOTTER_VECTOR_PNG",
+    "prefix + '_CHUNK index='",
     "sha256.convert(png)",
 ):
     if marker not in mapbox_viewport:
