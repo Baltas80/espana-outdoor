@@ -281,3 +281,30 @@ La aceptación requiere, para el APK que se proponga como candidato:
 - validación posterior en dispositivo físico.
 
 Si Skia supera el gate y el APK Impeller no, se preparará una compatibilidad temporal y un informe de limitación/deprecación; no se cambiará el predeterminado hasta validar el OPPO. Si ambos fallan, se investigarán el SDK nativo, la respuesta/decodificación de tiles y la composición Android antes de tocar el estilo.
+
+
+## Diagnóstico Impeller/Skia y Snapshotter nativo — 17/11/2026
+
+La ejecución Android staging [44011075469](https://github.com/Baltas80/espana-outdoor/actions/runs/44011075469), source commit `85d00dc`, construyó y publicó ambos APK. El smoke se ejecutó en los dos casos y falló únicamente porque el viewport no superó el gate cartográfico; las evidencias se conservaron en [14296859542](https://github.com/Baltas80/espana-outdoor/actions/runs/44011075469/artifacts/14296859542).
+
+La identidad de los motores quedó demostrada en logcat, no inferida del manifiesto:
+
+- APK principal: `MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller`.
+- APK comparativo: `MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia`.
+- Ambos: `STYLE_LOADED`, `RenderMode.PARTIAL`, sin `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+- Ambos declararon el mismo estilo, 148 capas, una fuente y fondo `hsl(60, 20%, 85%)`.
+- PNG principal: entropía 0,650 y color dominante 0,901. PNG Skia: entropía 0,651 y color dominante 0,901. Las capturas muestran el mismo viewport muy oscuro, con algunos trazos de cartografía.
+- El emulador Android x86_64 usa SwiftShader. El logcat contiene `GL2Encoder.cpp:s_glGetStringi ... GL error 0x501` en el proceso comparativo y tiempos `EGL_emulation app_time_stats` muy elevados.
+
+**Conclusión limitada:** cambiar el backend Flutter de Impeller a Skia no corrigió el mapa en este emulador. Esto reduce la probabilidad de que Impeller sea la causa aislada. No demuestra que el SDK nativo de Mapbox o el dispositivo físico tengan el mismo fallo. Mapbox documenta que sus mapas móviles son renderizados por el SDK nativo y requieren soporte OpenGL ES 3: [requisitos del SDK Android](https://docs.mapbox.com/android/maps/guides/).
+
+### Siguiente prueba: Snapshotter nativo independiente del MapWidget
+
+Se añade una captura de diagnóstico con `Snapshotter`, usando el mismo estilo, tamaño lógico, pixel ratio y cámara del viewport. La imagen se emite en fragmentos Base64 con SHA-256 dentro de logcat y se reconstruye como artefacto PNG por `tool/extract_mapbox_snapshotter_png.py`.
+
+La comparación separa dos hipótesis:
+
+1. Si Snapshotter genera un mapa legible y `adb screencap` sigue oscuro, investigar la integración del PlatformView/SurfaceView y la composición Android.
+2. Si Snapshotter y el viewport generan imágenes oscuras/incompletas, investigar el renderizador nativo de Mapbox, la decodificación de tiles y el backend gráfico del emulador.
+
+La captura adicional es diagnóstica y no relaja el gate: el APK sigue necesitando `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y PNG visible para aprobar. La ejecución no certifica dispositivo físico ni modo offline.
