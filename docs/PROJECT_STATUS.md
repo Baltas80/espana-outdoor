@@ -831,3 +831,11 @@ Nuevo experimento añadido al workflow de PR #79:
 - El smoke ejecutará ambos APK en el mismo emulador y publicará evidencia separada. El APK TileStore-disabled es solo diagnóstico online y nunca acepta offline.
 
 El límite del smoke se ajustó a 55 minutos para dos variantes de 20 minutos y arranque de emulador limitado a 600 segundos. La aceptación sigue exigiendo `MAP_LOADED + RenderMode.FULL + MAP_IDLE` y captura legible. No se modifica producción.
+
+
+## Corrección del guard de CI — 17/11/2026
+
+La primera ejecución de CI tras ampliar el diagnóstico Standard + TileStore, [44097670840](https://github.com/Baltas80/espana-outdoor/actions/runs/44097670840), falló en `Test Android map smoke render gate` por una aserción obsoleta que seguía exigiendo `timeout-minutes: 65` y tres variantes. El workflow ya ejecutaba dos variantes Standard (READ_ONLY y DISABLED), con 55 minutos de límite. No fue un fallo de compilación ni de Mapbox.
+
+Se corrigió la aserción en [0180acea](https://github.com/Baltas80/espana-outdoor/commit/0180acea07e4918687b6e25b340d70dd4070da03): ahora exige 55 minutos y dos variantes. La ejecución Android anterior [44097675255](https://github.com/Baltas80/espana-outdoor/actions/runs/44097675255) se canceló al avanzar la rama antes de completar Analyze and test; no produjo APK. La nueva revisión de CI y Android debe ejecutarse sobre el HEAD actualizado antes de considerar validada la matriz.
+
