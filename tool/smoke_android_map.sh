@@ -519,6 +519,11 @@ if [[ "${map_widget_diagnostic_style}" == "baseline" ]]; then
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}" \
     --expected-solid-color "#d9e6c7"
+elif [[ "${map_widget_diagnostic_style}" == "vector" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-vector-color "#c43c39" \
+    --expected-background-color "#d9e6c7"
 else
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}"
