@@ -15,6 +15,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
 MAPBOX_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
+MAIN_DART = ROOT / "lib" / "main.dart"
 MAPBOX_PAGE = ROOT / "lib" / "features" / "map" / "mapbox_map_page.dart"
 MAP_SCREEN_VERIFIER = ROOT / "tool" / "verify_android_map_screen.py"
 source = SMOKE.read_text(encoding="utf-8")
@@ -27,6 +28,22 @@ map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
 if not MAPBOX_VIEWPORT.is_file():
     raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
 mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
+if not MAIN_DART.is_file():
+    raise SystemExit("Android staging TileStore diagnostic requires the application entry point.")
+main_dart = MAIN_DART.read_text(encoding="utf-8")
+for marker in (
+    "MAPBOX_TILE_STORE_USAGE_MODE",
+    "MapboxMapsOptions.setTileStoreUsageMode(TileStoreUsageMode.DISABLED)",
+    "MapboxMapsOptions.getTileStoreUsageMode()",
+    "effective=${effectiveMode.name.toLowerCase()}",
+    "await _configureMapboxTileStoreUsage();",
+    "_appEnvironment == 'staging'",
+    "TargetPlatform.android",
+):
+    if marker not in main_dart:
+        raise SystemExit(f"Android staging TileStore mode guard is missing: {marker}")
+if main_dart.index("await _configureMapboxTileStoreUsage();") > main_dart.index("runApp("):
+    raise SystemExit("TileStore mode must be configured before any Mapbox API object is created.")
 if "snapshotter!.style" in mapbox_viewport:
     raise SystemExit("Snapshotter diagnostics must use the direct v3 style API.")
 for marker in (
@@ -333,6 +350,10 @@ ab_runner_source = AB_RUNNER.read_text(encoding="utf-8")
 for marker in (
     'primary_apk="${runner_temp}/primary-build/app-release.apk"',
     'renderer_apk="${runner_temp}/skia-build/app-release.apk"',
+    'tile_store_disabled_apk="${runner_temp}/tile-store-disabled-build/app-release.apk"',
+    'RUNNER_TEMP="${tile_store_disabled_evidence}" timeout',
+    'MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled',
+    'diagnostic_tile_store_mode',
     'RUNNER_TEMP="${primary_evidence}" timeout',
     'RUNNER_TEMP="${renderer_evidence}" timeout',
     'primary_status=${primary_status}',
@@ -374,7 +395,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
         "mapbox_android_view_mode=hybrid-surface\n"
-        "flutter_renderer=impeller-default\nimpeller_enabled=default\n",
+        "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
+        "mapbox_tile_store_usage_mode=default\n",
         encoding="utf-8",
     )
     (temp_root / "skia-build" / "android-staging-validation.txt").write_text(
@@ -382,7 +404,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
         "mapbox_android_view_mode=hybrid-surface\n"
-        "flutter_renderer=skia-optout\nimpeller_enabled=false\n",
+        "flutter_renderer=skia-optout\nimpeller_enabled=false\n"
+        "mapbox_tile_store_usage_mode=default\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
