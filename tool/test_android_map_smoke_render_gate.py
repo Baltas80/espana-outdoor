@@ -48,7 +48,7 @@ for marker in (
     "'SNAPSHOTTER_STAGE'",
     "logSnapshotterStage('create_started')",
     "logSnapshotterStage('create_completed')",
-    "logSnapshotterStage('capture_completed'",
+    "label + '_capture_completed'",
     ".timeout(const Duration(seconds: 30))",
     ".timeout(const Duration(seconds: 15))",
     "activeSnapshotter.dispose().timeout(const Duration(seconds: 10))",
