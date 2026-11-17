@@ -76,12 +76,12 @@ for key in ("application_id", "version_code", "version_name"):
 
 badging_fixture = "package: name='com.example.app' versionCode='42' versionName='1.2.3' platformBuildVersionName='15'"
 metadata_script = (
-    f"badging={shlex.quote(badging_fixture)}\\n"
-    + "\\n".join(primary_metadata_lines)
-    + '\\nprintf "%s\\t%s\\t%s\\n" "$application_id" "$version_code" "$version_name"\\n'
+    f"badging={shlex.quote(badging_fixture)}\n"
+    + "\n".join(primary_metadata_lines)
+    + '\nprintf "%s\t%s\t%s\n" "$application_id" "$version_code" "$version_name"\n'
 )
 metadata_result = subprocess.run(["bash", "-c", metadata_script], capture_output=True, text=True, check=False)
-if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app\\t42\\t1.2.3\\n":
+if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app\t42\t1.2.3\n":
     raise SystemExit(
         "Android APK metadata parser failed its aapt badging fixture: "
         + (metadata_result.stderr or metadata_result.stdout)
@@ -304,8 +304,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     timeout_stub = fake_bin / "timeout"
     timeout_stub.write_text(
         "#!/usr/bin/env bash\n"
-        'printf "RUNNER_TEMP=%s\\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
-        'printf "ARGS=%s\\n" "$*" >> "$CALL_LOG"\n'
+        'printf "RUNNER_TEMP=%s\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
+        'printf "ARGS=%s\n" "$*" >> "$CALL_LOG"\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
         'if [[ "${FAIL_RENDERER:-false}" == "true" && "$*" == *texture-vd-build/app-release.apk* ]]; then exit 8; fi\n'
