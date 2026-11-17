@@ -171,11 +171,19 @@ String mapboxStyleDiagnosticsJson(String rawStyleJson) {
       final source = entry.value;
       if (source is! Map) continue;
       final tiles = source['tiles'];
+      final tileOrigins = tiles is List
+          ? tiles
+              .whereType<String>()
+              .map(_safeMapboxStyleOrigin)
+              .toSet()
+              .toList(growable: false)
+          : const <String>[];
       sourceSummaries.add(<String, Object?>{
         'id': entry.key.toString(),
         'type': source['type'] ?? 'unknown',
         'url_origin': _safeMapboxStyleOrigin(source['url']),
         'tiles_count': tiles is List ? tiles.length : 0,
+        'tile_origins': tileOrigins,
         'minzoom': source['minzoom'],
         'maxzoom': source['maxzoom'],
       });
