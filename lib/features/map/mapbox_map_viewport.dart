@@ -94,6 +94,24 @@ String sanitizeMapboxDiagnostic(String message) {
       );
 }
 
+/// Returns a self-contained style used to test the native Mapbox renderer
+/// without network, sprite, glyph or vector-tile dependencies.
+String mapboxSnapshotterBaselineStyleJson() {
+  return jsonEncode(<String, Object?>{
+    'version': 8,
+    'sources': <String, Object?>{},
+    'layers': <Object?>[
+      <String, Object?>{
+        'id': 'espana-outdoor-diagnostic-background',
+        'type': 'background',
+        'paint': <String, Object?>{
+          'background-color': '#d9e6c7',
+        },
+      },
+    ],
+  });
+}
+
 /// Shared Mapbox surface for the main map, route planner and GPX detail.
 class MapboxMapViewport extends StatefulWidget {
   const MapboxMapViewport({
@@ -223,25 +241,34 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           showsAttribution: false,
         ),
         onStyleLoadedListener: (_) {
+          logSnapshotterStage('style_loaded_callback');
           if (!styleLoaded.isCompleted) styleLoaded.complete();
         },
         onMapLoadErrorListener: (event) {
+          final details =
+              'type=${event.type} message=${sanitizeMapboxDiagnostic(event.message)}';
+          logSnapshotterStage('map_load_error', details);
           if (!styleLoaded.isCompleted) {
-            styleLoaded.completeError(
-              StateError(
-                'type=${event.type} message=${sanitizeMapboxDiagnostic(event.message)}',
-              ),
-            );
+            styleLoaded.completeError(StateError(details));
           }
+        },
+        onStyleDataLoadedListener: (event) {
+          logSnapshotterStage('style_data_loaded', 'type=${event.type}');
+        },
+        onStyleImageMissingListener: (event) {
+          logSnapshotterStage('style_image_missing', 'id=${event.id}');
         },
       ).timeout(const Duration(seconds: 30));
       logSnapshotterStage('create_completed');
 
-      logSnapshotterStage('style_set_started');
+      // This deliberately contains no external sources. If it cannot render,
+      // the failure is below style/tile loading (native renderer or emulator).
+      debugPrint('MAPBOX_SNAPSHOTTER_BASELINE style=solid-no-source');
+      logSnapshotterStage('style_set_json_started');
       await snapshotter.style
-          .setStyleURI(mapboxStyleUri)
+          .setStyleJSON(mapboxSnapshotterBaselineStyleJson())
           .timeout(const Duration(seconds: 30));
-      logSnapshotterStage('style_set_completed');
+      logSnapshotterStage('style_set_json_completed');
       await styleLoaded.future.timeout(const Duration(seconds: 45));
       logSnapshotterStage('style_loaded');
       await snapshotter.setCamera(
@@ -254,6 +281,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       ).timeout(const Duration(seconds: 15));
       logSnapshotterStage('camera_set');
 
+      logSnapshotterStage('capture_started');
       final png = await snapshotter.start().timeout(
         const Duration(seconds: 45),
       );
