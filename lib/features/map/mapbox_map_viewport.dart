@@ -324,7 +324,6 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   bool _annotationsReady = false;
   int _sourceDataEventsLogged = 0;
   final Map<String, int> _resourceEventsLoggedByKind = <String, int>{};
-  final Map<String, int> _resourceEventsSuppressedByKind = <String, int>{};
   final Set<String> _resourceSuppressionLogged = <String>{};
   String? _lastRenderMode;
   bool _mapOptionsLogged = false;
@@ -745,8 +744,6 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         final limit = mapboxResourceDiagnosticLimit(kind);
         final logged = _resourceEventsLoggedByKind[kind] ?? 0;
         if (logged >= limit) {
-          _resourceEventsSuppressedByKind[kind] =
-              (_resourceEventsSuppressedByKind[kind] ?? 0) + 1;
           if (_resourceSuppressionLogged.add(kind)) {
             _logMapboxDiagnostic(
               'RESOURCE_SUPPRESSED',
