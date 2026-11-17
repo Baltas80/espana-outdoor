@@ -593,3 +593,64 @@ Siguiente prioridad: ejecutar CI, Security y Android staging sobre el nuevo HEAD
 - La rama PR #79 queda en 92 commits por delante de `main` y 0 por detrás. Sigue en draft.
 
 La corrección de pixel ratio ya supera el análisis estático y los tests de Android staging. La aceptación funcional depende del nuevo APK A/B: comprobar el valor `MAPBOX_MAP_OPTIONS pixel_ratio`, obtener `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y una captura cartográfica legible. No aceptar offline ni producción hasta completar además el protocolo de descarga, modo avión, cierre/reapertura, reinicio y prueba física.
+
+
+## Actualización 17/11/2026 01:26 CET — diagnóstico del hosting nativo Mapbox
+
+### Evidencia revisada
+
+Se descargó y examinó el artefacto de diagnóstico [Android staging 43980144452](https://github.com/Baltas80/espana-outdoor/actions/runs/43980144452), artifact [14284800755](https://github.com/Baltas80/espana-outdoor/actions/runs/43980144452/artifacts/14284800755), correspondiente al source commit `c83f18ad12699257884a41dc3211725ab4bd46a8`.
+
+Los dos experimentos llegaron a la pantalla real `Mapa cartográfico`, con la ventana de España Outdoor en primer plano y sin diálogo ANR. Se inspeccionaron los PNG originales, jerarquías, diagnósticos y logcat.
+
+| Métrica | Outdoors v12 | Standard |
+|---|---:|---:|
+| PNG | 1080×2400 | 1080×2400 |
+| Colores cuantizados | 38 | 36 |
+| Entropía | 0,650 bits | 0,649 bits |
+| Color dominante | 90,1 % | 90,1 % |
+| `STYLE_LOADED` | 1 | 1 |
+| `MAP_LOADED` | 0 | 0 |
+| `MAP_IDLE` | 0 | 0 |
+| `RenderMode.FULL` | 0 | 0 |
+| `RenderMode.PARTIAL` | 1 | 1 |
+| `MAP_LOAD_ERROR` | 0 | 0 |
+
+Ambos estilos muestran un viewport casi negro y no superan el gate visual. La fuente composite registró 3 eventos de tesela `loaded=true` y 65 `loaded=false` en cada experimento. Se observaron 7 respuestas de tesela desde Network por estilo, con 416.012 bytes acumulados y `error=none`. Los `NOT_FOUND` de TileStore son misses de caché local, no respuestas HTTP 404. Las coordenadas de tesela corresponden al área de Córdoba, coherente con la cámara inicial.
+
+Los logs indican Impeller/OpenGLES y uso de `swiftshader_indirect` en el emulador. También aparecen intervalos de frame muy altos. Es una variable del entorno que se debe separar del comportamiento en dispositivo físico; no se declara todavía como causa raíz.
+
+### Hipótesis nueva y experimento aislado
+
+La dependencia fijada es `mapbox_maps_flutter 3.33.0`. La migración oficial a v3 cambió Android de Virtual Display + TextureView (comportamiento de v2) a Hybrid Composition + SurfaceView por defecto. Como la pantalla combina el mapa nativo con varios overlays Flutter, se añadirá una comparación de hosting nativo manteniendo constantes estilo, commit, application ID, versión, emulador y TileStore.
+
+Se incorporó un selector exclusivamente de compilación:
+
+- `MAPBOX_ANDROID_VIEW_MODE=hybrid-surface`: modo de producción actual, Hybrid Composition + SurfaceView.
+- `MAPBOX_ANDROID_VIEW_MODE=virtual-texture`: control experimental, Virtual Display + TextureView.
+
+El valor predeterminado de producción sigue siendo `hybrid-surface`. El experimento no cambia el modo de producción y limpia los datos entre instalaciones para aislar TileStore/caché.
+
+### Cambios publicados en PR #79
+
+- [f06a2bb](https://github.com/Baltas80/espana-outdoor/commit/f06a2bb3cb3014b2372177326ccb084f93895914) — selector de hosting Android y diagnóstico del modo efectivo.
+- [951ed0a](https://github.com/Baltas80/espana-outdoor/commit/951ed0a31a7d5ac6a74df1d8fe0cbccde10cf378) — pruebas de Hybrid Composition/SurfaceView y Virtual Display/TextureView.
+- [c35ccdd](https://github.com/Baltas80/espana-outdoor/commit/c35ccddb333df2619f6346051a6d1b9e3b51aa3a) — orquestador de comparación de renderer.
+- [ab2f970](https://github.com/Baltas80/espana-outdoor/commit/ab2f970797cb34dc501fe0c74d492612b0fa14a2) — workflow de compilación y manifiestos separados.
+- [106aca5](https://github.com/Baltas80/espana-outdoor/commit/106aca57244ee5158ccfe31d1f7af769fcc3102c) — referencias de pasos del workflow.
+- [fdc2fbe](https://github.com/Baltas80/espana-outdoor/commit/fdc2fbe163ecf3cfae690e14c023f44961613c16) — pruebas del orquestador y del contrato de artefactos.
+- [a7e993f](https://github.com/Baltas80/espana-outdoor/commit/a7e993f38ea64ac34ca8ae818472f8d565b26b62) — guard estático de configuración de hosting.
+
+El nuevo workflow debe publicar APK principal y comparación por separado, registrar modo, estilo, commit y SHA-256, ejecutar ambos en el mismo emulador y conservar capturas/logcat aunque falle la aceptación. Los resultados de CI para este nuevo HEAD aún están pendientes.
+
+### Pendiente y criterio de decisión
+
+1. Validar análisis, tests y YAML del nuevo HEAD.
+2. Compilar ambos APK y verificar manifiestos/SHA-256.
+3. Ejecutar ambos modos con el mismo estilo Outdoors.
+4. Comparar callbacks, frames y PNG.
+5. Si Virtual Display/TextureView renderiza correctamente, probarlo en OPPO antes de cambiar el modo de producción.
+6. Si ambos fallan, aislar SwiftShader frente a GPU física y revisar fuente composite/renderer nativo.
+7. Corregir también el pixel ratio del descriptor offline y ejecutar descarga, modo avión, force-stop, reapertura y reinicio.
+
+PR #79 permanece draft. No fusionar ni certificar mapa online/offline hasta tener una captura utilizable y prueba reproducible en dispositivo Android real.
