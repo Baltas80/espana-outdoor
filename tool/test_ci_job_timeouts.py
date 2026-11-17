@@ -35,7 +35,7 @@ if not re.search(r"(?m)^    timeout-minutes: 105$", job_block(staging, "android-
     raise SystemExit("Android staging must have a 105-minute job-level timeout for build, upload and smoke evidence.")
 
 smoke_step = re.search(
-    r"(?ms)^      - name: Android map native smoke\\n(.*?)(?=^      - name: Upload Android map smoke evidence)",
+    r"(?ms)^      - name: Android map native smoke\n(.*?)(?=^      - name: Upload Android map smoke evidence)",
     staging,
 )
 if smoke_step is None:
