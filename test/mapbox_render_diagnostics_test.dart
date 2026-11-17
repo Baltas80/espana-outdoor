@@ -32,14 +32,14 @@ void main() {
       final configuration = mapboxAndroidViewConfiguration(mapboxAndroidViewMode);
 
       expect(configuration.textureView, isFalse);
-      expect(configuration.hostingMode, AndroidPlatformViewHostingMode.HC);
+      expect(configuration.hostingMode.name, 'HC');
     });
 
     test('provides a legacy Virtual Display and TextureView comparison mode', () {
       final configuration = mapboxAndroidViewConfiguration('virtual-texture');
 
       expect(configuration.textureView, isTrue);
-      expect(configuration.hostingMode, AndroidPlatformViewHostingMode.VD);
+      expect(configuration.hostingMode.name, 'VD');
     });
 
     test('rejects unknown Android hosting modes', () {
