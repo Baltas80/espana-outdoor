@@ -409,7 +409,7 @@ snapshotter_poll_count=$(( (snapshotter_wait_seconds + 2) / 3 ))
 snapshotter_terminal=false
 for attempt in $(seq 1 "${snapshotter_poll_count}"); do
   adb logcat -d -s flutter:I >"${mapbox_diag_file}"
-  if grep -Eq 'MAPBOX_SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)' "${mapbox_diag_file}" ||
+  if grep -Eq 'MAPBOX_DIAGNOSTIC event=SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)' "${mapbox_diag_file}" ||
      grep -Fq 'MAPBOX_SNAPSHOTTER_CAPTURE failed=' "${mapbox_diag_file}"; then
     snapshotter_terminal=true
     echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=true elapsed_seconds=$((attempt * 3))"
