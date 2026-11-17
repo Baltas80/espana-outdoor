@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Check that the staging Mapbox token can read the selected style and a vector tile.
+"""Check Mapbox style access and inspect a real Streets v8 vector tile.
 
 The token is read only from the environment and is never printed or included in
-an exception message. This separates token/network failures from native map
-rendering failures in the Android smoke test.
+an exception message. The tile probe decodes the Mapbox Vector Tile protobuf so
+a successful HTTP response cannot be mistaken for a tile containing renderable
+road features.
 """
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
 import os
+from collections.abc import Iterator
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -43,7 +46,8 @@ def _request_bytes(url: str, label: str, opener=urlopen) -> bytes:
         url,
         headers={
             "Accept": "application/json, application/x-protobuf",
-            "User-Agent": "espana-outdoor-mapbox-preflight/1",
+            "Accept-Encoding": "identity",
+            "User-Agent": "espana-outdoor-mapbox-preflight/2",
         },
     )
     try:
@@ -107,6 +111,115 @@ def _tile_xy(longitude: float, latitude: float, zoom: int) -> tuple[int, int]:
     return min(max(x, 0), scale - 1), min(max(y, 0), scale - 1)
 
 
+def _read_varint(data: bytes, offset: int) -> tuple[int, int]:
+    value = 0
+    shift = 0
+    while offset < len(data) and shift < 70:
+        byte = data[offset]
+        offset += 1
+        value |= (byte & 0x7F) << shift
+        if byte < 0x80:
+            return value, offset
+        shift += 7
+    raise PreflightError("vector_tile_protobuf_invalid")
+
+
+def _protobuf_fields(data: bytes) -> Iterator[tuple[int, int, int | bytes]]:
+    """Read protobuf wire fields without depending on generated code."""
+    offset = 0
+    while offset < len(data):
+        tag, offset = _read_varint(data, offset)
+        field_number, wire_type = tag >> 3, tag & 0x07
+        if field_number == 0:
+            raise PreflightError("vector_tile_protobuf_invalid")
+        if wire_type == 0:
+            value, offset = _read_varint(data, offset)
+        elif wire_type == 1:
+            end = offset + 8
+            if end > len(data):
+                raise PreflightError("vector_tile_protobuf_truncated")
+            value = data[offset:end]
+            offset = end
+        elif wire_type == 2:
+            length, offset = _read_varint(data, offset)
+            end = offset + length
+            if end > len(data):
+                raise PreflightError("vector_tile_protobuf_truncated")
+            value = data[offset:end]
+            offset = end
+        elif wire_type == 5:
+            end = offset + 4
+            if end > len(data):
+                raise PreflightError("vector_tile_protobuf_truncated")
+            value = data[offset:end]
+            offset = end
+        else:
+            # Mapbox Vector Tile does not use deprecated protobuf groups.
+            raise PreflightError("vector_tile_protobuf_wire_type_unsupported")
+        yield field_number, wire_type, value
+
+
+def _feature_geometry_type(feature: bytes) -> int | None:
+    for field_number, wire_type, value in _protobuf_fields(feature):
+        if field_number == 3 and wire_type == 0:
+            return int(value)
+    return None
+
+
+def inspect_vector_tile(tile_bytes: bytes) -> dict[str, object]:
+    """Return layer and road-feature counts from an MVT protobuf payload."""
+    payload = tile_bytes
+    if payload.startswith(b"\x1f\x8b"):
+        try:
+            payload = gzip.decompress(payload)
+        except OSError:
+            raise PreflightError("vector_tile_gzip_invalid") from None
+    if len(payload) < 8:
+        raise PreflightError("vector_tile_empty_or_truncated")
+
+    layer_names: list[str] = []
+    road_features = 0
+    road_line_features = 0
+    for field_number, wire_type, layer_bytes in _protobuf_fields(payload):
+        if field_number != 3 or wire_type != 2 or not isinstance(layer_bytes, bytes):
+            continue
+        name: str | None = None
+        feature_payloads: list[bytes] = []
+        for layer_field, layer_wire, value in _protobuf_fields(layer_bytes):
+            if layer_field == 1 and layer_wire == 2 and isinstance(value, bytes):
+                try:
+                    name = value.decode("utf-8")
+                except UnicodeDecodeError:
+                    raise PreflightError("vector_tile_layer_name_invalid") from None
+            elif layer_field == 2 and layer_wire == 2 and isinstance(value, bytes):
+                feature_payloads.append(value)
+        if name is None:
+            raise PreflightError("vector_tile_layer_name_missing")
+        layer_names.append(name)
+        if name == "road":
+            road_features += len(feature_payloads)
+            road_line_features += sum(
+                _feature_geometry_type(feature) == 2
+                for feature in feature_payloads
+            )
+
+    if not layer_names:
+        raise PreflightError("vector_tile_layers_missing")
+    if "road" not in layer_names:
+        raise PreflightError("vector_tile_road_layer_missing")
+    if road_features == 0:
+        raise PreflightError("vector_tile_road_features_missing")
+    if road_line_features == 0:
+        raise PreflightError("vector_tile_road_line_features_missing")
+
+    return {
+        "layer_count": len(layer_names),
+        "layer_names": sorted(set(layer_names)),
+        "road_features": road_features,
+        "road_line_features": road_line_features,
+    }
+
+
 def run_preflight(
     *,
     style_uri: str,
@@ -138,14 +251,14 @@ def run_preflight(
         f"{urlencode({'access_token': token})}"
     )
     tile_bytes = _request_bytes(tile_url, "vector_tile", opener)
-    if len(tile_bytes) < 64:
-        raise PreflightError("vector_tile_empty_or_truncated")
+    tile_info = inspect_vector_tile(tile_bytes)
 
     return {
         "style": style_uri,
         "tileset": tileset_id,
         "tile": f"{zoom}/{x}/{y}",
         "tile_bytes": len(tile_bytes),
+        **tile_info,
     }
 
 
@@ -176,7 +289,9 @@ def main() -> int:
     print(
         "MAPBOX_PREFLIGHT ok "
         f"style={result['style']} tileset={result['tileset']} "
-        f"tile={result['tile']} bytes={result['tile_bytes']} token_present=true"
+        f"tile={result['tile']} bytes={result['tile_bytes']} "
+        f"layers={result['layer_count']} road_features={result['road_features']} "
+        f"road_line_features={result['road_line_features']} token_present=true"
     )
     return 0
 
