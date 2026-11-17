@@ -357,3 +357,25 @@ Interpretación:
 - Ambos fallan: reabrir la investigación del renderer nativo/entorno, aunque el baseline anterior ya fue correcto.
 
 El run Android terminó en fallo intencionado del gate cartográfico; CI general y Security (8/8) sí terminaron correctamente en ese HEAD. No se acepta online/offline ni se modifica el estilo de producción.
+
+## Diagnóstico TileStore y fuente vectorial — 17/11/2026 09:29 CET
+
+Ejecución [Android staging 44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329), commit probado `082f53ae1d7e77981110610d0cc15e7f353abbd9`.
+
+- El Snapshotter baseline sin fuentes generó el PNG uniforme `#d9e6c7`: 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`.
+- El Snapshotter vectorial cargó el TileJSON de Mapbox Streets v8 desde Network (19.079 bytes), recibió el callback de estilo y aplicó la cámara. Después, las solicitudes de tiles observadas consultaron TileStore y devolvieron `NOT_FOUND`; algunas solicitudes del ResourceLoader fueron canceladas. No se observó una respuesta de red de tiles en ese Snapshotter antes de que `start()` agotara 60 s. No se generó PNG vectorial.
+- En el MapWidget principal sí hubo respuestas de red de teselas y glyphs con contenido, pero la mayoría de los eventos `SOURCE_DATA loaded=false` persistieron; no se alcanzó `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE`. La captura 1080×2400 fue rechazada (34 colores, entropía 0,651 bits, color dominante 0,901).
+- El gate Android falló por el resultado funcional, no por compilación: se conservaron los artefactos y la evidencia. CI general y Security del mismo HEAD terminaron correctamente.
+
+### Hipótesis y siguiente experimento
+
+Mapbox documenta que `TileStoreUsageMode.READ_ONLY` (predeterminado) consulta primero paquetes locales y, si faltan, vuelve a solicitar tiles individuales; `DISABLED` omite la consulta a TileStore ([API de TileStoreUsageMode](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/TileStoreUsageMode.html), [conceptos offline Android](https://docs.mapbox.com/android/maps/guides/offline/concepts/)).
+
+Los registros no prueban que READ_ONLY suprima la descarga; solo justifican aislar esa variable. Se añade un APK diagnóstico Android staging con `MAPBOX_TILE_STORE_USAGE_MODE=disabled`, manteniendo estilo, cámara, renderer, hosting, commit y versión. La app registra el modo efectivo antes de crear mapas.
+
+**Restricción:** este APK es solo diagnóstico online. Al desactivar TileStore no sirve para aceptar mapas offline ni debe desplegarse. El APK principal conserva el modo predeterminado READ_ONLY. Producción y su configuración no cambian.
+
+Interpretación:
+- Si aparecen solicitudes de tiles desde Network y el Snapshotter genera calles, investigar el camino TileStore/cache y el estado de los paquetes offline.
+- Si las solicitudes siguen sin salir o el Snapshotter sigue agotando el timeout, investigar el motor nativo, la cobertura/cámara y el emulador; no atribuir el fallo al TileStore sin más evidencia.
+- La aceptación sigue exigiendo MapWidget con `MAP_LOADED`, `FULL`, `IDLE`, captura visual válida y pruebas offline reales en dispositivo físico.
