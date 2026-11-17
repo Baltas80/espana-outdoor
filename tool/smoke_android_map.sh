@@ -399,6 +399,12 @@ fi
 echo "MAP_SMOKE_FOREGROUND package=${package_name} verified=true"
 
 adb logcat -d >"${logcat_file}"
+snapshotter_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter.png"
+if python3 tool/extract_mapbox_snapshotter_png.py --logcat "${logcat_file}" --output "${snapshotter_file}"; then
+  echo "MAPBOX_SNAPSHOTTER_ARTIFACT available=true"
+else
+  echo "MAPBOX_SNAPSHOTTER_ARTIFACT available=false reason=diagnostic_capture_missing"
+fi
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
 
