@@ -41,6 +41,13 @@ for marker in (
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
     "mapbox.Snapshotter.create(",
     "mapbox.MapSnapshotOptions(",
+    "MAPBOX_SNAPSHOTTER_STAGE",
+    "logSnapshotterStage('create_started')",
+    "logSnapshotterStage('create_completed')",
+    "logSnapshotterStage('capture_completed'",
+    ".timeout(const Duration(seconds: 30))",
+    ".timeout(const Duration(seconds: 15))",
+    "activeSnapshotter.dispose().timeout(const Duration(seconds: 10))",
     "MAPBOX_SNAPSHOTTER_PNG_CHUNK",
     "sha256.convert(png)",
 ):
@@ -73,6 +80,17 @@ if "extract_mapbox_snapshotter_png.py" not in source:
     raise SystemExit("Android smoke must attempt to extract the native Snapshotter PNG.")
 if source.rfind("extract_mapbox_snapshotter_png.py") > source.rfind('adb exec-out screencap -p'):
     raise SystemExit("Snapshotter evidence must be extracted from logcat before the smoke exits.")
+snapshotter_wait_block = source.split("snapshotter_wait_seconds=", 1)[1].split('adb logcat -d >"${logcat_file}"', 1)[0]
+for marker in (
+    "MAPBOX_SNAPSHOTTER_WAIT_SECONDS",
+    "MAPBOX_SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)",
+    "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT",
+    "snapshotter_terminal=true",
+):
+    if marker not in snapshotter_wait_block:
+        raise SystemExit(f"Android smoke must wait for terminal Snapshotter evidence: {marker}")
+if source.index("snapshotter_wait_seconds=") > source.rindex('adb logcat -d >"${logcat_file}"'):
+    raise SystemExit("Snapshotter completion must be awaited before the final logcat dump.")
 
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
