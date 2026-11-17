@@ -238,7 +238,7 @@ jobs:
           mkdir -p "$primary_dir" "$renderer_dir"
 
           # Preserve the already-verified Outdoors APK outside Flutter's build
-          # directory before cleaning and compiling the Standard comparison.
+          # directory before cleaning and compiling the TextureView/VD renderer comparison.
           primary_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           test -n "$primary_apk"
           test -s build/android-staging-validation.txt
@@ -318,7 +318,7 @@ jobs:
             ${{ runner.temp }}/primary-build/android-staging-validation.txt
           if-no-files-found: error
       - name: Upload Mapbox TextureView/VD A/B APK
-        if: success() && steps.build_renderer_apk.outcome == 'success'
+        if: success() && steps.build_texture_apk.outcome == 'success'
         uses: actions/upload-artifact@v7.0.0
         with:
           name: mapbox-texture-vd-ab-apk
@@ -396,12 +396,12 @@ jobs:
             exit 1
           fi
       - name: Require Mapbox TextureView/VD A/B APK
-        if: always() && steps.build_renderer_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        if: always() && steps.build_texture_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ steps.build_renderer_apk.outcome }}" != "success" ]]; then
-            echo "::error::Mapbox Standard A/B build failed; inspect the build step output."
+          if [[ "${{ steps.build_texture_apk.outcome }}" != "success" ]]; then
+            echo "::error::Mapbox TextureView/VD renderer build failed; inspect the build step output."
             exit 1
           fi
           renderer_apk="$RUNNER_TEMP/texture-vd-build/app-release.apk"
