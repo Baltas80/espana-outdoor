@@ -505,3 +505,19 @@ Se redujo el límite del paso de smoke a 40 minutos y el arranque del emulador a
 
 Este APK solo prueba el estilo Standard y el hosting Virtual Display en emulador. No valida Outdoors v12, no acredita mapa online, no acredita TileStore offline y no es candidato de producción. El estilo/hosting de producción no se modifica.
 
+
+## Standard + Virtual Texture: evidencia parcial y comparación TileStore — 17/11/2026
+
+Se inspeccionó el artefacto [14334810511](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334810511) del run [44094615345](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345), source commit `c0b8ce4`.
+
+- La jerarquía UI confirma que la pantalla Mapa estaba visible y que el viewport medía 1080×1891 px.
+- Runtime: Impeller, `virtual-texture`, TextureView=true, Virtual Display (VD), pixel ratio 2.625.
+- Standard llegó a `STYLE_LOADED`, pero no a `MAP_LOADED`, `MAP_IDLE` ni `MAP_LOAD_ERROR`; solo se observó `RenderMode.PARTIAL`.
+- En el snapshot disponible hubo 7 misses TileStore de tipo TILE no cancelados y 5 cancelados. No se observó respuesta TILE de Network durante esa ventana. En cambio, sí llegaron recursos MODEL desde Network. No concluir que TileStore bloquea el fallback hasta comparar con TileStore desactivado.
+- El artefacto no contiene PNG de pantalla ni logcat completo; no se acepta el mapa.
+
+Se añade una segunda variante de staging para comparar Standard + Virtual Texture + TileStore DISABLED contra el APK primario Standard + Virtual Texture + READ_ONLY. Ambos comparten source commit, estilo, renderer, hosting, cámara y versión. El APK desactivado es exclusivamente diagnóstico online; nunca sirve para validar offline.
+
+El backup del manifiesto configurado se conserva antes de la mutación Skia cuando esta se ejecuta. Si Skia se omite (caso Standard), el paso TileStore crea el backup desde el manifiesto ya configurado por CI antes de restaurarlo y compilar. La prueba estructural verifica este fallback y que el modo de hosting se hereda del APK primario.
+
+El smoke total se limita a 55 minutos, el boot del emulador a 600 segundos y cada variante a 20 minutos. La aceptación cartográfica sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y captura visual válida. No se cambia el estilo ni el hosting de producción.
