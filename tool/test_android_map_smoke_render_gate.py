@@ -329,13 +329,17 @@ for marker in (
 ):
     if marker not in workflow:
         raise SystemExit(f"Android staging workflow is missing controlled style selection: {marker}")
-for step_name in (
-    "- name: Build Mapbox Skia comparison APK (Impeller disabled)",
-    "- name: Build Mapbox TileStore-disabled diagnostic APK",
-):
-    step = workflow.split(step_name, 1)[1].split("\n      - name:", 1)[0]
-    if "env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'" not in step:
-        raise SystemExit("Renderer and TileStore A/B APKs must run only in the Outdoors experiment.")
+skia_step = workflow.split(
+    "- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1
+)[1].split("\n      - name:", 1)[0]
+if "env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'" not in skia_step:
+    raise SystemExit("The Skia comparison APK must remain limited to the Outdoors experiment.")
+
+tile_store_step = workflow.split(
+    "- name: Build Mapbox TileStore-disabled diagnostic APK", 1
+)[1].split("\n      - name:", 1)[0]
+if "env.MAPBOX_STYLE_URI ==" in tile_store_step:
+    raise SystemExit("The TileStore-disabled diagnostic must also run for imported Mapbox Standard styles.")
 
 if "defaultValue: 'mapbox://styles/mapbox/outdoors-v12'" not in mapbox_viewport:
     raise SystemExit("Production Mapbox style default must remain Outdoors v12.")
