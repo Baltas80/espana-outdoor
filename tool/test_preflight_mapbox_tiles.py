@@ -57,6 +57,28 @@ def main() -> int:
     assert len(calls) == 2
     assert all(token in url for url in calls)
 
+    # Mapbox Standard can expose its basemap via imports, with no root-level
+    # source URL. The preflight must still probe the known Streets v8 source.
+    imported_style = {
+        "version": 8,
+        "imports": [{"id": "basemap", "url": "mapbox://styles/mapbox/standard"}],
+    }
+    imported_calls: list[str] = []
+
+    def imported_opener(request: Request, timeout: int = 20):
+        imported_calls.append(request.full_url)
+        if len(imported_calls) == 1:
+            return FakeResponse(json.dumps(imported_style).encode("utf-8"))
+        return FakeResponse(b"vector-tile" * 40)
+
+    imported_result = run_preflight(
+        style_uri="mapbox://styles/mapbox/standard",
+        access_token=token,
+        opener=imported_opener,
+    )
+    assert imported_result["tileset"] == "mapbox.mapbox-streets-v8"
+    assert imported_result["tile_bytes"] == len(b"vector-tile" * 40)
+
     def forbidden_opener(request: Request, timeout: int = 20):
         raise HTTPError(request.full_url, 403, "Forbidden", hdrs=None, fp=None)
 
