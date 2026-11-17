@@ -746,3 +746,34 @@ No fusionar PR #79 ni modificar el estilo de producción hasta superar el gate c
 - Android staging [44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329): failure esperado del gate cartográfico; no se acepta el mapa.
 
 El nuevo HEAD debe volver a ejecutar Security, CI y Android staging antes de considerar validado el cambio. PR #79 permanece draft; no se fusiona ni despliega.
+
+
+## Actualización de entrega — 17/11/2026 12:17 CET
+
+### Corrección de la matriz Android A/B
+
+Run [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090), source HEAD 08ade9fa646e970985c1228f1f2c266935c2e4df, evidencias [14321294721](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090/artifacts/14321294721).
+
+La revisión del artefacto detectó dos defectos de instrumentación:
+
+1. El smoke del APK principal falló antes de abrir Mapa: UIAutomator devolvió sin crear el XML remoto y el siguiente cat encontró el fichero inexistente. La captura es de Inicio; no hay evidencia válida del MapWidget Impeller en ese run.
+2. El APK TileStore-disabled heredó Skia. El paso anterior modifica el AndroidManifest versionado con EnableImpeller=false y el workflow no lo restauraba antes de compilar la tercera variante. Su log runtime registra backend=skia, aunque el manifiesto declaraba Impeller predeterminado. Por tanto, esa comparación no permite concluir nada aislado sobre TileStore.
+
+Los APK Skia y TileStore-disabled sí llegaron a Mapa cartográfico, pero ambos quedaron en RenderMode.PARTIAL, sin MAP_LOADED, MAP_IDLE ni RenderMode.FULL. Sus capturas fueron rechazadas (34 colores cuantizados, entropía 0,651 bits, color dominante 0,901).
+
+### Correcciones publicadas en PR #79
+
+- UIAutomator elimina el XML remoto anterior, reintenta cuatro veces y valida existencia, contenido y jerarquía antes de leerlo.
+- El selector de navegación exige un nodo Mapa clicable y no el icono decorativo.
+- El test Python ejecuta la función real con ADB simulado: recuperación tras dos ausencias y fallo cerrado tras cuatro.
+- El workflow restaura el AndroidManifest versionado antes del APK TileStore-disabled y verifica que el manifiesto queda limpio.
+- El orquestador exige que el APK TileStore-disabled confirme runtime backend=impeller además de TileStore DISABLED.
+
+### Validación
+
+- CI general [44065339116](https://github.com/Baltas80/espana-outdoor/actions/runs/44065339116): success sobre HEAD 08ade9f.
+- Security baseline [44065336788](https://github.com/Baltas80/espana-outdoor/actions/runs/44065336788): success, 8/8.
+- Android staging [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090): failure en el smoke; no se acepta el mapa.
+- Las correcciones nuevas todavía no tienen CI ni Android staging completados.
+
+No se certifica el mapa online/offline, el dispositivo OPPO ni producción. El siguiente run debe demostrar Impeller + READ_ONLY, Skia + READ_ONLY e Impeller + DISABLED como tres variantes runtime independientes antes de comparar el renderizado. La prueba física, el modo avión, persistencia tras cierre/reinicio, identidad compartida y servicios de producción siguen pendientes.
