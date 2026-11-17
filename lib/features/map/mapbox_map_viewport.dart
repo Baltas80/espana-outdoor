@@ -430,7 +430,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         activeStyleLabel = label;
         styleLoaded = Completer<void>();
         logSnapshotterStage(label + '_style_set_started');
-        await snapshotter!.style
+        await snapshotter!
             .setStyleJSON(styleJson)
             .timeout(const Duration(seconds: 30));
         logSnapshotterStage(label + '_style_set_completed');
