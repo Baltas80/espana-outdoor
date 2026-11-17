@@ -780,7 +780,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_android_view_mode=virtual-texture",
     ).replace(
         "mapbox_map_widget_diagnostic_style=none",
-        "mapbox_map_widget_diagnostic_style=baseline",
+        "mapbox_map_widget_diagnostic_style=vector",
     )
     primary_manifest_path.write_text(primary_manifest_text, encoding="utf-8")
 
