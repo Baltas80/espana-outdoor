@@ -4,7 +4,7 @@ Run [44084139266](https://github.com/Baltas80/espana-outdoor/actions/runs/440841
 
 - Estilo: `STYLE_LOADED=1`, 190 capas y 10 fuentes.
 - Render: `MAP_LOADED=0`, `MAP_IDLE=0`, `RenderMode.FULL=0`, un `RenderMode.PARTIAL`, `MAP_LOAD_ERROR=0`.
-- Recursos: 6 solicitudes `RequestType.TILE`, todas con miss de TileStore; 82 eventos `MODEL`, incluidos 50 recursos obtenidos de red y 32 misses de caché. La captura 1080×2400 fue rechazada (entropía 0,649 bits; color dominante 0,901).
+- Recursos: 6 solicitudes `RequestType.TILE`, todas con miss de TileStore; 82 eventos `MODEL`, incluidos 50 recursos obtenidos de red y 32 misses de caché. La captura 1080×2400 fue rechazada. En un recorte central del viewport (x=100–729, y=450–1449; 630×1000 px), el 98,3 % de los píxeles son RGB (4,4,4), con solo 4 colores y entropía 0,138 bits/píxel.
 - EGL emulado registró tiempos de frame anómalos, con una muestra de 63,8 s. Esto hace plausible una limitación del renderizador software del emulador, pero no demuestra que sea la causa.
 - Artefactos: [APK y manifiesto 14328803228](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266/artifacts/14328803228), [captura y logcat 14329217699](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266/artifacts/14329217699).
 
