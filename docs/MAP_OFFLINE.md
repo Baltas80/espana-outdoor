@@ -589,3 +589,18 @@ Interpretation:
 The diagnostic define defaults to `none`, is rejected outside Android staging, and does not change production Outdoors v12 or Hybrid Composition/SurfaceView. Snapshotter remains disabled during this test.
 
 Do not accept the map or offline behavior based on APK compilation. PR #79 remains draft; offline acceptance still requires the actual download, airplane-mode, force-stop, reopen and device-restart sequence on Android.
+
+ 
+## Live MapWidget baseline — Android staging 44147946052 (17/11/2026)
+
+Run [44147946052](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052), source commit `7c752b55b69e5a690fb18690762a6170f16ab4b0`, completed successfully. CI [44147946091](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946091) and Security [44147949027](https://github.com/Baltas80/espana-outdoor/actions/runs/44147949027) also completed successfully; Security passed 8/8.
+
+The smoke artifact [14360145472](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052/artifacts/14360145472) contains separate PNGs and logcats for TileStore READ_ONLY and DISABLED. Both screenshots show the expected local background `#d9e6c7` through the live MapWidget. Both logcats contain `MAP_LOADED=1`, `MAP_IDLE=1` and `RenderMode.FULL=1` after the diagnostic style is accepted. The central viewport crop has 1,491,875 exact background pixels out of 1,658,592 sampled image pixels; both captures have 5,288 RGB colors over the full image because Flutter controls and overlays remain visible.
+
+This is the first successful live MapWidget baseline on the CI emulator. It demonstrates that the Flutter PlatformView and native Mapbox renderer can draw a local background-only style. It does **not** demonstrate remote vector tile decoding, the production Standard/Outdoors style, or usable cartography. The remote Standard style is loaded first, then replaced by the local baseline before the successful full/idle frame.
+
+### Next experiment: one Streets v8 vector source in the live MapWidget
+
+PR #79 now selects `MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=vector` for Android staging. It applies the existing minimal Streets v8 style (one vector source and one visible `road` line layer) through the same live MapWidget. The screenshot verifier additionally requires red road pixels (`#c43c39`) in a central crop, while the smoke still requires `MAP_LOADED`, `RenderMode.FULL` and `MAP_IDLE`. This prevents the baseline background or app controls from being mistaken for vector cartography.
+
+The experiment is staging-only. Production remains Outdoors v12 with Hybrid Composition/SurfaceView. A successful vector diagnostic is still not offline acceptance; physical Android download, airplane-mode, force-stop, reopen and reboot tests remain mandatory.
