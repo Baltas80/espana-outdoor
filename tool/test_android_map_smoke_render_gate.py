@@ -494,8 +494,8 @@ smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
 smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
 if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
     raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
-if "timeout-minutes: 65" not in smoke_job:
-    raise SystemExit("The Android map smoke action must allow all three bounded diagnostic variants to finish.")
+if "timeout-minutes: 55" not in smoke_job:
+    raise SystemExit("The Android map smoke action must allow both bounded Standard/TileStore variants to finish.")
 if "continue-on-error: true" not in smoke_job:
     raise SystemExit("The smoke step must preserve the job long enough to upload failure evidence.")
 
