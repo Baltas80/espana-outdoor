@@ -29,18 +29,22 @@ if "defaultValue: 'hybrid-surface'" not in VIEWPORT:
 
 required_workflow = (
     "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:",
-    "&& 'baseline' || 'none'",
+    "&& 'vector' || 'none'",
     "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
     "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
 )
 for marker in required_workflow:
     if marker not in WORKFLOW:
-        raise SystemExit(f"Android staging diagnostic wiring is missing: {marker}")
+        raise SystemExit(f"Android staging vector diagnostic wiring is missing: {marker}")
 
 if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector)' not in SMOKE:
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
     raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" ]]' not in SMOKE:
+    raise SystemExit("Android staging smoke must execute the live vector diagnostic branch.")
+if '--expected-vector-color "#c43c39"' not in SMOKE:
+    raise SystemExit("Vector smoke must require road-colored pixels in the viewport.")
 if "def verify_expected_solid_color(" not in SCREENSHOT:
     raise SystemExit("Screenshot verifier must support the isolated solid-color baseline.")
 if "expected_background_color" not in SCREENSHOT:
