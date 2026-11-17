@@ -518,11 +518,11 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     tile_store_dir.mkdir()
     (tile_store_dir / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
     (tile_store_dir / "android-staging-validation.txt").write_text(
-        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
-        "version_code=5\\nsource_commit=test-commit\\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\\n"
-        "mapbox_android_view_mode=hybrid-surface\\n"
-        "mapbox_tile_store_usage_mode=disabled\\n",
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
+        "version_code=5\nsource_commit=test-commit\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
+        "mapbox_android_view_mode=hybrid-surface\n"
+        "mapbox_tile_store_usage_mode=disabled\n",
         encoding="utf-8",
     )
     call_log.write_text("", encoding="utf-8")
@@ -675,4 +675,32 @@ for marker in (
         raise SystemExit(f"Android smoke evidence upload is missing renderer A/B artifact path: {marker}")
 
 print("android_map_smoke_network_preflight=true")
+tile_store_build = workflow.split("- name: Build Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Upload Android staging APK", 1)[0]
+for marker in (
+    "steps.build_apk.outputs.built == 'true'",
+    "MAPBOX_TILE_STORE_USAGE_MODE=disabled",
+    'tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"',
+    'echo "mapbox_tile_store_usage_mode=disabled"',
+    'echo "validation_scope=diagnostic-only-tile-store-disabled"',
+):
+    if marker not in tile_store_build:
+        raise SystemExit(f"TileStore-disabled diagnostic build is missing: {marker}")
+tile_store_upload = workflow.split("- name: Upload Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Enable KVM", 1)[0]
+for marker in (
+    "mapbox-tile-store-disabled-apk",
+    "${{ runner.temp }}/tile-store-disabled-build/app-release.apk",
+    "${{ runner.temp }}/tile-store-disabled-build/android-staging-validation.txt",
+):
+    if marker not in tile_store_upload:
+        raise SystemExit(f"TileStore-disabled diagnostic artifact upload is missing: {marker}")
+tile_store_requirement = workflow.split("- name: Require Mapbox TileStore-disabled diagnostic APK", 1)[1]
+for marker in (
+    "steps.build_tile_store_disabled_apk.outcome",
+    'mapbox_tile_store_usage_mode=disabled',
+    'validation_scope=diagnostic-only-tile-store-disabled',
+    'test "$expected_sha" = "$actual_sha"',
+):
+    if marker not in tile_store_requirement:
+        raise SystemExit(f"TileStore-disabled APK requirement is missing: {marker}")
+
 print("android_map_smoke_render_gate=true")
