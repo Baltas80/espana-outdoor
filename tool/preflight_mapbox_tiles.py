@@ -73,6 +73,8 @@ def _request_bytes(url: str, label: str, opener=urlopen) -> bytes:
 def _streets_tileset(style: dict, style_uri: str) -> str:
     sources = style.get("sources")
     if not isinstance(sources, dict):
+        if style_uri in SUPPORTED_STYLES:
+            return "mapbox.mapbox-streets-v8"
         raise PreflightError("style_sources_missing")
     for source in sources.values():
         if not isinstance(source, dict):
