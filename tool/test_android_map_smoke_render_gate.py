@@ -71,7 +71,7 @@ if snapshotter_test.returncode != 0:
     raise SystemExit(f"Mapbox Snapshotter extractor self-test failed: {snapshotter_test.stderr}")
 if "extract_mapbox_snapshotter_png.py" not in source:
     raise SystemExit("Android smoke must attempt to extract the native Snapshotter PNG.")
-if source.index("extract_mapbox_snapshotter_png.py") > source.index('adb exec-out screencap -p'):
+if source.rfind("extract_mapbox_snapshotter_png.py") > source.rfind('adb exec-out screencap -p'):
     raise SystemExit("Snapshotter evidence must be extracted from logcat before the smoke exits.")
 
 if not NETWORK_PREFLIGHT.is_file():
