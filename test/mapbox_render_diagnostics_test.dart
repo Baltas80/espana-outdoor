@@ -23,6 +23,74 @@ void main() {
     });
   });
 
+  group('Mapbox Snapshotter vector style', () {
+    test('uses one public Streets vector source and one road line layer', () {
+      final style =
+          jsonDecode(mapboxSnapshotterVectorStyleJson()) as Map<String, dynamic>;
+
+      expect(style['version'], 8);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources, hasLength(1));
+      final source = sources['espana-outdoor-diagnostic-streets'] as Map<String, dynamic>;
+      expect(source['type'], 'vector');
+      expect(source['url'], 'mapbox://mapbox.mapbox-streets-v8');
+
+      final layers = style['layers'] as List<dynamic>;
+      expect(layers, hasLength(2));
+      final road = layers.last as Map<String, dynamic>;
+      expect(road['type'], 'line');
+      expect(road['source'], 'espana-outdoor-diagnostic-streets');
+      expect(road['source-layer'], 'road');
+    });
+  });
+
+  group('Mapbox style diagnostics', () {
+    test('summarizes source and background visibility without exposing URLs', () {
+      const secret = 'not-a-real-token';
+      final raw = jsonEncode(<String, Object?>{
+        'version': 8,
+        'glyphs': 'mapbox://fonts/example/{fontstack}/{range}.pbf',
+        'sources': <String, Object?>{
+          'streets': <String, Object?>{
+            'type': 'vector',
+            'url': 'mapbox://mapbox.mapbox-streets-v8',
+            'tiles': <String>['https://api.mapbox.com/tiles/{z}/{x}/{y}?access_token=' + secret],
+            'minzoom': 0,
+            'maxzoom': 14,
+          },
+        },
+        'layers': <Object?>[
+          <String, Object?>{
+            'id': 'background',
+            'type': 'background',
+            'layout': <String, Object?>{'visibility': 'none'},
+            'paint': <String, Object?>{
+              'background-color': '#ffffff',
+              'background-opacity': 0.75,
+            },
+          },
+          <String, Object?>{
+            'id': 'roads',
+            'type': 'line',
+            'source': 'streets',
+            'source-layer': 'road',
+          },
+        ],
+      });
+
+      final summary = mapboxStyleDiagnosticsJson(raw);
+      final decoded = jsonDecode(summary) as Map<String, dynamic>;
+      final backgrounds = decoded['background_layers'] as List<dynamic>;
+      final background = backgrounds.single as Map<String, dynamic>;
+      expect(background['visibility'], 'none');
+      expect(background['color'], '#ffffff');
+      expect(decoded['layer_type_counts'], containsPair('line', 1));
+      expect(summary, isNot(contains(secret)));
+      expect(summary, contains('api.mapbox.com'));
+      expect(summary, isNot(contains('/tiles/')));
+    });
+  });
+
   group('Mapbox MapOptions', () {
     test('uses the device pixel ratio and offline-compatible glyph settings', () {
       final options = mapboxMapOptionsForPixelRatio(3.0);
