@@ -30,6 +30,9 @@ Future<void> _configureMapboxTileStoreUsage() async {
 
   switch (_mapboxTileStoreUsageMode) {
     case 'default':
+      // Match the SDK's documented default explicitly so the diagnostic
+      // baseline is stable across SDK upgrades.
+      MapboxMapsOptions.setTileStoreUsageMode(TileStoreUsageMode.READ_ONLY);
       break;
     case 'disabled':
       MapboxMapsOptions.setTileStoreUsageMode(TileStoreUsageMode.DISABLED);
