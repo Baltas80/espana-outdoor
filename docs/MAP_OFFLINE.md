@@ -202,3 +202,17 @@ Se ha portado a esta PR una configuración explícita:
 Esto corrige una discrepancia real entre la configuración de renderizado y la descarga offline, pero **todavía es una hipótesis respecto al mapa negro online**. Debe validarse con un nuevo APK del HEAD actualizado. El log debe incluir `MAPBOX_MAP_OPTIONS pixel_ratio=...`; la aceptación requiere `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y PNG legible.
 
 No cambiar el estilo predeterminado, no alterar TileStore ni fusionar PR #79 hasta completar esa validación.
+
+
+## Paridad entre mapa online y TileStore (17/11/2026)
+
+El viewport online y el descriptor de la región offline deben usar el mismo URI de estilo y el mismo pixel ratio del dispositivo:
+
+- El URI compartido procede de `mapboxStyleUri` (`MAPBOX_STYLE_URI`, por defecto Outdoors v12).
+- `MapWidget` recibe `MapOptions.pixelRatio = MediaQuery.devicePixelRatioOf(context)`.
+- `TilesetDescriptorOptions.pixelRatio` recibe la misma densidad para los recursos raster del descriptor.
+- Ambos usan `GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY` para mantener el tratamiento de glyphs del style pack.
+
+El helper `cordobaOfflineTilesetDescriptorOptions` valida que el pixel ratio sea finito y positivo, conserva zoom 8–15 y permite probar la configuración sin iniciar una descarga.
+
+Esta paridad corrige una diferencia de configuración detectada en la integración. No demuestra persistencia ni renderizado offline: la aceptación sigue requiriendo descarga real, confirmación de style pack y región en TileStore, modo avión, cierre forzado, reapertura y reinicio del dispositivo Android.
