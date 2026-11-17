@@ -534,6 +534,19 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_snapshotter_diagnostics=false\n",
         encoding="utf-8",
     )
+    (temp_root / "tile-store-disabled-build").mkdir()
+    (temp_root / "tile-store-disabled-build" / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
+    (temp_root / "tile-store-disabled-build" / "android-staging-validation.txt").write_text(
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
+        "version_code=5\nsource_commit=test-commit\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
+        "mapbox_android_view_mode=hybrid-surface\n"
+        "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
+        "mapbox_tile_store_usage_mode=disabled\n"
+        "mapbox_snapshotter_diagnostics=false\n"
+        "validation_scope=diagnostic-only-tile-store-disabled\n",
+        encoding="utf-8",
+    )
     fake_bin = temp_root / "bin"
     fake_bin.mkdir()
     call_log = temp_root / "timeout-calls.txt"
