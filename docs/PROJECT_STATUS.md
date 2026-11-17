@@ -861,3 +861,14 @@ Estado al registrar esta evidencia: el job Android había terminado la compilaci
 - Android [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153): APKs publicados; smoke pendiente.
 
 No hay aceptación del mapa: siguen siendo obligatorios `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual válida y posterior validación offline en Android físico. Producción no se ha modificado.
+
+
+## Actualización de diagnóstico Mapbox — 17/11/2026
+
+Android staging [44102148014](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148014) construyó los APK Standard + Virtual Texture/Impeller (TileStore READ_ONLY y DISABLED), instaló ambos y llegó a la pantalla Mapa. Las dos capturas son negras; el gate cartográfico falló correctamente. El estilo cargó y la cámara/viewport son válidos, pero no se alcanzaron `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+
+La inspección del logcat encontró que el listener de recursos agotaba su límite global de 100 eventos con 64/65 eventos MODEL antes de completar la observación de TILE. No se puede concluir que no hubiera solicitudes de tiles por red. Se corrigió en PR #79 con presupuesto independiente (TILE 300, MODEL 16, STYLE 32, sprites 24) y tests unitarios.
+
+CI general [44102148065](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148065) terminó correctamente; Security [44102148017](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148017) terminó 8/8. Android staging falló solo en el requisito de smoke cartográfico, con APKs y evidencias publicados.
+
+Commits de instrumentación: [805b80a](https://github.com/Baltas80/espana-outdoor/commit/805b80a26f633635f706dc10d5f9977fab0993ef), [cee5ec4](https://github.com/Baltas80/espana-outdoor/commit/cee5ec4b248cf62a8ca5acaac092bfd010d8aad2), [4a4a193](https://github.com/Baltas80/espana-outdoor/commit/4a4a193d9610731a48b3d65b58dc12e6c422acab). La nueva instrumentación necesita CI y Android staging propios. No se ha cambiado producción ni certificado el modo offline.
