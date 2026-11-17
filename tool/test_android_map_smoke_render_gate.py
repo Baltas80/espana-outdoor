@@ -19,6 +19,84 @@ MAIN_DART = ROOT / "lib" / "main.dart"
 MAPBOX_PAGE = ROOT / "lib" / "features" / "map" / "mapbox_map_page.dart"
 MAP_SCREEN_VERIFIER = ROOT / "tool" / "verify_android_map_screen.py"
 source = SMOKE.read_text(encoding="utf-8")
+
+# UIAutomator can transiently return success before the device-side hierarchy
+# file exists on a cold emulator. Exercise the exact shell function with a
+# fake ADB transport: two missing files must retry, then a valid XML succeeds.
+ui_dump_block = source.split("ui_dump() {", 1)[1].split("\\n}\\n\\nwindow_file=", 1)[0]
+for marker in (
+    "for attempt in $(seq 1 4)",
+    'adb shell rm -f "${remote_file}"',
+    'adb shell test -s "${remote_file}"',
+    'adb shell cat "${remote_file}"',
+    "ANDROID_UIAUTOMATOR_DUMP",
+):
+    if marker not in ui_dump_block:
+        raise SystemExit(f"UIAutomator hierarchy retry guard is missing: {marker}")
+if ui_dump_block.index('adb shell test -s "${remote_file}"') > ui_dump_block.index('adb shell cat "${remote_file}"'):
+    raise SystemExit("UIAutomator must verify the remote XML exists before reading it.")
+if 'node.attrib.get("clickable") != "true"' not in source or 'desc not in ("Mapa", "Mapa\\\\nMapa")' not in source:
+    raise SystemExit("Android smoke must tap a clickable Mapa navigation node, not its decorative icon.")
+
+ui_dump_harness = r\'''set -euo pipefail
+remote_present=0
+dump_calls=0
+adb() {
+  if [[ "$1" == "shell" && "$2" == "rm" ]]; then
+    remote_present=0
+    return 0
+  fi
+  if [[ "$1" == "shell" && "$2" == "uiautomator" ]]; then
+    dump_calls=$((dump_calls + 1))
+    if [[ "${NEVER_CREATE:-false}" != "true" && "$dump_calls" -ge 3 ]]; then
+      remote_present=1
+    fi
+    return 0
+  fi
+  if [[ "$1" == "shell" && "$2" == "test" && "$3" == "-s" ]]; then
+    if (( remote_present == 1 )); then return 0; else return 1; fi
+  fi
+  if [[ "$1" == "shell" && "$2" == "cat" ]]; then
+    if (( remote_present == 1 )); then
+      printf '<?xml version="1.0"?><hierarchy></hierarchy>'
+      return 0
+    fi
+    return 1
+  fi
+  echo "unexpected adb args: $*" >&2
+  return 99
+}
+sleep() { :; }
+\'''
+ui_dump_script = (
+    ui_dump_harness
+    + "ui_dump() {"
+    + ui_dump_block
+    + "\\n}\\nif ui_dump \"$1\"; then echo \"UI_DUMP_RESULT=success dump_calls=$dump_calls\"; "
+    + "else echo \"UI_DUMP_RESULT=failure dump_calls=$dump_calls\"; exit 17; fi\\n"
+)
+with tempfile.TemporaryDirectory(prefix="android-uiautomator-retry-") as directory:
+    hierarchy = Path(directory) / "hierarchy.xml"
+    recovered = subprocess.run(
+        ["bash", "-c", ui_dump_script, "--", str(hierarchy)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if recovered.returncode != 0 or "UI_DUMP_RESULT=success dump_calls=3" not in recovered.stdout:
+        raise SystemExit(f"UIAutomator retry did not recover after two transient misses: {recovered.stdout} {recovered.stderr}")
+    if "<hierarchy" not in hierarchy.read_text(encoding="utf-8"):
+        raise SystemExit("UIAutomator retry accepted no valid hierarchy XML.")
+
+    never_created = subprocess.run(
+        ["bash", "-c", ui_dump_script, "--", str(hierarchy)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "NEVER_CREATE": "true"},
+        check=False,
+    )
+    if never_created.returncode != 17 or "UI_DUMP_RESULT=failure dump_calls=4" not in never_created.stdout:
+        raise SystemExit("UIAutomator retry must fail closed after four missing hierarchy files.")
 if not MAPBOX_PAGE.is_file():
     raise SystemExit("Android map smoke requires the main Mapbox page.")
 mapbox_page = MAPBOX_PAGE.read_text(encoding="utf-8")
