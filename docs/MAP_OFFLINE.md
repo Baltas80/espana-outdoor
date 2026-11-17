@@ -338,3 +338,22 @@ Interpretación:
 - Si también agota el timeout, el bloqueo está por debajo del estilo remoto (renderer nativo, GPU o emulador).
 
 Este baseline no sustituye el gate del mapa real ni cambia el estilo de producción. La aceptación sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual válida y pruebas offline/físicas.
+
+
+## Evidencia Android — Snapshotter sin fuentes y siguiente aislamiento vectorial (17/11/2026)
+
+Ejecución [Android staging 44030999939](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939), HEAD fuente `06ee1fa`. Artefacto de evidencias [14305199993](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939/artifacts/14305199993).
+
+- Ambos APK (Impeller y Skia) se compilaron, verificaron y ejecutaron. UIAutomator confirmó la página `Mapa cartográfico` y el paquete de España Outdoor en primer plano.
+- Ambos MapWidget quedaron en `RenderMode.PARTIAL`; no emitieron `MAP_LOADED` ni `MAP_IDLE`. Las capturas 1080×2400 fueron rechazadas: 34 colores cuantizados, entropía 0,651 bits y color dominante 0,901.
+- El Snapshotter nativo sí generó una imagen independiente del estilo local sin fuentes en ambos procesos: 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`. La imagen inspeccionada es un fondo uniforme `#d9e6c7`.
+- Esto demuestra que el Snapshotter/renderer nativo puede producir una imagen simple sin fuentes externas. No demuestra que el MapWidget ni la fuente vectorial remota funcionen; tampoco identifica por sí solo un fallo de composición.
+
+El siguiente experimento añade un segundo Snapshotter con una sola fuente vectorial Mapbox Streets v8 y una capa `road`, manteniendo el mismo centro/zoom. Se publican por separado los PNG `baseline` y `vector`, y el resumen del estilo registra tipos de fuente/capa y visibilidad del fondo sin imprimir URLs completas ni tokens.
+
+Interpretación:
+- Baseline correcto + vector correcto: la decodificación vectorial básica funciona; investigar la configuración/imports del estilo Outdoors y el MapWidget.
+- Baseline correcto + vector fallido/vacío: investigar la fuente vectorial, acceso/tiles y decodificación antes de tocar composición Flutter.
+- Ambos fallan: reabrir la investigación del renderer nativo/entorno, aunque el baseline anterior ya fue correcto.
+
+El run Android terminó en fallo intencionado del gate cartográfico; CI general y Security (8/8) sí terminaron correctamente en ese HEAD. No se acepta online/offline ni se modifica el estilo de producción.
