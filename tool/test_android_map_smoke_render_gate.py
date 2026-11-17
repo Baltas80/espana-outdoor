@@ -980,6 +980,9 @@ for marker in (
     if marker not in tile_store_upload:
         raise SystemExit(f"TileStore-disabled diagnostic artifact upload is missing: {marker}")
 tile_store_requirement = workflow.split("- name: Require Mapbox TileStore-disabled diagnostic APK", 1)[1]
+tile_store_requirement_condition = tile_store_requirement.split("shell:", 1)[0]
+if "env.MAPBOX_STYLE_URI ==" in tile_store_requirement_condition:
+    raise SystemExit("The TileStore-disabled APK requirement must also apply to imported Mapbox Standard styles.")
 for marker in (
     "steps.build_tile_store_disabled_apk.outcome",
     'flutter_renderer=impeller-default',
