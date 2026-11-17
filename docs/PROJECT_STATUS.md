@@ -766,7 +766,7 @@ Los APK Skia y TileStore-disabled sí llegaron a Mapa cartográfico, pero ambos 
 - UIAutomator elimina el XML remoto anterior, reintenta cuatro veces y valida existencia, contenido y jerarquía antes de leerlo.
 - El selector de navegación exige un nodo Mapa clicable y no el icono decorativo.
 - El test Python ejecuta la función real con ADB simulado: recuperación tras dos ausencias y fallo cerrado tras cuatro.
-- El workflow restaura el AndroidManifest versionado antes del APK TileStore-disabled y verifica que el manifiesto queda limpio.
+- El workflow guarda el AndroidManifest ya configurado antes de la mutación Skia y lo restaura byte a byte antes del APK TileStore-disabled, verificándolo con cmp para conservar permisos y política de red.
 - El orquestador exige que el APK TileStore-disabled confirme runtime backend=impeller además de TileStore DISABLED.
 
 ### Validación
