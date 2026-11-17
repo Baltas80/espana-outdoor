@@ -837,8 +837,10 @@ print("android_map_smoke_network_preflight=true")
 tile_store_build = workflow.split("- name: Build Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Upload Android staging APK", 1)[0]
 for marker in (
     "steps.build_apk.outputs.built == 'true'",
-    "git checkout -- android/app/src/main/AndroidManifest.xml",
-    "git diff --exit-code -- android/app/src/main/AndroidManifest.xml",
+    'manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"',
+    'test -s "$manifest_backup"',
+    'cp "$manifest_backup" android/app/src/main/AndroidManifest.xml',
+    'cmp -s "$manifest_backup" android/app/src/main/AndroidManifest.xml',
     "MAPBOX_TILE_STORE_USAGE_MODE=disabled",
     'tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"',
     'echo "mapbox_tile_store_usage_mode=disabled"',
@@ -848,8 +850,18 @@ for marker in (
 ):
     if marker not in tile_store_build:
         raise SystemExit(f"TileStore-disabled diagnostic build is missing: {marker}")
-if tile_store_build.index("git checkout -- android/app/src/main/AndroidManifest.xml") > tile_store_build.index("flutter build apk --release"):
-    raise SystemExit("Restore the committed Impeller-default manifest before building the TileStore diagnostic.")
+if tile_store_build.index('cp "$manifest_backup" android/app/src/main/AndroidManifest.xml') > tile_store_build.index("flutter build apk --release"):
+    raise SystemExit("Restore the pre-Skia configured manifest before building the TileStore diagnostic.")
+skia_build = workflow.split("- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1)[1].split("- name: Build Mapbox TileStore-disabled diagnostic APK", 1)[0]
+for marker in (
+    'manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"',
+    'cp android/app/src/main/AndroidManifest.xml "$manifest_backup"',
+    "python3 tool/prepare_android_skia_ab.py android/app/src/main/AndroidManifest.xml",
+):
+    if marker not in skia_build:
+        raise SystemExit(f"Skia comparison must preserve the configured manifest before mutation: {marker}")
+if skia_build.index('cp android/app/src/main/AndroidManifest.xml "$manifest_backup"') > skia_build.index("python3 tool/prepare_android_skia_ab.py"):
+    raise SystemExit("Capture the configured Android manifest before applying the Skia opt-out.")
 tile_store_upload = workflow.split("- name: Upload Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Enable KVM", 1)[0]
 for marker in (
     "mapbox-tile-store-disabled-apk",
