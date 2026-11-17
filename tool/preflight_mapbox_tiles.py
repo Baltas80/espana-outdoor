@@ -20,6 +20,12 @@ class PreflightError(RuntimeError):
     """A sanitized Mapbox preflight failure."""
 
 
+SUPPORTED_STYLES = {
+    "mapbox://styles/mapbox/outdoors-v12",
+    "mapbox://styles/mapbox/standard",
+}
+
+
 def _style_endpoint(style_uri: str, token: str) -> str:
     prefix = "mapbox://styles/"
     if not style_uri.startswith(prefix):
@@ -64,7 +70,7 @@ def _request_bytes(url: str, label: str, opener=urlopen) -> bytes:
         raise PreflightError(f"{label}_error={type(error).__name__}") from None
 
 
-def _streets_tileset(style: dict) -> str:
+def _streets_tileset(style: dict, style_uri: str) -> str:
     sources = style.get("sources")
     if not isinstance(sources, dict):
         raise PreflightError("style_sources_missing")
@@ -78,6 +84,12 @@ def _streets_tileset(style: dict) -> str:
                 tileset_id = tileset_id.strip()
                 if tileset_id.endswith("mapbox-streets-v8") or tileset_id == "mapbox.mapbox-streets-v8":
                     return tileset_id
+    # Mapbox Standard exposes its basemap through style imports rather than
+    # root-level sources. Both staging-supported styles use the public Streets
+    # v8 vector tileset, so probe that known source when the root style is
+    # imported/fragment-based.
+    if style_uri in SUPPORTED_STYLES:
+        return "mapbox.mapbox-streets-v8"
     raise PreflightError("style_has_no_mapbox_streets_v8_source")
 
 
@@ -105,6 +117,8 @@ def run_preflight(
     token = access_token.strip()
     if not token:
         raise PreflightError("access_token_missing")
+    if style_uri not in SUPPORTED_STYLES:
+        raise PreflightError("unsupported_style_uri")
 
     style_url = _style_endpoint(style_uri, token)
     style_bytes = _request_bytes(style_url, "style", opener)
@@ -115,7 +129,7 @@ def run_preflight(
     if not isinstance(style, dict):
         raise PreflightError("style_json_not_object")
 
-    tileset_id = _streets_tileset(style)
+    tileset_id = _streets_tileset(style, style_uri)
     x, y = _tile_xy(longitude, latitude, zoom)
     tile_url = (
         f"https://api.mapbox.com/v4/{tileset_id}/{zoom}/{x}/{y}.vector.pbf?"
