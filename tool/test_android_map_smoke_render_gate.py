@@ -758,46 +758,65 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
-    tile_store_dir = temp_root / "tile-store-disabled-build"
-    tile_store_dir.mkdir()
-    (tile_store_dir / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
-    (tile_store_dir / "android-staging-validation.txt").write_text(
-        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
-        "version_code=5\nsource_commit=test-commit\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
-        "mapbox_android_view_mode=hybrid-surface\n"
-        "mapbox_tile_store_usage_mode=disabled\n"
-        "mapbox_snapshotter_diagnostics=false\n",
-        encoding="utf-8",
-    )
-    call_log.write_text("", encoding="utf-8")
-    tile_store_run = subprocess.run(
-        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
-        capture_output=True,
-        text=True,
-        env=test_env,
-        check=False,
-    )
-    tile_store_calls = call_log.read_text(encoding="utf-8")
-    if tile_store_run.returncode != 0 or "diagnostic_run=true" not in tile_store_run.stdout:
-        raise SystemExit(f"TileStore-disabled A/B runner failed its success-path test: {tile_store_run.stderr}")
-    if tile_store_calls.count("bash tool/smoke_android_map.sh") != 2:
-        raise SystemExit("TileStore-disabled A/B must run primary and diagnostic APKs exactly once.")
-    if f"RUNNER_TEMP={temp_root}/tile-store-disabled" not in tile_store_calls:
-        raise SystemExit("TileStore-disabled evidence must use an isolated directory.")
-    diagnostic_log = (temp_root / "tile-store-disabled" / "espana-outdoor-map-logcat.txt").read_text(encoding="utf-8")
-    if "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" not in diagnostic_log:
-        raise SystemExit("TileStore-disabled A/B did not verify the runtime usage mode.")
-    failing_tile_store_env = test_env.copy()
-    failing_tile_store_env["FAIL_TILE_STORE"] = "true"
-    failed_tile_store = subprocess.run(
-        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
-        capture_output=True,
-        text=True,
-        env=failing_tile_store_env,
-        check=False,
-    )
-    if failed_tile_store.returncode == 0:
+    # Exercise the exact PR #79 Standard + Virtual Display/TextureView diagnostic.
+# The primary and diagnostic APKs must differ only in TileStore usage.
+primary_manifest_path = temp_root / "primary-build" / "android-staging-validation.txt"
+primary_manifest_text = primary_manifest_path.read_text(encoding="utf-8")
+primary_manifest_text = primary_manifest_text.replace(
+    "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12",
+    "mapbox_style_uri=mapbox://styles/mapbox/standard",
+).replace(
+    "mapbox_android_view_mode=hybrid-surface",
+    "mapbox_android_view_mode=virtual-texture",
+)
+primary_manifest_path.write_text(primary_manifest_text, encoding="utf-8")
+
+tile_store_dir = temp_root / "tile-store-disabled-build"
+tile_store_dir.mkdir()
+(tile_store_dir / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
+(tile_store_dir / "android-staging-validation.txt").write_text(
+    "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
+    "version_code=5\\nsource_commit=test-commit\\n"
+    "mapbox_style_uri=mapbox://styles/mapbox/standard\\n"
+    "mapbox_android_view_mode=virtual-texture\\n"
+    "flutter_renderer=impeller-default\\nimpeller_enabled=default\\n"
+    "mapbox_tile_store_usage_mode=disabled\\n"
+    "mapbox_snapshotter_diagnostics=false\\n"
+    "validation_scope=diagnostic-only-tile-store-disabled\\n",
+    encoding="utf-8",
+)
+standard_env = test_env.copy()
+standard_env["VIEW_MODE"] = "virtual-texture"
+call_log.write_text("", encoding="utf-8")
+tile_store_run = subprocess.run(
+    ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/standard"],
+    capture_output=True,
+    text=True,
+    env=standard_env,
+    check=False,
+)
+tile_store_calls = call_log.read_text(encoding="utf-8")
+if tile_store_run.returncode != 0 or "diagnostic_run=true" not in tile_store_run.stdout:
+    raise SystemExit(f"TileStore-disabled Standard A/B runner failed its success-path test: {tile_store_run.stderr}")
+if "primary_mode=virtual-texture" not in tile_store_run.stdout or "diagnostic_mode=virtual-texture" not in tile_store_run.stdout or "identity_status=0" not in tile_store_run.stdout:
+    raise SystemExit("Standard TileStore A/B must preserve Virtual Display/TextureView in both APKs.")
+if tile_store_calls.count("bash tool/smoke_android_map.sh") != 2:
+    raise SystemExit("TileStore-disabled A/B must run primary and diagnostic APKs exactly once.")
+if f"RUNNER_TEMP={temp_root}/tile-store-disabled" not in tile_store_calls:
+    raise SystemExit("TileStore-disabled evidence must use an isolated directory.")
+diagnostic_log = (temp_root / "tile-store-disabled" / "espana-outdoor-map-logcat.txt").read_text(encoding="utf-8")
+if "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" not in diagnostic_log:
+    raise SystemExit("TileStore-disabled A/B did not verify the runtime usage mode.")
+failing_tile_store_env = standard_env.copy()
+failing_tile_store_env["FAIL_TILE_STORE"] = "true"
+failed_tile_store = subprocess.run(
+    ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/standard"],
+    capture_output=True,
+    text=True,
+    env=failing_tile_store_env,
+    check=False,
+)
+if failed_tile_store.returncode == 0:
         raise SystemExit("A TileStore-disabled diagnostic failure must fail the A/B smoke.")
 
 prepare_primary = workflow.split("- name: Preserve verified primary Android staging APK", 1)[1]
