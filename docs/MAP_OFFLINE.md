@@ -521,3 +521,9 @@ Se añade una segunda variante de staging para comparar Standard + Virtual Textu
 El backup del manifiesto configurado se conserva antes de la mutación Skia cuando esta se ejecuta. Si Skia se omite (caso Standard), el paso TileStore crea el backup desde el manifiesto ya configurado por CI antes de restaurarlo y compilar. La prueba estructural verifica este fallback y que el modo de hosting se hereda del APK primario.
 
 El smoke total se limita a 55 minutos, el boot del emulador a 600 segundos y cada variante a 20 minutos. La aceptación cartográfica sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y captura visual válida. No se cambia el estilo ni el hosting de producción.
+
+
+### Corrección del guard de tiempo — 17/11/2026
+
+CI [44097670840](https://github.com/Baltas80/espana-outdoor/actions/runs/44097670840) falló en el test estructural porque aún esperaba un timeout de 65 minutos y tres variantes. El experimento Standard actual ejecuta dos APK (TileStore READ_ONLY y DISABLED) y usa 55 minutos; se actualizó la aserción en [0180acea](https://github.com/Baltas80/espana-outdoor/commit/0180acea07e4918687b6e25b340d70dd4070da03). El fallo era del test desactualizado, no del build ni del SDK. La nueva CI debe pasar antes de aceptar el cambio.
+
