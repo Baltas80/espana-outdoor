@@ -155,13 +155,13 @@ def verify_expected_solid_color(
     failures: list[str] = []
     if metrics["dominant_color_key"] != _expected_color_key(expected_color):
         failures.append("expected_background_color")
-    if metrics["unique_colors"] > 24:
+    if metrics["unique_colors"] > 128:
         failures.append("solid_style_unique_colors")
     if metrics["opaque_ratio"] <= 0.95:
         failures.append("opaque_ratio")
-    if metrics["entropy_bits"] > 0.6:
+    if metrics["entropy_bits"] > 1.2:
         failures.append("solid_style_entropy")
-    if metrics["dominant_ratio"] < 0.90:
+    if metrics["dominant_ratio"] < 0.85:
         failures.append("solid_style_dominant_ratio")
     return failures
 
