@@ -7,6 +7,45 @@ const mapboxStyleUri = String.fromEnvironment(
 );
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
+/// Staging can compare Android platform-view composition without changing the
+/// production default. v3 defaults to Hybrid Composition + SurfaceView; the
+/// legacy-compatible comparison uses Virtual Display + TextureView.
+const mapboxAndroidViewMode = String.fromEnvironment(
+  'MAPBOX_ANDROID_VIEW_MODE',
+  defaultValue: 'hybrid-surface',
+);
+
+class MapboxAndroidViewConfiguration {
+  const MapboxAndroidViewConfiguration({
+    required this.textureView,
+    required this.hostingMode,
+  });
+
+  final bool textureView;
+  final AndroidPlatformViewHostingMode hostingMode;
+}
+
+MapboxAndroidViewConfiguration mapboxAndroidViewConfiguration(String mode) {
+  switch (mode) {
+    case 'hybrid-surface':
+      return const MapboxAndroidViewConfiguration(
+        textureView: false,
+        hostingMode: AndroidPlatformViewHostingMode.HC,
+      );
+    case 'virtual-texture':
+      return const MapboxAndroidViewConfiguration(
+        textureView: true,
+        hostingMode: AndroidPlatformViewHostingMode.VD,
+      );
+    default:
+      throw ArgumentError.value(
+        mode,
+        'mode',
+        'must be hybrid-surface or virtual-texture',
+      );
+  }
+}
+
 /// Keeps the online MapView pixel ratio aligned with the Android TileStore
 /// descriptor used by offline downloads. MapOptions defaults to 1.0; the
 /// offline descriptor is created from Android displayMetrics.density.
@@ -218,17 +257,25 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     }
     _logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri');
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final androidView = mapboxAndroidViewConfiguration(mapboxAndroidViewMode);
     if (!_mapOptionsLogged) {
       _mapOptionsLogged = true;
       debugPrint(
         'MAPBOX_MAP_OPTIONS pixel_ratio=$devicePixelRatio '
         'glyphs=ideographs_local font=sans-serif',
       );
+      debugPrint(
+        'MAPBOX_ANDROID_VIEW mode=$mapboxAndroidViewMode '
+        'texture_view=${androidView.textureView} '
+        'hosting=${androidView.hostingMode}',
+      );
     }
     return MapWidget(
       key: const ValueKey('espana-outdoor-mapbox-shared-viewport'),
       styleUri: mapboxStyleUri,
       mapOptions: mapboxMapOptionsForPixelRatio(devicePixelRatio),
+      textureView: androidView.textureView,
+      androidHostingMode: androidView.hostingMode,
       viewport: CameraViewportState(
         center: Point(coordinates: widget.initialCenter),
         zoom: widget.initialZoom,
