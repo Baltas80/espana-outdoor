@@ -34,6 +34,10 @@ for job, minutes in (
 if not re.search(r"(?m)^    timeout-minutes: 105$", job_block(staging, "android-staging")):
     raise SystemExit("Android staging must have a 105-minute job-level timeout for build, upload and smoke evidence.")
 
+staging_concurrency = re.search(r"(?ms)^concurrency:\\n(.*?)(?=^permissions:)", staging)
+if staging_concurrency is None or not re.search(r"(?m)^  cancel-in-progress: false$", staging_concurrency.group(1)):
+    raise SystemExit("Android staging must preserve an active emulator smoke when newer commits arrive.")
+
 smoke_step = re.search(
     r"(?ms)^      - name: Android map native smoke\n(.*?)(?=^      - name: Upload Android map smoke evidence)",
     staging,
