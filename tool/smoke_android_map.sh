@@ -92,7 +92,7 @@ ui_dump() {
       if (( attempt < 4 )); then sleep 2; fi
       continue
     fi
-    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\\r' || true)"
+    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\r' || true)"
 
     if adb shell test -s "${remote_file}" >/dev/null 2>&1; then
       if adb shell cat "${remote_file}" >"${file}" && grep -q '<hierarchy' "${file}"; then
@@ -102,7 +102,7 @@ ui_dump() {
     fi
 
     rm -f "${file}"
-    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry output=$(printf '%s' "${dump_output}" | tr '\\n' ' ' | cut -c1-240)"
+    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry output=$(printf '%s' "${dump_output}" | tr '\n' ' ' | cut -c1-240)"
     if (( attempt < 4 )); then sleep 2; fi
   done
 
@@ -300,7 +300,7 @@ candidates = []
 for node in root.iter("node"):
     text = (node.attrib.get("text") or "").strip()
     desc = (node.attrib.get("content-desc") or "").strip()
-    if text != "Mapa" and desc not in ("Mapa", "Mapa\\nMapa"):
+    if text != "Mapa" and desc not in ("Mapa", "Mapa\nMapa"):
         continue
     if node.attrib.get("clickable") != "true":
         continue
