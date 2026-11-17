@@ -226,7 +226,7 @@ for marker in (
     'renderer_manifest="${runner_temp}/texture-vd-build/android-staging-validation.txt"',
     'timeout --foreground --signal=TERM --kill-after=15s 45s adb shell pm clear',
     'if ! grep -Fxq "Success" <<<"${clear_output}"; then',
-    'renderer_run=${renderer_run}',
+    'comparison_run=${renderer_run}',
     'renderer_status=${renderer_status}',
     'comparison_mode=virtual-texture',
     '--kill-after=150s 20m',
