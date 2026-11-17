@@ -1,5 +1,19 @@
 # Cartografía y modo offline
 
+## Estado de validación — 17/11/2026 10:24 CET
+
+El último intento Android [44047628989](https://github.com/Baltas80/espana-outdoor/actions/runs/44047628989) no ejecutó el smoke: tras compilar/publicar los APK, el runner rechazó el manifiesto principal porque el artefacto de ese commit antiguo (`4e7dc9c`) no declaraba `mapbox_tile_store_usage_mode=default`. El HEAD actual de PR #79 incorpora ese campo en el manifiesto y en el dart-define del APK principal.
+
+Se corrigió además el pipeline:
+- Eliminado un segundo paso duplicado de compilación Skia que reutilizaba el ID `build_skia_apk`.
+- Una sola compilación Skia conserva ahora explícitamente el TileStore predeterminado.
+- La matriz Impeller/Skia/TileStore-disabled tiene 65 minutos para el smoke y 105 minutos para el job completo; los límites internos por variante siguen acotados.
+- Tests estáticos exigen IDs únicos y coherencia de manifiestos.
+
+Ejecuciones sobre el HEAD `e9802648`: [Security 44055799482](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799482), [CI 44055799401](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799401), [Android staging 44055799615](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799615). Aún no hay nueva evidencia de mapa en esta revisión.
+
+**No aceptar mapa online/offline por estos cambios de CI.** El APK TileStore-disabled es una variante de diagnóstico online, no un candidato offline. La aceptación sigue exigiendo descarga, persistencia, modo avión, reapertura, reinicio y validación física del APK exacto.
+
 ## Motor cartográfico
 
 Mapbox Maps SDK (`mapbox_maps_flutter`) es el motor elegido para la aplicación. El estilo principal es Mapbox Outdoors y requiere `MAPBOX_ACCESS_TOKEN` inyectado durante la compilación. No se debe mantener un catálogo cartográfico paralelo.
