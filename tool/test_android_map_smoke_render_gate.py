@@ -39,25 +39,37 @@ if 'node.attrib.get("clickable") != "true"' not in source or 'desc not in ("Mapa
     raise SystemExit("Android smoke must tap a clickable Mapa navigation node, not its decorative icon.")
 
 ui_dump_harness = r'''set -euo pipefail
-remote_present=0
-dump_calls=0
+state_file="$STATE_FILE"
+read_state() {
+  read -r dump_calls remote_present < "$state_file"
+}
+write_state() {
+  printf '%s %s\n' "$dump_calls" "$remote_present" > "$state_file"
+}
 adb() {
   if [[ "$1" == "shell" && "$2" == "rm" ]]; then
+    read_state
     remote_present=0
+    write_state
     return 0
   fi
   if [[ "$1" == "shell" && "$2" == "uiautomator" ]]; then
+    read_state
     dump_calls=$((dump_calls + 1))
-    if [[ "${NEVER_CREATE:-false}" != "true" && "$dump_calls" -ge 3 ]]; then
+    if [[ "$NEVER_CREATE" != "true" && "$dump_calls" -ge 3 ]]; then
       remote_present=1
     fi
+    write_state
     return 0
   fi
   if [[ "$1" == "shell" && "$2" == "test" && "$3" == "-s" ]]; then
-    if (( remote_present == 1 )); then return 0; else return 1; fi
+    read_state
+    [[ "$remote_present" == "1" ]]
+    return $?
   fi
   if [[ "$1" == "shell" && "$2" == "cat" ]]; then
-    if (( remote_present == 1 )); then
+    read_state
+    if [[ "$remote_present" == "1" ]]; then
       printf '<?xml version="1.0"?><hierarchy></hierarchy>'
       return 0
     fi
@@ -72,30 +84,39 @@ ui_dump_script = (
     ui_dump_harness
     + "ui_dump() {"
     + ui_dump_block
-    + "\n}\nif ui_dump \"$1\"; then echo \"UI_DUMP_RESULT=success dump_calls=$dump_calls\"; "
-    + "else echo \"UI_DUMP_RESULT=failure dump_calls=$dump_calls\"; exit 17; fi\n"
+    + "\n}\nread -r dump_calls remote_present < \"$STATE_FILE\"\n"
+    + "if ui_dump \"$1\"; then read -r dump_calls remote_present < \"$STATE_FILE\"; "
+    + "echo \"UI_DUMP_RESULT=success dump_calls=$dump_calls remote_present=$remote_present\"; "
+    + "else read -r dump_calls remote_present < \"$STATE_FILE\"; "
+    + "echo \"UI_DUMP_RESULT=failure dump_calls=$dump_calls remote_present=$remote_present\"; exit 17; fi\n"
 )
 with tempfile.TemporaryDirectory(prefix="android-uiautomator-retry-") as directory:
     hierarchy = Path(directory) / "hierarchy.xml"
+    state_file = Path(directory) / "state.txt"
+    state_file.write_text("0 0\n", encoding="utf-8")
+    recovered_env = {**os.environ, "STATE_FILE": str(state_file), "NEVER_CREATE": "false"}
     recovered = subprocess.run(
         ["bash", "-c", ui_dump_script, "--", str(hierarchy)],
         capture_output=True,
         text=True,
+        env=recovered_env,
         check=False,
     )
-    if recovered.returncode != 0 or "UI_DUMP_RESULT=success dump_calls=3" not in recovered.stdout:
+    if recovered.returncode != 0 or "UI_DUMP_RESULT=success dump_calls=3 remote_present=1" not in recovered.stdout:
         raise SystemExit(f"UIAutomator retry did not recover after two transient misses: {recovered.stdout} {recovered.stderr}")
     if "<hierarchy" not in hierarchy.read_text(encoding="utf-8"):
         raise SystemExit("UIAutomator retry accepted no valid hierarchy XML.")
 
+    state_file.write_text("0 0\n", encoding="utf-8")
+    never_created_env = {**recovered_env, "NEVER_CREATE": "true"}
     never_created = subprocess.run(
         ["bash", "-c", ui_dump_script, "--", str(hierarchy)],
         capture_output=True,
         text=True,
-        env={**os.environ, "NEVER_CREATE": "true"},
+        env=never_created_env,
         check=False,
     )
-    if never_created.returncode != 17 or "UI_DUMP_RESULT=failure dump_calls=4" not in never_created.stdout:
+    if never_created.returncode != 17 or "UI_DUMP_RESULT=failure dump_calls=4 remote_present=0" not in never_created.stdout:
         raise SystemExit("UIAutomator retry must fail closed after four missing hierarchy files.")
 if not MAPBOX_PAGE.is_file():
     raise SystemExit("Android map smoke requires the main Mapbox page.")
