@@ -541,3 +541,30 @@ Los dos APK tienen 200.316.534 bytes, Application ID `com.espanaoutdoors.espana_
 El smoke Android seguía ejecutándose cuando se registró esta actualización. Aún no se había publicado PNG/logcat de la comparación, por lo que estos artefactos acreditan compilación, identidad y configuración, no renderizado. TileStore DISABLED es solo diagnóstico online y no se puede utilizar para aceptar mapas offline.
 
 La aceptación sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual legible y prueba posterior en Android físico: descarga de región/estilo, force-stop, modo avión, reapertura y reinicio. No se cambia producción.
+
+
+## Corrección del presupuesto de eventos de recursos — 17/11/2026
+
+Se inspeccionó el artefacto completo [android-map-smoke-44102148014, artefacto 14338252945](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148014/artifacts/14338252945), correspondiente al source commit `569dced`.
+
+Resultados reproducibles:
+- Los dos APK (Standard + Virtual Display/TextureView + Impeller) se construyeron, instalaron y llegaron a la pantalla Mapa.
+- El APK principal usa TileStore READ_ONLY; el diagnóstico usa TileStore DISABLED. Ambas capturas muestran el viewport negro y el smoke rechaza el mapa.
+- Ambos registran `STYLE_LOADED=1`, cámara en Córdoba (lng=-4.7794, lat=37.8882), zoom 12 y viewport 411.43×720.38 dp. No se registran `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; solo un frame `PARTIAL`.
+- El listener de recursos alcanzó exactamente el límite global de 100 eventos: 64/65 eventos `MODEL`, 18/21 `TILE`, además de STYLE y SPRITE. El límite global ocultaba solicitudes posteriores de teselas. Por tanto, los registros anteriores no permiten concluir que no hubiera fallback de tiles por red ni que TileStore fuera la causa.
+- La variante TileStore DISABLED también quedó negra. Esto no valida ni invalida el modo offline.
+
+Corrección en PR #79:
+- Se sustituye el límite global por presupuestos independientes por tipo de recurso: TILE 300, MODEL 16, STYLE 32, SPRITE_IMAGE/SPRITE_JSON 24 y otros 24.
+- Al alcanzar un presupuesto se emite un único evento `RESOURCE_SUPPRESSED` para ese tipo.
+- Se añaden tests unitarios para normalización de `RequestType.*` y prioridades de presupuesto.
+- No se modifica el estilo, hosting ni TileStore de producción.
+
+Commits:
+- [805b80a](https://github.com/Baltas80/espana-outdoor/commit/805b80a26f633635f706dc10d5f9977fab0993ef) — presupuesto por tipo de recurso.
+- [cee5ec4](https://github.com/Baltas80/espana-outdoor/commit/cee5ec4b248cf62a8ca5acaac092bfd010d8aad2) — tests de presupuesto.
+- [4a4a193](https://github.com/Baltas80/espana-outdoor/commit/4a4a193d9610731a48b3d65b58dc12e6c422acab) — elimina contador de supresión no utilizado.
+
+La ejecución [44102148065](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148065) terminó CI general en success; [44102148017](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148017) terminó Security 8/8. Android staging [44102148014](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148014) construyó y publicó APKs y evidencias, pero falló en el gate visual (resultado esperado porque el mapa es negro). La nueva instrumentación debe validarse en un staging posterior antes de usar sus logs para atribuir causas.
+
+La validación online sigue abierta. Offline, persistencia tras reinicio y dispositivo físico no están certificados.
