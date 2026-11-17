@@ -408,7 +408,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tile_store_dir="$RUNNER_TEMP/skia-build"
+          tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"
           mkdir -p "$tile_store_dir"
 
           # Flutter 3.47.5 rejects a custom output-directory flag. Build the
