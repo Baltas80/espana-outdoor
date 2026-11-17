@@ -31,7 +31,7 @@ for job, minutes in (
     if not re.search(rf"(?m)^    timeout-minutes: {minutes}$", job_block(ci, job)):
         raise SystemExit(f"CI job {job} must have a job-level {minutes}-minute timeout.")
 
-if not re.search(r"(?m)^    timeout-minutes: 75$", job_block(staging, "android-staging")):
-    raise SystemExit("Android staging must have a job-level 75-minute timeout.")
+if not re.search(r"(?m)^    timeout-minutes: 105$", job_block(staging, "android-staging")):
+    raise SystemExit("Android staging must have a 105-minute job-level timeout for three APK builds and the bounded A/B smoke.")
 
 print("github_actions_job_timeouts=true")
