@@ -340,6 +340,12 @@ jobs:
           tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"
           mkdir -p "$tile_store_dir"
 
+          # The preceding Skia build edits the tracked manifest to opt out of
+          # Impeller. Restore the committed production-default manifest before
+          # this independent TileStore experiment, then prove the worktree is clean.
+          git checkout -- android/app/src/main/AndroidManifest.xml
+          git diff --exit-code -- android/app/src/main/AndroidManifest.xml
+
           # Flutter 3.47.5 rejects a custom output-directory flag. Build the
           # TileStore-disabled diagnostic through the normal output path, then preserve it separately.
           # A clean prevents stale Dart defines from being reused.
@@ -564,6 +570,8 @@ jobs:
             test -n "$expected"
             test "$expected" = "$actual"
           done
+          grep -Fxq "flutter_renderer=impeller-default" "$diagnostic_manifest"
+          grep -Fxq "impeller_enabled=default" "$diagnostic_manifest"
           grep -Fxq "mapbox_tile_store_usage_mode=disabled" "$diagnostic_manifest"
           grep -Fxq "validation_scope=diagnostic-only-tile-store-disabled" "$diagnostic_manifest"
 
