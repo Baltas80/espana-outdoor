@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
