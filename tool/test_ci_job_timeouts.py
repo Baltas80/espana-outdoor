@@ -40,8 +40,8 @@ smoke_step = re.search(
 )
 if smoke_step is None:
     raise SystemExit("Android staging is missing its bounded native smoke step.")
-if not re.search(r"(?m)^        timeout-minutes: 40$", smoke_step.group(1)):
-    raise SystemExit("Android map native smoke must have a 40-minute step timeout.")
+if not re.search(r"(?m)^        timeout-minutes: 55$", smoke_step.group(1)):
+    raise SystemExit("Android map native smoke must have a 55-minute step timeout.")
 if not re.search(r"(?m)^          emulator-boot-timeout: 600$", smoke_step.group(1)):
     raise SystemExit("Android emulator boot must be bounded to 600 seconds.")
 
