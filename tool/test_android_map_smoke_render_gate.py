@@ -415,8 +415,8 @@ for marker in (
     if marker not in ui_dump_body:
         raise SystemExit(f"UIAutomator must preserve command status while retrying: {marker}")
 for marker in (
-    'adb shell uiautomator dump "$remote_file"',
-    'adb shell cat "$remote_file"',
+    'adb shell uiautomator dump "${remote_file}"',
+    'adb shell cat "${remote_file}"',
     "45s",
 ):
     if marker not in ui_dump_body:
