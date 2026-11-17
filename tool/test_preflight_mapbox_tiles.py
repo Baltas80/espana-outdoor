@@ -96,17 +96,15 @@ def main() -> int:
 
     try:
         run_preflight(
-            style_uri="mapbox://styles/mapbox/standard",
+            style_uri="mapbox://styles/example/not-supported",
             access_token=token,
-            opener=lambda *_args, **_kwargs: FakeResponse(
-                json.dumps({"version": 8, "sources": {}}).encode("utf-8")
-            ),
+            opener=lambda *_args, **_kwargs: FakeResponse(b"{}"),
         )
     except PreflightError as error:
-        assert str(error) == "style_has_no_mapbox_streets_v8_source"
+        assert str(error) == "unsupported_style_uri"
         assert token not in str(error)
     else:
-        raise AssertionError("A style without the Streets source must fail closed.")
+        raise AssertionError("An unapproved style URI must fail closed.")
 
     assert _tile_xy(-4.7794, 37.8882, 12) == (1993, 1581)
     print("Mapbox token preflight unit tests: PASS (HTTP errors redact credentials).")
