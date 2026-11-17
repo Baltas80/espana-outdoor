@@ -267,6 +267,12 @@ jobs:
           flutter clean
           flutter pub get --enforce-lockfile
           git diff --exit-code -- pubspec.lock
+          # Preserve the fully configured manifest after configure_mobile_native.py.
+          # The Skia helper mutates it; the later TileStore build must restore this
+          # exact CI manifest rather than the unconfigured repository template.
+          manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"
+          cp android/app/src/main/AndroidManifest.xml "$manifest_backup"
+          test -s "$manifest_backup"
           python3 tool/prepare_android_skia_ab.py android/app/src/main/AndroidManifest.xml
           flutter build apk --release \
             --dart-define=APP_ENV="$APP_ENV" \
@@ -340,11 +346,13 @@ jobs:
           tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"
           mkdir -p "$tile_store_dir"
 
-          # The preceding Skia build edits the tracked manifest to opt out of
-          # Impeller. Restore the committed production-default manifest before
-          # this independent TileStore experiment, then prove the worktree is clean.
-          git checkout -- android/app/src/main/AndroidManifest.xml
-          git diff --exit-code -- android/app/src/main/AndroidManifest.xml
+          # Restore the exact native-configured manifest captured before the
+          # Skia-only mutation. This preserves CI permissions/network policy while
+          # returning the TileStore diagnostic to the default Impeller renderer.
+          manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"
+          test -s "$manifest_backup"
+          cp "$manifest_backup" android/app/src/main/AndroidManifest.xml
+          cmp -s "$manifest_backup" android/app/src/main/AndroidManifest.xml
 
           # Flutter 3.47.5 rejects a custom output-directory flag. Build the
           # TileStore-disabled diagnostic through the normal output path, then preserve it separately.
