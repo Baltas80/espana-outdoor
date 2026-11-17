@@ -883,3 +883,12 @@ La instrumentación registra exactamente 14 respuestas TILE correctas desde Netw
 Nuevo diagnóstico en PR #79: aplicar un estilo JSON local de fondo sólido al MapWidget real, sin fuentes ni red, exclusivamente en Android staging. La prueba comprobará si el PlatformView nativo puede producir un frame completo. Si el fondo local también sale negro, se detienen las variaciones de estilo y se pasa a superficie/render thread y dispositivo OPPO físico. Producción conserva Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico desactivado.
 
 La prueba física OPPO, la descarga y persistencia offline, el modo avión y el reinicio siguen pendientes. No se acepta mapa ni producción.
+
+ 
+## Snapshot operativo — 17/11/2026: MapWidget baseline confirmado; vectorial mínimo siguiente
+
+- Android staging [44147946052](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052), source `7c752b55b69e5a690fb18690762a6170f16ab4b0`, terminó correctamente. CI [44147946091](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946091) terminó correctamente y Security [44147949027](https://github.com/Baltas80/espana-outdoor/actions/runs/44147949027) superó 8/8.
+- Artefacto de evidencia [14360145472](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052/artifacts/14360145472): dos capturas/logcats, TileStore READ_ONLY y DISABLED. Ambas muestran el fondo local `#d9e6c7` en el MapWidget real; los logs registran `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL` después de aplicar el estilo baseline.
+- Conclusión limitada: el PlatformView y el renderizador nativo pueden dibujar un estilo local sin fuentes. No se ha demostrado que las teselas vectoriales remotas se decodifiquen/rendericen; el estilo remoto Standard se sustituye por baseline antes del frame completo.
+- Nuevo experimento en el HEAD siguiente: MapWidget con una única fuente Streets v8 y capa `road`; la captura debe contener píxeles de línea `#c43c39` en el viewport central, además de `MAP_LOADED`, `FULL` e `IDLE`. El gate no puede aprobarse por controles Flutter o por el fondo solo.
+- Producción conserva Outdoors v12 + Hybrid Composition/SurfaceView. No hay aceptación offline, prueba OPPO, persistencia tras reinicio, identidad E2E ni certificación de backend/Valhalla.
