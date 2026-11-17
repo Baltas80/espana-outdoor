@@ -775,14 +775,14 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     tile_store_dir.mkdir()
     (tile_store_dir / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
     (tile_store_dir / "android-staging-validation.txt").write_text(
-        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
-        "version_code=5\\nsource_commit=test-commit\\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/standard\\n"
-        "mapbox_android_view_mode=virtual-texture\\n"
-        "flutter_renderer=impeller-default\\nimpeller_enabled=default\\n"
-        "mapbox_tile_store_usage_mode=disabled\\n"
-        "mapbox_snapshotter_diagnostics=false\\n"
-        "validation_scope=diagnostic-only-tile-store-disabled\\n",
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
+        "version_code=5\nsource_commit=test-commit\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/standard\n"
+        "mapbox_android_view_mode=virtual-texture\n"
+        "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
+        "mapbox_tile_store_usage_mode=disabled\n"
+        "mapbox_snapshotter_diagnostics=false\n"
+        "validation_scope=diagnostic-only-tile-store-disabled\n",
         encoding="utf-8",
     )
     standard_env = test_env.copy()
