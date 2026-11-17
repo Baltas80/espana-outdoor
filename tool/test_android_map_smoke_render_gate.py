@@ -535,7 +535,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         check=False,
     )
     tile_store_calls = call_log.read_text(encoding="utf-8")
-    if tile_store_run.returncode != 0 or "tile_store_run=true" not in tile_store_run.stdout:
+    if tile_store_run.returncode != 0 or "diagnostic_run=true" not in tile_store_run.stdout:
         raise SystemExit(f"TileStore-disabled A/B runner failed its success-path test: {tile_store_run.stderr}")
     if tile_store_calls.count("bash tool/smoke_android_map.sh") != 2:
         raise SystemExit("TileStore-disabled A/B must run primary and diagnostic APKs exactly once.")
