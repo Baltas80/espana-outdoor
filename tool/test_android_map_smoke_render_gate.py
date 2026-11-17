@@ -41,6 +41,10 @@ for marker in (
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
     "mapbox.Snapshotter.create(",
     "mapbox.MapSnapshotOptions(",
+    "mapboxSnapshotterVectorStyleJson()",
+    "mapbox://mapbox.mapbox-streets-v8",
+    "'source-layer': 'road'",
+    "mapboxStyleDiagnosticsJson(rawStyleJson)",
     "'SNAPSHOTTER_STAGE'",
     "logSnapshotterStage('create_started')",
     "logSnapshotterStage('create_completed')",
@@ -49,6 +53,7 @@ for marker in (
     ".timeout(const Duration(seconds: 15))",
     "activeSnapshotter.dispose().timeout(const Duration(seconds: 10))",
     "MAPBOX_SNAPSHOTTER_PNG_CHUNK",
+    "MAPBOX_SNAPSHOTTER_VECTOR_PNG_CHUNK",
     "sha256.convert(png)",
 ):
     if marker not in mapbox_viewport:
@@ -78,6 +83,10 @@ if snapshotter_test.returncode != 0:
     raise SystemExit(f"Mapbox Snapshotter extractor self-test failed: {snapshotter_test.stderr}")
 if "extract_mapbox_snapshotter_png.py" not in source:
     raise SystemExit("Android smoke must attempt to extract the native Snapshotter PNG.")
+if "--kind baseline" not in source or "--kind vector" not in source:
+    raise SystemExit("Android smoke must extract both baseline and vector Snapshotter captures.")
+if "espana-mapbox-snapshotter-vector.png" not in source:
+    raise SystemExit("Android smoke must preserve the vector Snapshotter PNG separately.")
 if source.rfind("extract_mapbox_snapshotter_png.py") > source.rfind('adb exec-out screencap -p'):
     raise SystemExit("Snapshotter evidence must be extracted from logcat before the smoke exits.")
 snapshotter_wait_block = source.split("snapshotter_wait_seconds=", 1)[1].split('adb logcat -d >"${logcat_file}"', 1)[0]
