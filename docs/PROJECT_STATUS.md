@@ -4,34 +4,34 @@
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
-## Snapshot operativo — 17/11/2026, ciclo de diagnóstico Mapbox
+## Snapshot operativo — 17/11/2026, diagnóstico vectorial Mapbox
 
 ### Estado de PR #79
-- [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79), rama `fix/mapbox-render-diagnostics-ready-20261116`, HEAD `0da3bd0dc737610480ccd5974f82f7bb3f98eb0d`: 154 commits ahead y 0 behind respecto a `main`; permanece en draft.
-- El HEAD añade un Snapshotter baseline sin fuentes y otro con una fuente vectorial Mapbox Streets v8 + una capa `road`; también registra resumen seguro de fuentes/capas/visibilidad, sin URLs completas ni tokens.
-- El CI anterior sobre `1dfe6d1` falló en el guard por una aserción con el nombre antiguo `logSnapshotterStage('capture_completed'`. Se corrigió el marcador en `0da3bd0`; las nuevas ejecuciones deben validar el guard actualizado.
+- [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79), rama `fix/mapbox-render-diagnostics-ready-20261116`, HEAD `b1395e87a7d220b8a6eef58196ca50a1eaf6a6f1`: **160 commits ahead, 0 behind** respecto a `main`; permanece en draft y mergeable.
+- El HEAD añade dos capturas Snapshotter por APK: baseline sin fuentes y vectorial con Mapbox Streets v8 + una capa `road`. Añade resumen seguro de origen de TileJSON/teselas, tipos de capas y visibilidad del fondo, sin rutas, query strings ni tokens.
+- Se cambió a la API directa `Snapshotter.setStyleJSON` y se añadieron pruebas del estilo vectorial, redacción de orígenes, extracción de ambos PNG y publicación obligatoria de ambos artefactos.
 
-### Evidencia Android más reciente disponible
+### Evidencia Android completada
 - Android staging [44030999939](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939), artefacto [14305199993](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939/artifacts/14305199993), source commit `06ee1fa`.
-- Ambos APK (Impeller y Skia) se compilaron, instalaron y llegaron a la pantalla `Mapa cartográfico`. Ambos MapWidget quedaron en `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`; sus capturas fueron rechazadas (entropía 0,651 bits y color dominante 0,901).
-- El Snapshotter nativo sí generó el estilo local sin fuentes en ambos procesos: PNG 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`. La inspección de píxeles confirma un único color RGB (217,230,199), `#d9e6c7`.
-- Conclusión limitada: el Snapshotter puede dibujar un fondo simple; esto no valida MapWidget, fuentes vectoriales ni el estilo Outdoors. El siguiente experimento vectorial debe separar carga/decodificación de teselas de la composición del widget.
+- Impeller y Skia compilaron, se instalaron y llegaron a la pantalla `Mapa cartográfico`. Ambos MapWidget quedaron en `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`; capturas rechazadas (entropía 0,651 bits, color dominante 0,901).
+- Snapshotter baseline produjo en ambos procesos un PNG 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`; la imagen contiene un único color RGB (217,230,199), `#d9e6c7`.
+- Conclusión limitada: el Snapshotter puede dibujar un fondo sin fuentes. No valida MapWidget, teselas vectoriales ni Outdoors. El Snapshotter vectorial del HEAD actual aún no tiene resultado.
 
-### CI del HEAD `0da3bd0`
-- Security baseline [44038777722](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777722): **8/8 superados**.
-- CI general [44038777681](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777681): Source Gateway y Rescue Link superados; Flutter e iOS seguían en ejecución al registrar este snapshot.
-- Android staging [44038777679](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777679): configuración Android y lockfile superados; análisis y tests seguían en ejecución. Aún no hay APK ni evidencia vectorial de este HEAD.
+### Validación del HEAD `b1395e87`
+- Security baseline [44039575473](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575473): **8/8 controles superados**.
+- CI [44039575302](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575302): guard de renderizado, análisis Flutter, pruebas focalizadas, suite Flutter, Source Gateway y Rescue Link superados; compilación Android release e iOS todavía en ejecución al actualizar este snapshot.
+- Android staging [44039575290](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575290): configuración Android, lockfile, análisis y tests superados; compilación del APK principal en curso. Todavía no hay APK ni PNG vectorial de este HEAD.
+- En un HEAD intermedio, el guard falló por un marcador antiguo de `capture_completed`; se corrigió para aceptar eventos etiquetados por estilo. El fallo era del test estático, no del SDK.
 
 ### Bloqueos de aceptación
-- Mapa online: no aceptado; no se ha demostrado `MAP_LOADED` + `FULL` + `IDLE` ni gate visual.
+- Mapa online: no aceptado; falta demostrar `MAP_LOADED` + `RenderMode.FULL` + `MAP_IDLE` y gate visual.
 - Mapas offline: no certificados en modo avión, force-stop, reapertura y reinicio.
-- Navegación offline: evidencia histórica de cálculo en emulador, pero requiere repetir con el mismo candidato y validar ruta nueva con origen `OFFLINE`.
-- Dispositivo OPPO: pendiente de instalar y validar el APK exacto.
-- Identidad compartida web/Android, Keycloak/PostgreSQL y Valhalla en producción: pendientes de E2E y verificación externa.
-- Protección de `main`: la lectura de branch protection ha devuelto 403 a la integración; no se certifica que haya ruleset activo.
+- Navegación offline: evidencia histórica en emulador, pero requiere repetir con el candidato y comprobar ruta nueva con origen `OFFLINE`.
+- Dispositivo OPPO: pendiente instalar y validar el APK exacto.
+- Identidad web/Android, Keycloak/PostgreSQL y Valhalla en producción: pendientes de E2E y verificación externa.
+- Protección de `main`: la lectura de branch protection devuelve 403 a la integración; no se certifica que exista un ruleset activo.
 
 No fusionar PR #79 ni declarar producción hasta superar las puertas cartográficas, offline, físicas, identidad y backend indicadas en este documento.
-
 ---
 
 ## Snapshot operativo vigente — 16/11/2026 21:17 CET
