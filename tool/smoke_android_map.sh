@@ -87,7 +87,11 @@ ui_dump() {
   # transient transport/startup condition; never consume a stale hierarchy.
   for attempt in $(seq 1 4); do
     rm -f "${file}"
-    adb shell rm -f "${remote_file}" >/dev/null 2>&1 || true
+    if ! adb shell rm -f "${remote_file}" >/dev/null 2>&1; then
+      echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry reason=remote_cleanup_failed"
+      if (( attempt < 4 )); then sleep 2; fi
+      continue
+    fi
     dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\\r' || true)"
 
     if adb shell test -s "${remote_file}" >/dev/null 2>&1; then
