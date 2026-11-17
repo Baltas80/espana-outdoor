@@ -1,5 +1,16 @@
 # España Outdoor — estado técnico
 
+## Snapshot operativo — 17/11/2026 10:24 CET: corrección del pipeline Android A/B
+
+- PR [#79](https://github.com/Baltas80/espana-outdoor/pull/79), HEAD `e9802648b563317106ba494f70878adcbd0924b8`: **176 commits ahead, 0 behind** respecto a `main` (`fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`). Sigue en draft.
+- El Android staging [44047628989](https://github.com/Baltas80/espana-outdoor/actions/runs/44047628989), ejecutado sobre el HEAD anterior `4e7dc9c`, compiló y publicó los APK principal y Skia, pero el smoke terminó antes de instalar el primero: el manifiesto de ese APK no contenía `mapbox_tile_store_usage_mode=default`. Es un defecto de contrato entre manifiesto y runner en ese commit; no es evidencia de un fallo nuevo del SDK ni una comparación cartográfica ejecutada.
+- El HEAD actual ya inyecta `MAPBOX_TILE_STORE_USAGE_MODE=default` y escribe ese valor en el manifiesto principal y el manifiesto Skia.
+- Se detectó y eliminó una duplicación real en `.github/workflows/staging-android.yml`: había dos pasos `Build Mapbox Skia comparison APK` con el mismo ID `build_skia_apk`; el primero no declaraba explícitamente el dart-define de TileStore. Se conserva un único paso, con configuración y manifiesto explícitos.
+- El smoke ejecuta secuencialmente hasta tres APK (Impeller, Skia y TileStore desactivado), cada uno con límite interno de 20 minutos. El límite anterior de 25 minutos para todo el paso podía interrumpir la matriz antes de recoger todas las evidencias. Se elevó el paso a 65 minutos y el job Android a 105 minutos.
+- Se añadieron guardas para exigir un único paso/ID por variante y la paridad de TileStore `default` en APK principal y Skia. El APK con TileStore desactivado es exclusivamente diagnóstico online y nunca sirve para aceptar offline.
+- Workflows lanzados sobre el HEAD actual: Security [44055799482](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799482), CI [44055799401](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799401) y Android staging [44055799615](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799615). Estaban queued/pending al registrar este snapshot; no hay aún nuevos APK ni evidencia de smoke.
+- El mapa online continúa sin aceptación. No se ha demostrado descarga/persistencia offline tras force-stop, modo avión y reinicio, ni validación del APK exacto en el OPPO. No fusionar ni desplegar hasta superar esas puertas.
+
 Última revisión: **17/11/2026**. Rama de referencia: `main`, HEAD verificado: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
