@@ -417,10 +417,11 @@ for marker in (
 for marker in (
     'adb shell uiautomator dump "${remote_file}"',
     'adb shell cat "${remote_file}"',
-    "45s",
 ):
     if marker not in ui_dump_body:
         raise SystemExit(f"UIAutomator must use a bounded device-file capture: {marker}")
+if "uiautomator) limit=45" not in source:
+    raise SystemExit("UIAutomator device capture must retain its 45-second adb timeout.")
 if "/dev/tty" in ui_dump_body:
     raise SystemExit("UIAutomator must not write to /dev/tty from a non-interactive adb session.")
 if source.index('logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"') > source.index("trap capture_failure_evidence EXIT"):
