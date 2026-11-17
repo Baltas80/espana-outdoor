@@ -30,6 +30,12 @@ primary_source_commit="$(manifest_value "${primary_manifest}" source_commit)"
 primary_version_code="$(manifest_value "${primary_manifest}" version_code)"
 primary_manifest_style="$(manifest_value "${primary_manifest}" mapbox_style_uri)"
 primary_view_mode="$(manifest_value "${primary_manifest}" mapbox_android_view_mode)"
+primary_map_widget_diagnostic_style="$(manifest_value "${primary_manifest}" mapbox_map_widget_diagnostic_style)"
+expected_map_widget_diagnostic_style="${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:-none}"
+if [[ "${primary_map_widget_diagnostic_style}" != "${expected_map_widget_diagnostic_style}" ]]; then
+  echo "ERROR: primary APK MapWidget diagnostic style does not match the smoke environment." >&2
+  exit 2
+fi
 primary_renderer="$(manifest_value "${primary_manifest}" flutter_renderer)"
 primary_impeller="$(manifest_value "${primary_manifest}" impeller_enabled)"
 primary_tile_store_mode="$(manifest_value "${primary_manifest}" mapbox_tile_store_usage_mode)"
@@ -126,6 +132,11 @@ if [[ -s "${tile_store_disabled_apk}" ]]; then
   diagnostic_version_code="$(manifest_value "${tile_store_disabled_manifest}" version_code)"
   diagnostic_style="$(manifest_value "${tile_store_disabled_manifest}" mapbox_style_uri)"
   diagnostic_view_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_android_view_mode)"
+  diagnostic_map_widget_style="$(manifest_value "${tile_store_disabled_manifest}" mapbox_map_widget_diagnostic_style)"
+  if [[ "${diagnostic_map_widget_style}" != "${primary_map_widget_diagnostic_style}" ]]; then
+    echo "ERROR: TileStore diagnostic APK must use the same live MapWidget diagnostic style." >&2
+    exit 2
+  fi
   diagnostic_tile_store_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_tile_store_usage_mode)"
   diagnostic_snapshotter_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_snapshotter_diagnostics)"
   if [[ "${diagnostic_app_id}" != "${primary_app_id}" || "${diagnostic_source_commit}" != "${primary_source_commit}" || "${diagnostic_version_code}" != "${primary_version_code}" ]]; then
