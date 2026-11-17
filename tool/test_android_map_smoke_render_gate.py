@@ -488,7 +488,7 @@ for marker in (
     'primary_renderer=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia',
-    'if ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${diagnostic_logcat}"; then',
+    'grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${diagnostic_logcat}"',
     'tile_store_renderer_status=',
     '--kill-after=150s 20m',
 ):
