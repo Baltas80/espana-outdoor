@@ -308,3 +308,10 @@ La comparación separa dos hipótesis:
 2. Si Snapshotter y el viewport generan imágenes oscuras/incompletas, investigar el renderizador nativo de Mapbox, la decodificación de tiles y el backend gráfico del emulador.
 
 La captura adicional es diagnóstica y no relaja el gate: el APK sigue necesitando `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y PNG visible para aprobar. La ejecución no certifica dispositivo físico ni modo offline.
+
+
+## Snapshotter: captura acotada y evidencia completa — 17/11/2026
+
+La captura nativa Snapshotter se ejecuta de forma asíncrona tras `STYLE_LOADED`. Cada llamada nativa tiene un límite explícito: creación 30 s, selección del estilo 30 s, espera del evento de estilo 45 s, cámara 15 s, render PNG 45 s y liberación 10 s. El log registra etapas y tiempo transcurrido sin imprimir tokens ni URLs.
+
+El smoke Android no vuelca el logcat final inmediatamente después del gate del MapWidget: espera hasta 210 s (configurable entre 15 y 240 s) a que Snapshotter emita `disposed`, `failed` o `dispose_failed`. Después guarda el logcat completo y reconstruye el PNG validando bytes, dimensiones y SHA-256. Si la captura diagnóstica no llega, se conserva el motivo y el gate principal de `MAP_LOADED`/`FULL`/`IDLE` permanece independiente; Snapshotter nunca sustituye ni relaja la aceptación cartográfica.
