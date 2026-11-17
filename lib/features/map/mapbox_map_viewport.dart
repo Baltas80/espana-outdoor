@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -25,6 +25,15 @@ const mapboxSnapshotterDiagnosticsEnabled = bool.fromEnvironment(
 const mapboxAndroidViewMode = String.fromEnvironment(
   'MAPBOX_ANDROID_VIEW_MODE',
   defaultValue: 'hybrid-surface',
+);
+const mapboxMapWidgetDiagnosticStyle = String.fromEnvironment(
+  'MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE',
+  defaultValue: 'none',
+);
+
+const _mapWidgetDiagnosticAppEnvironment = String.fromEnvironment(
+  'APP_ENV',
+  defaultValue: 'production',
 );
 
 class MapboxAndroidViewConfiguration {
@@ -175,6 +184,26 @@ String mapboxSnapshotterVectorStyleJson() {
       },
     ],
   });
+}
+
+/// Optional local style applied to the live MapWidget only in Android staging.
+/// This bypasses the remote style/import pipeline while retaining the same
+/// Flutter PlatformView and native Mapbox renderer.
+String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
+  switch (variant) {
+    case 'none':
+      return null;
+    case 'baseline':
+      return mapboxSnapshotterBaselineStyleJson();
+    case 'vector':
+      return mapboxSnapshotterVectorStyleJson();
+    default:
+      throw ArgumentError.value(
+        variant,
+        'variant',
+        'must be none, baseline or vector',
+      );
+  }
 }
 
 String _safeMapboxStyleOrigin(Object? rawValue) {
@@ -328,6 +357,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   String? _lastRenderMode;
   bool _mapOptionsLogged = false;
   bool _snapshotterCaptureStarted = false;
+  bool _mapWidgetDiagnosticStyleAttempted = false;
 
   static const _maxSourceDataEventsToLog = 250;
 
@@ -568,6 +598,48 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     }
   }
 
+  Future<void> _applyMapWidgetDiagnosticStyle() async {
+    if (_mapWidgetDiagnosticStyleAttempted ||
+        mapboxMapWidgetDiagnosticStyle == 'none') {
+      return;
+    }
+    _mapWidgetDiagnosticStyleAttempted = true;
+
+    final isStagingAndroid = _mapWidgetDiagnosticAppEnvironment == 'staging' &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android;
+    if (!isStagingAndroid) {
+      _logMapboxDiagnostic(
+        'MAP_WIDGET_DIAGNOSTIC_STYLE',
+        'variant=$mapboxMapWidgetDiagnosticStyle result=rejected reason=staging_android_only',
+      );
+      return;
+    }
+
+    final styleJson = mapboxMapWidgetDiagnosticStyleJson(
+      mapboxMapWidgetDiagnosticStyle,
+    );
+    final map = _map;
+    if (styleJson == null || map == null) return;
+
+    _logMapboxDiagnostic(
+      'MAP_WIDGET_DIAGNOSTIC_STYLE',
+      'variant=$mapboxMapWidgetDiagnosticStyle phase=load_json',
+    );
+    try {
+      await map.loadStyleJson(styleJson);
+      _logMapboxDiagnostic(
+        'MAP_WIDGET_DIAGNOSTIC_STYLE',
+        'variant=$mapboxMapWidgetDiagnosticStyle result=accepted',
+      );
+    } catch (error) {
+      _logMapboxDiagnostic(
+        'MAP_WIDGET_DIAGNOSTIC_STYLE',
+        'variant=$mapboxMapWidgetDiagnosticStyle result=failed error=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
+    }
+  }
+
   Future<void> _onMapCreated(MapboxMap map) async {
     final renderer =
         ui.ImageFilter.isShaderFilterSupported ? 'impeller' : 'skia';
@@ -661,6 +733,14 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
 
   @override
   Widget build(BuildContext context) {
+    if (mapboxMapWidgetDiagnosticStyle != 'none' &&
+        (_mapWidgetDiagnosticAppEnvironment != 'staging' ||
+            kIsWeb ||
+            defaultTargetPlatform != TargetPlatform.android)) {
+      throw StateError(
+        'MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE is restricted to Android staging.',
+      );
+    }
     if (mapboxAccessToken.trim().isEmpty) {
       return const Center(
         child: Padding(
@@ -702,6 +782,11 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       onMapCreated: _onMapCreated,
       onStyleLoadedListener: (_) {
         _logMapboxDiagnostic('STYLE_LOADED');
+        if (mapboxMapWidgetDiagnosticStyle != 'none' &&
+            !_mapWidgetDiagnosticStyleAttempted) {
+          unawaited(_applyMapWidgetDiagnosticStyle());
+          return;
+        }
         unawaited(_inspectLoadedStyle());
       },
       onMapLoadedListener: (_) {
