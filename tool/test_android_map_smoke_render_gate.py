@@ -339,8 +339,8 @@ smoke_job = workflow.split("- name: Android map native smoke", 1)[1]
 smoke_job = smoke_job.split("- name: Upload Android map smoke evidence", 1)[0]
 if 'ANDROID_EMULATOR_CI: "true"' not in smoke_job:
     raise SystemExit("The Android map smoke job must explicitly enable the CI emulator network preflight.")
-if "timeout-minutes: 25" not in smoke_job:
-    raise SystemExit("The Android map smoke action must have an explicit upper time bound.")
+if "timeout-minutes: 65" not in smoke_job:
+    raise SystemExit("The Android map smoke action must allow all three bounded diagnostic variants to finish.")
 if "continue-on-error: true" not in smoke_job:
     raise SystemExit("The smoke step must preserve the job long enough to upload failure evidence.")
 
@@ -568,6 +568,12 @@ for marker in (
     if marker not in prepare_primary:
         raise SystemExit(f"Primary Android staging artifact must be preserved and reverified: {marker}")
 
+skia_build_step = "- name: Build Mapbox Skia comparison APK (Impeller disabled)"
+if workflow.count(skia_build_step) != 1 or workflow.count("id: build_skia_apk") != 1:
+    raise SystemExit("Android staging must define exactly one Skia comparison build step and ID.")
+if workflow.count("id: build_tile_store_disabled_apk") != 1:
+    raise SystemExit("Android staging must define exactly one TileStore-disabled diagnostic build step.")
+
 renderer_build = workflow.split("- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1)[1]
 renderer_build = renderer_build.split("- name: Upload Android staging APK", 1)[0]
 for marker in (
@@ -588,6 +594,8 @@ for marker in (
     'echo "flutter_renderer=skia-optout"',
     'echo "impeller_enabled=false"',
     'echo "validation_scope=runtime-capable-artifact"',
+    "--dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default",
+    'echo "mapbox_tile_store_usage_mode=default"',
 ):
     if marker not in renderer_build:
         raise SystemExit(f"Mapbox Skia/Impeller renderer build is missing: {marker}")
@@ -602,6 +610,10 @@ if "--dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface" not in primary_build:
     raise SystemExit("The primary Android APK must explicitly use Hybrid Composition/SurfaceView.")
 if 'echo "mapbox_android_view_mode=hybrid-surface"' not in primary_build:
     raise SystemExit("The primary APK manifest must record its Android hosting mode.")
+if '--dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default' not in primary_build:
+    raise SystemExit("The primary Android APK must explicitly select the default TileStore usage mode.")
+if 'echo "mapbox_tile_store_usage_mode=default"' not in primary_build:
+    raise SystemExit("The primary APK manifest must record its default TileStore usage mode.")
 
 require_renderer = workflow.split("- name: Require Mapbox Skia A/B APK", 1)[1]
 for marker in (
