@@ -80,7 +80,7 @@ adb install -r "${apk_path}"
 ui_dump() {
   local file="$1"
   local remote_file="/sdcard/espana-outdoor-uiautomator.xml"
-  local attempt dump_output
+  local attempt dump_output dump_status
 
   # The first UIAutomator invocation on a freshly booted API-35 emulator can
   # return exit code 0 before its device-side XML exists. Retry only this
@@ -92,7 +92,10 @@ ui_dump() {
       if (( attempt < 4 )); then sleep 2; fi
       continue
     fi
-    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\r' || true)"
+    set +e
+    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\r')"
+    dump_status=$?
+    set -e
 
     if adb shell test -s "${remote_file}" >/dev/null 2>&1; then
       if adb shell cat "${remote_file}" >"${file}" && grep -q '<hierarchy' "${file}"; then
@@ -102,7 +105,7 @@ ui_dump() {
     fi
 
     rm -f "${file}"
-    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry output=$(printf '%s' "${dump_output}" | tr '\n' ' ' | cut -c1-240)"
+    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry command_status=${dump_status} output=$(printf '%s' "${dump_output}" | tr '\n' ' ' | cut -c1-240)"
     if (( attempt < 4 )); then sleep 2; fi
   done
 
