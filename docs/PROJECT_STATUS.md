@@ -1,8 +1,38 @@
 # España Outdoor — estado técnico
 
-Última revisión: **16/11/2026 21:17 CET**. Rama de referencia: `main`, HEAD verificado: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
+Última revisión: **17/11/2026**. Rama de referencia: `main`, HEAD verificado: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
+
+## Snapshot operativo — 17/11/2026, ciclo de diagnóstico Mapbox
+
+### Estado de PR #79
+- [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79), rama `fix/mapbox-render-diagnostics-ready-20261116`, HEAD `0da3bd0dc737610480ccd5974f82f7bb3f98eb0d`: 154 commits ahead y 0 behind respecto a `main`; permanece en draft.
+- El HEAD añade un Snapshotter baseline sin fuentes y otro con una fuente vectorial Mapbox Streets v8 + una capa `road`; también registra resumen seguro de fuentes/capas/visibilidad, sin URLs completas ni tokens.
+- El CI anterior sobre `1dfe6d1` falló en el guard por una aserción con el nombre antiguo `logSnapshotterStage('capture_completed'`. Se corrigió el marcador en `0da3bd0`; las nuevas ejecuciones deben validar el guard actualizado.
+
+### Evidencia Android más reciente disponible
+- Android staging [44030999939](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939), artefacto [14305199993](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939/artifacts/14305199993), source commit `06ee1fa`.
+- Ambos APK (Impeller y Skia) se compilaron, instalaron y llegaron a la pantalla `Mapa cartográfico`. Ambos MapWidget quedaron en `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`; sus capturas fueron rechazadas (entropía 0,651 bits y color dominante 0,901).
+- El Snapshotter nativo sí generó el estilo local sin fuentes en ambos procesos: PNG 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`. La inspección de píxeles confirma un único color RGB (217,230,199), `#d9e6c7`.
+- Conclusión limitada: el Snapshotter puede dibujar un fondo simple; esto no valida MapWidget, fuentes vectoriales ni el estilo Outdoors. El siguiente experimento vectorial debe separar carga/decodificación de teselas de la composición del widget.
+
+### CI del HEAD `0da3bd0`
+- Security baseline [44038777722](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777722): **8/8 superados**.
+- CI general [44038777681](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777681): Source Gateway y Rescue Link superados; Flutter e iOS seguían en ejecución al registrar este snapshot.
+- Android staging [44038777679](https://github.com/Baltas80/espana-outdoor/actions/runs/44038777679): configuración Android y lockfile superados; análisis y tests seguían en ejecución. Aún no hay APK ni evidencia vectorial de este HEAD.
+
+### Bloqueos de aceptación
+- Mapa online: no aceptado; no se ha demostrado `MAP_LOADED` + `FULL` + `IDLE` ni gate visual.
+- Mapas offline: no certificados en modo avión, force-stop, reapertura y reinicio.
+- Navegación offline: evidencia histórica de cálculo en emulador, pero requiere repetir con el mismo candidato y validar ruta nueva con origen `OFFLINE`.
+- Dispositivo OPPO: pendiente de instalar y validar el APK exacto.
+- Identidad compartida web/Android, Keycloak/PostgreSQL y Valhalla en producción: pendientes de E2E y verificación externa.
+- Protección de `main`: la lectura de branch protection ha devuelto 403 a la integración; no se certifica que haya ruleset activo.
+
+No fusionar PR #79 ni declarar producción hasta superar las puertas cartográficas, offline, físicas, identidad y backend indicadas en este documento.
+
+---
 
 ## Snapshot operativo vigente — 16/11/2026 21:17 CET
 
