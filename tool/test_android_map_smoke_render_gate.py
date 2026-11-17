@@ -15,6 +15,8 @@ SMOKE = ROOT / "tool" / "smoke_android_map.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "staging-android.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 NETWORK_PREFLIGHT = ROOT / "tool" / "ensure_android_emulator_online.sh"
+MAPBOX_PREFLIGHT = ROOT / "tool" / "preflight_mapbox_tiles.py"
+MAPBOX_PREFLIGHT_TEST = ROOT / "tool" / "test_preflight_mapbox_tiles.py"
 MAPBOX_VIEWPORT = ROOT / "lib" / "features" / "map" / "mapbox_map_viewport.dart"
 MAIN_DART = ROOT / "lib" / "main.dart"
 MAPBOX_PAGE = ROOT / "lib" / "features" / "map" / "mapbox_map_page.dart"
@@ -238,6 +240,16 @@ if source.index("snapshotter_wait_seconds=") > source.rindex('adb logcat -d >"${
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
 network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
+if not MAPBOX_PREFLIGHT.is_file() or not MAPBOX_PREFLIGHT_TEST.is_file():
+    raise SystemExit("Android staging requires the Mapbox style/vector-tile preflight and its tests.")
+preflight_test = subprocess.run(
+    [sys.executable, str(MAPBOX_PREFLIGHT_TEST)],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+if preflight_test.returncode != 0:
+    raise SystemExit(f"Mapbox token preflight tests failed: {preflight_test.stdout} {preflight_test.stderr}")
 workflow = WORKFLOW.read_text(encoding="utf-8")
 ci_workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
@@ -333,6 +345,10 @@ if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_vi
     raise SystemExit("Mapbox diagnostic output must identify the selected style URI.")
 if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
     raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
+if "tool/preflight_mapbox_tiles.py --style-uri \"$MAPBOX_STYLE_URI\"" not in workflow:
+    raise SystemExit("Android staging must preflight the selected Mapbox style and vector-tile endpoint.")
+if "python3 tool/test_preflight_mapbox_tiles.py" not in workflow:
+    raise SystemExit("Android staging must execute the Mapbox preflight unit tests before building.")
 
 # The native offline TileStore descriptor uses Android display density. The
 # live MapWidget must request the same pixel-ratio variant instead of relying
