@@ -1,3 +1,11 @@
+# Actualización operativa — 17/11/2026
+
+## Mapbox Android: Standard + Hybrid Composition no aceptado
+
+Run [44084139266](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266) sobre `e03aafc`: compilación, instalación y navegación a Mapa correctas; el viewport sigue negro. `STYLE_LOADED=1`, 190 capas, 10 fuentes, pero `MAP_LOADED=0`, `MAP_IDLE=0`, `RenderMode.PARTIAL` y gate visual fallido. El log contiene 6 misses de TileStore y 82 eventos de modelos; EGL emulado llegó a 63,8 s por muestra. No se puede atribuir el fallo únicamente a TileStore ni extrapolar el resultado del emulador al OPPO físico.
+
+La siguiente prueba de staging cambia solo la composición Android a Virtual Display + TextureView (`virtual-texture`), mantiene el estilo Standard y verifica el modo tanto en manifiesto como en runtime. Producción conserva Hybrid Composition + SurfaceView y Outdoors v12. Véase [MAP_OFFLINE.md](MAP_OFFLINE.md) para los artefactos y criterios.
+
 # España Outdoor — estado técnico
 
 ## Snapshot operativo — 17/11/2026 11:19 CET: resultado de la matriz Android y aislamiento de Snapshotter
