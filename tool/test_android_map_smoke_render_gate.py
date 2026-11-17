@@ -936,12 +936,16 @@ tile_store_build = workflow.split("- name: Build Mapbox TileStore-disabled diagn
 for marker in (
     "steps.build_apk.outputs.built == 'true'",
     'manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"',
+    'if [[ ! -s "$manifest_backup" ]]; then',
+    'cp android/app/src/main/AndroidManifest.xml "$manifest_backup"',
     'test -s "$manifest_backup"',
     'cp "$manifest_backup" android/app/src/main/AndroidManifest.xml',
     'cmp -s "$manifest_backup" android/app/src/main/AndroidManifest.xml',
     "MAPBOX_TILE_STORE_USAGE_MODE=disabled",
     'tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"',
+    '--dart-define=MAPBOX_ANDROID_VIEW_MODE="$MAPBOX_ANDROID_VIEW_MODE"',
     'echo "mapbox_tile_store_usage_mode=disabled"',
+    'echo "mapbox_android_view_mode=$MAPBOX_ANDROID_VIEW_MODE"',
     "--dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false",
     'echo "mapbox_snapshotter_diagnostics=false"',
     'echo "validation_scope=diagnostic-only-tile-store-disabled"',
@@ -950,6 +954,9 @@ for marker in (
         raise SystemExit(f"TileStore-disabled diagnostic build is missing: {marker}")
 if tile_store_build.index('cp "$manifest_backup" android/app/src/main/AndroidManifest.xml') > tile_store_build.index("flutter build apk --release"):
     raise SystemExit("Restore the pre-Skia configured manifest before building the TileStore diagnostic.")
+tile_store_condition = tile_store_build.split("shell:", 1)[0]
+if "env.MAPBOX_STYLE_URI ==" in tile_store_condition:
+    raise SystemExit("The TileStore-disabled diagnostic must also run for imported Mapbox Standard styles.")
 skia_build = workflow.split("- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1)[1].split("- name: Build Mapbox TileStore-disabled diagnostic APK", 1)[0]
 for marker in (
     'manifest_backup="$RUNNER_TEMP/android-manifest-before-skia.xml"',
