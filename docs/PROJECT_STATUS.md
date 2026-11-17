@@ -839,3 +839,25 @@ La primera ejecución de CI tras ampliar el diagnóstico Standard + TileStore, [
 
 Se corrigió la aserción en [0180acea](https://github.com/Baltas80/espana-outdoor/commit/0180acea07e4918687b6e25b340d70dd4070da03): ahora exige 55 minutos y dos variantes. La ejecución Android anterior [44097675255](https://github.com/Baltas80/espana-outdoor/actions/runs/44097675255) se canceló al avanzar la rama antes de completar Analyze and test; no produjo APK. La nueva revisión de CI y Android debe ejecutarse sobre el HEAD actualizado antes de considerar validada la matriz.
 
+
+
+## Evidencia Android staging — 17/11/2026: APK Standard + Virtual Texture
+
+Run [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153), source commit `647fbedee05e86635a9b7a0d2da329f1aa190788`, workflow commit `aaddef2a00fa3cc5cf27a6d9ab9925f7cad73990`.
+
+Se construyeron y publicaron dos APK de 200.316.534 bytes cada uno. Ambos usan Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, Flutter 3.47.5, estilo Mapbox Standard, Virtual Display + TextureView, Impeller predeterminado y Snapshotter desactivado:
+
+| Artefacto | TileStore | SHA-256 APK |
+|---|---|---|
+| [APK primario 14335334142](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14335334142) | READ_ONLY (modo default) | `e52bd91edb072476fa579de9543787cafadaa13314c96abdd52f4c3aeaa852f7` |
+| [APK diagnóstico 14336391796](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14336391796) | DISABLED | `3f8df4020d2b15e8dd3fb13039a595db08bf28008202665a4754adb6bef10303` |
+
+Los dos ZIP se descargaron y sus manifiestos se inspeccionaron; los SHA-256 se recalcularon directamente sobre los APK extraídos y coinciden con los manifiestos. La variante DISABLED mantiene estilo, hosting, renderer, Application ID, versionCode y source commit; solo cambia el modo TileStore. Es diagnóstico online, no candidato de aceptación offline.
+
+Estado al registrar esta evidencia: el job Android había terminado la compilación, verificación y publicación de ambos APK y seguía ejecutando `Android map native smoke`. Todavía no había artefacto de capturas/logcat. La descarga de logs del job devolvió `BlobNotFound`; no se interpreta como fallo de Mapbox ni como resultado visual.
+
+- CI [44099371163](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371163): Flutter (análisis, suite completa y build Android release), Source Gateway y Rescue Link superados; iOS en cola al consultar.
+- Security [44099371282](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371282): 8/8 jobs superados.
+- Android [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153): APKs publicados; smoke pendiente.
+
+No hay aceptación del mapa: siguen siendo obligatorios `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual válida y posterior validación offline en Android físico. Producción no se ha modificado.
