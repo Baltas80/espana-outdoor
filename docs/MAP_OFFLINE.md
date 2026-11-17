@@ -315,3 +315,26 @@ La captura adicional es diagnóstica y no relaja el gate: el APK sigue necesitan
 La captura nativa Snapshotter se ejecuta de forma asíncrona tras `STYLE_LOADED`. Cada llamada nativa tiene un límite explícito: creación 30 s, selección del estilo 30 s, espera del evento de estilo 45 s, cámara 15 s, render PNG 45 s y liberación 10 s. El log registra etapas y tiempo transcurrido sin imprimir tokens ni URLs.
 
 El smoke Android no vuelca el logcat final inmediatamente después del gate del MapWidget: espera hasta 210 s (configurable entre 15 y 240 s) a que Snapshotter emita `disposed`, `failed` o `dispose_failed`. Después guarda el logcat completo y reconstruye el PNG validando bytes, dimensiones y SHA-256. Si la captura diagnóstica no llega, se conserva el motivo y el gate principal de `MAP_LOADED`/`FULL`/`IDLE` permanece independiente; Snapshotter nunca sustituye ni relaja la aceptación cartográfica.
+
+
+## Diagnóstico Android — 17/11/2026 07:18 CET
+
+Ejecución [Android staging 44023914366](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366), artefacto de evidencias [14303301878](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366/artifacts/14303301878).
+
+- Los APK principal (Impeller) y comparativo (Skia opt-out) se compilaron, verificaron y publicaron. Los dos smoke abrieron la pantalla Mapa.
+- Ambos procesos permanecieron en `RenderMode.PARTIAL`; no emitieron `MAP_LOADED` ni `MAP_IDLE`. El gate cartográfico rechazó ambos.
+- Las capturas muestran un viewport casi negro con algunos trazos cartográficos; no son evidencia de mapa utilizable.
+- El estilo cargó en ambos casos: 148 capas, una fuente y fondo declarado `hsl(60, 20%, 85%)`. Hubo respuestas de teselas/glyphs no vacías; los misses de TileStore son fallos de caché local, no HTTP 404.
+- En ambos procesos el Snapshotter cargó el estilo y aplicó la cámara, pero `Snapshotter.start()` agotó su timeout de 45 s. El extractor no encontró un PNG de Snapshotter.
+- Se observó un `GL error 0x501` en `emuglGLESv2_enc` en ambos procesos, dentro del emulador Android con SwiftShader. Es una correlación del entorno de prueba, no una causa raíz demostrada.
+- La suite CI general y Security baseline del HEAD `d308adcb` terminaron correctamente; Android staging falló únicamente en el gate funcional del mapa. Los dos APK y las evidencias se conservaron.
+
+### Siguiente aislamiento
+
+El Snapshotter de staging se ha cambiado para renderizar primero un estilo JSON local con una única capa de fondo y sin fuentes externas. Se registran además los errores de carga incluso si llegan después de `STYLE_LOADED`, los eventos de datos de estilo, imágenes ausentes y el inicio explícito de captura.
+
+Interpretación:
+- Si el PNG de fondo sólido se genera, el renderer nativo puede producir una imagen y la investigación debe centrarse en fuentes vectoriales/teselas/estilo Outdoors.
+- Si también agota el timeout, el bloqueo está por debajo del estilo remoto (renderer nativo, GPU o emulador).
+
+Este baseline no sustituye el gate del mapa real ni cambia el estilo de producción. La aceptación sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual válida y pruebas offline/físicas.
