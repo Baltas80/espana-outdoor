@@ -240,3 +240,44 @@ Cada ejecución de `smoke_android_map.sh` limpia ahora logcat después de conect
 La limpieza solo afecta al emulador efímero de CI; no se ejecuta en el OPPO ni en dispositivos de usuario.
 
 La aceptación sigue bloqueada hasta obtener un PNG cartográfico legible, `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL`, seguidos por las pruebas offline en Android.
+
+
+## Diagnóstico Impeller frente a Skia — 17/11/2026
+
+Ejecución [44003718478](https://github.com/Baltas80/espana-outdoor/actions/runs/44003718478), artefacto de diagnóstico [14294586740](https://github.com/Baltas80/espana-outdoor/actions/runs/44003718478/artifacts/14294586740), source commit `bfc618d`.
+
+La captura y el logcat del APK Hybrid/SurfaceView confirman que el widget Mapbox sí llegó a montarse. El evento `MAPBOX_STYLE_INSPECTION` registró:
+
+- `style_loaded=true`.
+- 148 capas, 1 fuente y 1 capa de fondo.
+- `background-color=hsl(60, 20%, 85%)` (color claro).
+- MapView de aproximadamente 411 × 720 píxeles lógicos.
+- Cámara centrada en Córdoba, zoom 12.
+- El logcat identifica `Using the Impeller rendering backend (OpenGLES)`.
+
+Sin embargo, la captura del viewport permanece casi negra y el SDK solo emite `RenderMode.PARTIAL`; no aparecen `MAP_LOADED` ni `MAP_IDLE`. El estilo JSON describe un fondo claro, por lo que la captura no coincide con el fondo declarado. Esto apunta a una diferencia en el camino de composición/renderizado o en el procesamiento de los recursos; **todavía no demuestra que Impeller sea la causa**.
+
+Existe un antecedente público de Mapbox Flutter sobre mapas que no aparecen con Impeller habilitado ([issue #300](https://github.com/mapbox/mapbox-maps-flutter/issues/300), noviembre de 2023). Es una pista para una prueba controlada, no una confirmación de que el defecto histórico siga presente en las versiones actuales.
+
+### Experimento siguiente: mismo MapView, Impeller frente a Skia
+
+La comparación A/B se cambia para aislar el motor Flutter, manteniendo iguales:
+
+- commit, application ID, versionCode y estilo Outdoors v12;
+- Hybrid Composition + SurfaceView;
+- pixel ratio, cámara, emulador y configuración de red;
+- limpieza de datos TileStore entre instalaciones.
+
+El APK principal conserva la configuración predeterminada de Flutter (Impeller). Solo el APK comparativo de staging recibe, en su manifiesto generado y no versionado, `io.flutter.embedding.android.EnableImpeller=false`. El helper `tool/prepare_android_skia_ab.py` valida XML y es idempotente.
+
+El viewport registra el backend real mediante `ui.ImageFilter.isShaderFilterSupported` como `MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller|skia`. El orquestador rechaza la comparación si los logs no prueban que los APK ejecutaron motores distintos.
+
+**El opt-out de Impeller es únicamente diagnóstico. No se ha añadido al manifiesto de producción ni debe publicarse como solución permanente sin pruebas físicas.** Flutter documenta que esta opción de compatibilidad está deprecada y puede desaparecer: [Impeller — Flutter](https://docs.flutter.dev/perf/impeller).
+
+La aceptación requiere, para el APK que se proponga como candidato:
+- backend real identificado en logcat;
+- `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL`;
+- PNG cartográfico legible y gate visual superado;
+- validación posterior en dispositivo físico.
+
+Si Skia supera el gate y el APK Impeller no, se preparará una compatibilidad temporal y un informe de limitación/deprecación; no se cambiará el predeterminado hasta validar el OPPO. Si ambos fallan, se investigarán el SDK nativo, la respuesta/decodificación de tiles y la composición Android antes de tocar el estilo.
