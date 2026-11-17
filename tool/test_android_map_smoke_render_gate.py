@@ -91,6 +91,17 @@ for marker in (
     if marker not in mapbox_viewport:
         raise SystemExit(f"Mapbox MapOptions must stay aligned with the offline TileStore: {marker}")
 
+for marker in (
+    "MAPBOX_ANDROID_VIEW_MODE",
+    "mapboxAndroidViewConfiguration(String mode)",
+    "AndroidPlatformViewHostingMode.HC",
+    "AndroidPlatformViewHostingMode.VD",
+    "textureView: androidView.textureView",
+    "androidHostingMode: androidView.hostingMode",
+):
+    if marker not in mapbox_viewport:
+        raise SystemExit(f"Mapbox Android hosting mode must be explicit and testable: {marker}")
+
 required = (
     "ensure_android_emulator_online.sh",
     'ANDROID_EMULATOR_CI:-false',
