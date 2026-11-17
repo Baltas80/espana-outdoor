@@ -568,3 +568,24 @@ Commits:
 La ejecución [44102148065](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148065) terminó CI general en success; [44102148017](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148017) terminó Security 8/8. Android staging [44102148014](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148014) construyó y publicó APKs y evidencias, pero falló en el gate visual (resultado esperado porque el mapa es negro). La nueva instrumentación debe validarse en un staging posterior antes de usar sus logs para atribuir causas.
 
 La validación online sigue abierta. Offline, persistencia tras reinicio y dispositivo físico no están certificados.
+
+
+## Android staging 44114771231 — MapWidget renderer baseline isolated (17/11/2026)
+
+The second attempt of [Android staging 44114771231](https://github.com/Baltas80/espana-outdoor/actions/runs/44114771231) (source `762208e`) produced two black MapWidget captures on the real Mapa page: Standard + Virtual Display/TextureView + Impeller, once with TileStore READ_ONLY and once DISABLED. Both loaded the 190-layer/10-source Standard style, but neither emitted `MAP_LOADED`, `MAP_IDLE` or `RenderMode.FULL`; each emitted one `RenderMode.PARTIAL` frame and no `MAP_LOAD_ERROR`.
+
+The expanded resource logger records 14 successful vector-tile network responses per variant (745,634 bytes total), 10 successful glyph responses and 2 sprite-image network responses. TileStore `NOT_FOUND` events are followed by successful network responses; they are cache misses, not HTTP 404s. The resource counts and bytes are identical between READ_ONLY and DISABLED. This rules out a missing tile-network fallback in this run, but does not explain why the native renderer fails to complete a frame.
+
+The emulator is explicitly launched with `-gpu swiftshader_indirect`; `EGL_emulation` reports extreme frame intervals (including samples above 60 seconds). This is strong evidence that the CI graphics environment is severely constrained, but it is not proof that SwiftShader alone causes the black viewport. A physical Android GPU remains necessary to distinguish device behavior from emulator behavior.
+
+### New decisive experiment: local style through the live MapWidget
+
+The next staging build adds `MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=baseline` only to PR #79. After the remote style loads, the live MapWidget replaces it with a local version-8 style containing one solid background layer and no sources, sprites, glyphs or network tiles. This keeps the same Flutter PlatformView and native Mapbox renderer while removing remote style composition and vector decoding. The screenshot gate checks the expected `#d9e6c7` background and still requires `MAP_LOADED`, `RenderMode.FULL` and `MAP_IDLE`.
+
+Interpretation:
+- If the live MapWidget baseline renders, the PlatformView/native frame path is working and the failure is in remote style/source/model composition; the next step is a minimal live-MapWidget Streets vector style.
+- If the baseline is also black, stop changing style/TileStore settings and move the investigation to native MapView surface/render-thread behavior and a physical OPPO run.
+
+The diagnostic define defaults to `none`, is rejected outside Android staging, and does not change production Outdoors v12 or Hybrid Composition/SurfaceView. Snapshotter remains disabled during this test.
+
+Do not accept the map or offline behavior based on APK compilation. PR #79 remains draft; offline acceptance still requires the actual download, airplane-mode, force-stop, reopen and device-restart sequence on Android.
