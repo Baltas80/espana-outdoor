@@ -204,23 +204,24 @@ if "continue-on-error: true" not in smoke_job:
 
 AB_RUNNER = ROOT / "tool" / "smoke_android_map_ab.sh"
 if not AB_RUNNER.is_file():
-    raise SystemExit("The Android map A/B orchestration script is missing.")
+    raise SystemExit("The Android map renderer A/B orchestration script is missing.")
 ab_runner_source = AB_RUNNER.read_text(encoding="utf-8")
 for marker in (
     'primary_apk="${runner_temp}/primary-build/app-release.apk"',
-    'standard_apk="${runner_temp}/standard-build/app-release.apk"',
+    'renderer_apk="${runner_temp}/texture-vd-build/app-release.apk"',
     'RUNNER_TEMP="${primary_evidence}" timeout',
-    'RUNNER_TEMP="${standard_evidence}" timeout',
+    'RUNNER_TEMP="${renderer_evidence}" timeout',
     'primary_status=${primary_status}',
-    'standard_manifest="${runner_temp}/standard-build/android-staging-validation.txt"',
+    'renderer_manifest="${runner_temp}/texture-vd-build/android-staging-validation.txt"',
     'timeout --foreground --signal=TERM --kill-after=15s 45s adb shell pm clear',
     'if ! grep -Fxq "Success" <<<"${clear_output}"; then',
-    'standard_run=${standard_run}',
-    'standard_status=${standard_status}',
+    'renderer_run=${renderer_run}',
+    'renderer_status=${renderer_status}',
+    'comparison_mode=virtual-texture',
     '--kill-after=150s 20m',
 ):
     if marker not in ab_runner_source:
-        raise SystemExit(f"Android A/B runner is missing required behavior: {marker}")
+        raise SystemExit(f"Android renderer A/B runner is missing required behavior: {marker}")
 
 script_lines = [
     line.strip()
@@ -233,25 +234,26 @@ if script_lines != ['bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_S
         "multi-line shell variables do not persist between action shell invocations."
     )
 
-# Exercise the orchestration with a stub timeout command. The emulator action
-# invokes script lines in separate shells, so all variable state must live in
-# the checked-in Bash process, not in the action's multi-line input.
-with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
+# Exercise the orchestration with a stub timeout command. Both APKs must use
+# the same style and source commit; only Android platform-view hosting differs.
+with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_dir:
     temp_root = Path(temp_dir)
     (temp_root / "primary-build").mkdir()
-    (temp_root / "standard-build").mkdir()
+    (temp_root / "texture-vd-build").mkdir()
     (temp_root / "primary-build" / "app-release.apk").write_bytes(b"primary-apk")
-    (temp_root / "standard-build" / "app-release.apk").write_bytes(b"standard-apk")
+    (temp_root / "texture-vd-build" / "app-release.apk").write_bytes(b"renderer-apk")
     (temp_root / "primary-build" / "android-staging-validation.txt").write_text(
         "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
         "version_code=5\nsource_commit=test-commit\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n",
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
+        "mapbox_android_view_mode=hybrid-surface\n",
         encoding="utf-8",
     )
-    (temp_root / "standard-build" / "android-staging-validation.txt").write_text(
+    (temp_root / "texture-vd-build" / "android-staging-validation.txt").write_text(
         "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
         "version_code=5\nsource_commit=test-commit\n"
-        "mapbox_style_uri=mapbox://styles/mapbox/standard\n",
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
+        "mapbox_android_view_mode=virtual-texture\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
@@ -260,10 +262,11 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     timeout_stub = fake_bin / "timeout"
     timeout_stub.write_text(
         "#!/usr/bin/env bash\n"
-        'printf "RUNNER_TEMP=%s\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
-        'printf "ARGS=%s\n" "$*" >> "$CALL_LOG"\n'
+        'printf "RUNNER_TEMP=%s\\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
+        'printf "ARGS=%s\\n" "$*" >> "$CALL_LOG"\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
+        'if [[ "${FAIL_RENDERER:-false}" == "true" && "$*" == *texture-vd-build/app-release.apk* ]]; then exit 8; fi\n'
         "exit 0\n",
         encoding="utf-8",
     )
@@ -279,15 +282,15 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
         env=test_env,
         check=False,
     )
-    if successful.returncode != 0 or "standard_run=true" not in successful.stdout:
-        raise SystemExit(f"Android A/B runner failed its success-path test: {successful.stderr}")
+    if successful.returncode != 0 or "comparison_run=true" not in successful.stdout:
+        raise SystemExit(f"Android renderer A/B runner failed its success-path test: {successful.stderr}")
     calls = call_log.read_text(encoding="utf-8")
-    if calls.count("bash tool/smoke_android_map.sh") != 2 or "primary-build/app-release.apk" not in calls or "standard-build/app-release.apk" not in calls:
-        raise SystemExit("Android A/B runner did not invoke both APKs in the success-path test.")
-    if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/standard" not in calls:
-        raise SystemExit("Android A/B runner did not isolate primary and Standard evidence directories.")
+    if calls.count("bash tool/smoke_android_map.sh") != 2 or "primary-build/app-release.apk" not in calls or "texture-vd-build/app-release.apk" not in calls:
+        raise SystemExit("Android renderer A/B runner did not invoke both APKs in the success-path test.")
+    if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/texture-vd" not in calls:
+        raise SystemExit("Android renderer A/B runner did not isolate primary and comparison evidence directories.")
     if "adb shell pm clear com.espanaoutdoors.espana_outdoors.iconspreview" not in calls:
-        raise SystemExit("The A/B runner must clear the shared app data before installing Standard.")
+        raise SystemExit("The renderer A/B runner must clear app data before installing the comparison APK.")
 
     call_log.write_text("", encoding="utf-8")
     failing_env = test_env.copy()
@@ -301,9 +304,22 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
     )
     calls_after_failure = call_log.read_text(encoding="utf-8")
     if failed_primary.returncode == 0 or calls_after_failure.count("bash tool/smoke_android_map.sh") != 2:
-        raise SystemExit("A primary smoke failure must not prevent the Standard comparison from running.")
+        raise SystemExit("A primary smoke failure must not prevent the renderer comparison from running.")
 
-    (temp_root / "standard-build" / "app-release.apk").unlink()
+    call_log.write_text("", encoding="utf-8")
+    failing_renderer_env = test_env.copy()
+    failing_renderer_env["FAIL_RENDERER"] = "true"
+    failed_renderer = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=failing_renderer_env,
+        check=False,
+    )
+    if failed_renderer.returncode == 0:
+        raise SystemExit("A renderer comparison failure must fail the A/B smoke.")
+
+    (temp_root / "texture-vd-build" / "app-release.apk").unlink()
     call_log.write_text("", encoding="utf-8")
     primary_only = subprocess.run(
         ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
@@ -312,54 +328,64 @@ with tempfile.TemporaryDirectory(prefix="mapbox-ab-runner-") as temp_dir:
         env=test_env,
         check=False,
     )
-    if primary_only.returncode != 0 or "standard_run=false" not in primary_only.stdout:
-        raise SystemExit("The A/B runner must still support non-PR-79 staging runs without a Standard APK.")
+    if primary_only.returncode != 0 or "comparison_run=false" not in primary_only.stdout:
+        raise SystemExit("The renderer A/B runner must support staging runs without a comparison APK.")
     primary_only_calls = call_log.read_text(encoding="utf-8")
     if primary_only_calls.count("bash tool/smoke_android_map.sh") != 1:
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
-        raise SystemExit("A non-A/B staging run must not clear app data for a nonexistent Standard comparison.")
+        raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
 
-standard_build = workflow.split("- name: Build Mapbox Standard A/B APK", 1)[1]
-standard_build = standard_build.split("- name: Upload Android staging APK", 1)[0]
+renderer_build = workflow.split("- name: Build Mapbox TextureView/VD renderer A/B APK", 1)[1]
+renderer_build = renderer_build.split("- name: Upload Android staging APK", 1)[0]
 for marker in (
     "github.event.pull_request.number == 79",
     "continue-on-error: true",
     'primary_dir="$RUNNER_TEMP/primary-build"',
-    'standard_dir="$RUNNER_TEMP/standard-build"',
+    'renderer_dir="$RUNNER_TEMP/texture-vd-build"',
     'cp "$primary_apk" "$primary_dir/app-release.apk"',
     'cp build/android-staging-validation.txt "$primary_dir/android-staging-validation.txt"',
     "flutter clean",
     "flutter pub get --enforce-lockfile",
-    '--dart-define=MAPBOX_STYLE_URI="mapbox://styles/mapbox/standard"',
-    'cp "$standard_apk" "$standard_dir/app-release.apk"',
-    'echo "mapbox_style_uri=mapbox://styles/mapbox/standard"',
+    '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI"',
+    "--dart-define=MAPBOX_ANDROID_VIEW_MODE=virtual-texture",
+    'cp "$renderer_apk" "$renderer_dir/app-release.apk"',
+    'echo "mapbox_style_uri=$MAPBOX_STYLE_URI"',
+    'echo "mapbox_android_view_mode=virtual-texture"',
     'echo "validation_scope=runtime-capable-artifact"',
 ):
-    if marker not in standard_build:
-        raise SystemExit(f"Mapbox Standard A/B build is missing: {marker}")
+    if marker not in renderer_build:
+        raise SystemExit(f"Mapbox TextureView/VD renderer build is missing: {marker}")
 if "--build-dir" in workflow:
     raise SystemExit("Flutter 3.47.5 does not support --build-dir; preserve A/B APKs outside build/ instead.")
-if standard_build.index('cp "$primary_apk" "$primary_dir/app-release.apk"') > standard_build.index("flutter clean"):
+if renderer_build.index('cp "$primary_apk" "$primary_dir/app-release.apk"') > renderer_build.index("flutter clean"):
     raise SystemExit("The verified primary APK must be preserved before flutter clean.")
-if standard_build.index("flutter clean") > standard_build.index("flutter pub get --enforce-lockfile"):
-    raise SystemExit("A clean Standard build must restore dependencies from the committed lockfile.")
+if renderer_build.index("flutter clean") > renderer_build.index("flutter pub get --enforce-lockfile"):
+    raise SystemExit("A clean renderer build must restore dependencies from the committed lockfile.")
 
-require_standard = workflow.split("- name: Require Mapbox Standard A/B APK", 1)[1]
+primary_build = workflow.split("- name: Build Android staging APK", 1)[1]
+primary_build = primary_build.split("- name: Verify APK", 1)[0]
+if "--dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface" not in primary_build:
+    raise SystemExit("The primary Android APK must explicitly use Hybrid Composition/SurfaceView.")
+if 'echo "mapbox_android_view_mode=hybrid-surface"' not in primary_build:
+    raise SystemExit("The primary APK manifest must record its Android hosting mode.")
+
+require_renderer = workflow.split("- name: Require Mapbox TextureView/VD A/B APK", 1)[1]
 for marker in (
-    "steps.build_standard_apk.outcome",
-    'standard_apk="$RUNNER_TEMP/standard-build/app-release.apk"',
-    'standard_manifest="$RUNNER_TEMP/standard-build/android-staging-validation.txt"',
-    'expected_sha="$(sed -n \'s/^apk_sha256=//p\' "$standard_manifest")"',
-    'actual_sha="$(sha256sum "$standard_apk" | cut -d \' \' -f1)"',
+    "steps.build_texture_apk.outcome",
+    'renderer_apk="$RUNNER_TEMP/texture-vd-build/app-release.apk"',
+    'renderer_manifest="$RUNNER_TEMP/texture-vd-build/android-staging-validation.txt"',
+    'expected_sha="$(sed -n \'s/^apk_sha256=//p\' "$renderer_manifest")"',
+    'actual_sha="$(sha256sum "$renderer_apk" | cut -d \' ' -f1)"',
     'test "$expected_sha" = "$actual_sha"',
-    'grep -Fxq "mapbox_style_uri=mapbox://styles/mapbox/standard" "$standard_manifest"',
+    'grep -Fxq "mapbox_style_uri=$MAPBOX_STYLE_URI" "$renderer_manifest"',
+    'grep -Fxq "mapbox_android_view_mode=virtual-texture" "$renderer_manifest"',
 ):
-    if marker not in require_standard:
-        raise SystemExit(f"Mapbox Standard A/B artifact verification is missing: {marker}")
+    if marker not in require_renderer:
+        raise SystemExit(f"Mapbox renderer A/B artifact verification is missing: {marker}")
 
 apk_upload = workflow.split("- name: Upload Android staging APK", 1)[1]
-apk_upload = apk_upload.split("- name: Upload Mapbox Standard A/B APK", 1)[0]
+apk_upload = apk_upload.split("- name: Upload Mapbox TextureView/VD A/B APK", 1)[0]
 for marker in (
     "${{ runner.temp }}/primary-build/app-release.apk",
     "${{ runner.temp }}/primary-build/android-staging-validation.txt",
@@ -368,28 +394,27 @@ for marker in (
         raise SystemExit(f"Primary Android staging artifact upload is missing: {marker}")
 if "if: success() && steps.build_apk.outputs.built == 'true'" not in apk_upload:
     raise SystemExit("The primary APK must upload only after its verification step succeeds.")
-standard_upload = workflow.split("- name: Upload Mapbox Standard A/B APK", 1)[1]
-standard_upload = standard_upload.split("- name: Enable KVM for Android emulator", 1)[0]
+renderer_upload = workflow.split("- name: Upload Mapbox TextureView/VD A/B APK", 1)[1]
+renderer_upload = renderer_upload.split("- name: Enable KVM for Android emulator", 1)[0]
 for marker in (
-    "${{ runner.temp }}/standard-build/app-release.apk",
-    "${{ runner.temp }}/standard-build/android-staging-validation.txt",
+    "${{ runner.temp }}/texture-vd-build/app-release.apk",
+    "${{ runner.temp }}/texture-vd-build/android-staging-validation.txt",
+    "name: mapbox-texture-vd-ab-apk",
 ):
-    if marker not in standard_upload:
-        raise SystemExit(f"Standard A/B artifact upload is missing: {marker}")
-if "if: success() && steps.build_standard_apk.outcome == 'success'" not in standard_upload:
-    raise SystemExit("The Standard artifact upload must be conditional on a successful comparison build.")
-if "if: success() && steps.build_apk.outputs.built == 'true'" not in workflow:
-    raise SystemExit("The primary APK must upload only after its verification step succeeds.")
-if "- name: Require Mapbox Standard A/B APK" not in workflow:
-    raise SystemExit("The PR #79 comparison build must fail closed when its APK/manifest is missing.")
-if "steps.build_standard_apk.outcome != 'skipped'" not in workflow:
-    raise SystemExit("The Standard APK requirement must not turn an early cancellation into a false build failure.")
+    if marker not in renderer_upload:
+        raise SystemExit(f"TextureView/VD A/B artifact upload is missing: {marker}")
+if "if: success() && steps.build_texture_apk.outcome == 'success'" not in renderer_upload:
+    raise SystemExit("The renderer artifact upload must be conditional on a successful comparison build.")
+if "- name: Require Mapbox TextureView/VD A/B APK" not in workflow:
+    raise SystemExit("The PR #79 renderer comparison build must fail closed when its APK/manifest is missing.")
+if "steps.build_texture_apk.outcome != 'skipped'" not in workflow:
+    raise SystemExit("The renderer APK requirement must not turn an early cancellation into a false build failure.")
 
 evidence_upload = workflow.split("- name: Upload Android map smoke evidence", 1)[1]
 if "if: always()" not in evidence_upload.split("- name: Require Android map native smoke", 1)[0]:
     raise SystemExit("Android smoke evidence must upload even when the smoke command fails.")
 require_smoke = workflow.split("- name: Require Android map native smoke", 1)[1]
-require_smoke = require_smoke.split("- name: Require Mapbox Standard A/B APK", 1)[0]
+require_smoke = require_smoke.split("- name: Require Mapbox TextureView/VD A/B APK", 1)[0]
 for marker in (
     'steps.android_map_smoke.outcome',
     '!= "success"',
@@ -403,13 +428,13 @@ for marker in (
     "${{ runner.temp }}/primary/espana-system-dialog.xml",
     "${{ runner.temp }}/primary/espana-map-page-check.txt",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
-    "${{ runner.temp }}/standard/espana-system-dialog.xml",
-    "${{ runner.temp }}/standard/espana-map-page-check.txt",
-    "${{ runner.temp }}/standard/espana-outdoor-map.png",
-    "${{ runner.temp }}/standard/espana-mapbox-diagnostics.txt",
+    "${{ runner.temp }}/texture-vd/espana-system-dialog.xml",
+    "${{ runner.temp }}/texture-vd/espana-map-page-check.txt",
+    "${{ runner.temp }}/texture-vd/espana-outdoor-map.png",
+    "${{ runner.temp }}/texture-vd/espana-mapbox-diagnostics.txt",
 ):
     if marker not in evidence_upload:
-        raise SystemExit(f"Android smoke evidence upload is missing A/B artifact path: {marker}")
+        raise SystemExit(f"Android smoke evidence upload is missing renderer A/B artifact path: {marker}")
 
 print("android_map_smoke_network_preflight=true")
 print("android_map_smoke_render_gate=true")
