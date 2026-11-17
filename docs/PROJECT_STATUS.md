@@ -892,3 +892,12 @@ La prueba física OPPO, la descarga y persistencia offline, el modo avión y el 
 - Conclusión limitada: el PlatformView y el renderizador nativo pueden dibujar un estilo local sin fuentes. No se ha demostrado que las teselas vectoriales remotas se decodifiquen/rendericen; el estilo remoto Standard se sustituye por baseline antes del frame completo.
 - Nuevo experimento en el HEAD siguiente: MapWidget con una única fuente Streets v8 y capa `road`; la captura debe contener píxeles de línea `#c43c39` en el viewport central, además de `MAP_LOADED`, `FULL` e `IDLE`. El gate no puede aprobarse por controles Flutter o por el fondo solo.
 - Producción conserva Outdoors v12 + Hybrid Composition/SurfaceView. No hay aceptación offline, prueba OPPO, persistencia tras reinicio, identidad E2E ni certificación de backend/Valhalla.
+
+
+## Gradle dependency-cache mitigation — 17/11/2026
+
+Android staging [44180150008](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150008) passed the real Mapbox MVT preflight (the Córdoba z12 Streets v8 tile decoded with a `road` layer and LINESTRING feature), Flutter analysis, and the full staging test step. The release APK build then failed before compilation while Gradle resolved Kotlin plugin artifacts: Maven Central returned HTTP 429 for `kotlin-gradle-plugins-bom:2.2.20` and related Kotlin artifacts. The failed build produced no APK or Android map-smoke artifact. This is an upstream dependency-rate-limit failure, not a cartography result.
+
+The failed Android job was re-run through GitHub Actions. To reduce repeat downloads and improve resilience, the CI Flutter build and Android staging workflows now enable the standard Gradle dependency cache through `actions/setup-java` (`cache: gradle`) keyed by the committed Android Gradle files. A structural regression check enforces the cache configuration. The first cache population still requires a successful dependency resolution; the retry must be inspected before treating the mitigation as effective.
+
+CI [44180150099](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150099) completed successfully (Flutter, Source Gateway, Rescue Link, iOS). Security [44180150079](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150079) completed 8/8. No map-rendering, physical-device, offline-persistence, or production-deployment acceptance is implied.
