@@ -153,6 +153,29 @@ void main() {
     });
   });
 
+  group('Mapbox resource diagnostic budgets', () {
+    test('normalizes request enum labels', () {
+      expect(mapboxResourceDiagnosticKind('RequestType.TILE'), 'TILE');
+      expect(mapboxResourceDiagnosticKind('MODEL'), 'MODEL');
+    });
+
+    test('prioritizes vector tile events over noisy model events', () {
+      expect(mapboxResourceDiagnosticLimit('RequestType.TILE'), 300);
+      expect(
+        mapboxResourceDiagnosticLimit('RequestType.TILE'),
+        greaterThan(mapboxResourceDiagnosticLimit('RequestType.MODEL')),
+      );
+      expect(mapboxResourceDiagnosticLimit('RequestType.MODEL'), 16);
+    });
+
+    test('keeps bounded budgets for style and sprite traffic', () {
+      expect(mapboxResourceDiagnosticLimit('STYLE'), 32);
+      expect(mapboxResourceDiagnosticLimit('SPRITE_IMAGE'), 24);
+      expect(mapboxResourceDiagnosticLimit('SPRITE_JSON'), 24);
+      expect(mapboxResourceDiagnosticLimit('UNKNOWN'), 24);
+    });
+  });
+
   group('formatMapboxTileId', () {
     test('prints canonical z/x/y coordinates', () {
       expect(formatMapboxTileId(z: 14, x: 8213, y: 6214), '14/8213/6214');
