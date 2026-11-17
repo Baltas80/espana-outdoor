@@ -654,3 +654,20 @@ El nuevo workflow debe publicar APK principal y comparación por separado, regis
 7. Corregir también el pixel ratio del descriptor offline y ejecutar descarga, modo avión, force-stop, reapertura y reinicio.
 
 PR #79 permanece draft. No fusionar ni certificar mapa online/offline hasta tener una captura utilizable y prueba reproducible en dispositivo Android real.
+
+
+## Actualización de entrega — 17/11/2026 07:18 CET
+
+### Android / Mapbox
+
+- [Android staging 44023914366](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366): APK principal Impeller y APK comparativo Skia compilados y publicados; análisis y tests del job superados; smoke cartográfico fallido.
+- Evidencias: [artefacto 14303301878](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366/artifacts/14303301878). Ambos APK llegan a la pantalla Mapa, pero solo emiten `RenderMode.PARTIAL`; no hay `MAP_LOADED` ni `MAP_IDLE`. Capturas no aceptables.
+- El Snapshotter alcanza `style_loaded` y `camera_set`, pero `start()` agota 45 s; no se genera PNG. Se observa `GL error 0x501` en el emulador SwiftShader en ambos procesos, sin demostrar causalidad.
+- El estilo remoto informa 148 capas, una fuente y fondo claro; hay respuestas de teselas/glyphs con contenido. Los misses de TileStore no son HTTP 404.
+- Se añadió un baseline Snapshotter con estilo JSON local sin fuentes, junto con logging de errores tardíos, style-data, imágenes ausentes y `capture_started`. Su resultado aún está pendiente de CI/Android staging.
+
+### Estado de aceptación
+
+No se acepta el mapa online ni offline. Siguen pendientes: descarga/persistencia y modo avión con cierre/reapertura/reinicio; validación del APK candidato en OPPO; identidad compartida web/Android contra Keycloak/PostgreSQL reales; estado operativo de Valhalla y despliegues externos; protección de main.
+
+No fusionar PR #79 ni modificar el estilo de producción hasta superar el gate cartográfico, pruebas offline y validación física. Ver detalles y criterio de interpretación en [docs/MAP_OFFLINE.md](MAP_OFFLINE.md).
