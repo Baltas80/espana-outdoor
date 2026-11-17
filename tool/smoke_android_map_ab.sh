@@ -42,8 +42,8 @@ if [[ "${primary_manifest_style}" != "${primary_style}" ]]; then
   echo "ERROR: primary style argument does not match the APK manifest." >&2
   exit 2
 fi
-if [[ "${primary_view_mode}" != "hybrid-surface" ]]; then
-  echo "ERROR: primary APK must use the production Hybrid Composition/SurfaceView mode." >&2
+if [[ "${primary_view_mode}" != "hybrid-surface" && "${primary_view_mode}" != "virtual-texture" ]]; then
+  echo "ERROR: primary APK has an unsupported Android platform-view mode." >&2
   exit 2
 fi
 if [[ "${primary_renderer}" != "impeller-default" || "${primary_impeller}" != "default" ]]; then
@@ -65,6 +65,7 @@ RUNNER_TEMP="${primary_evidence}" timeout --foreground --signal=TERM --kill-afte
 
 renderer_status=0
 renderer_run=false
+renderer_view_mode=not-run
 if [[ -s "${renderer_apk}" ]]; then
   if [[ ! -s "${renderer_manifest}" ]]; then
     echo "ERROR: Skia comparison APK exists without its validation manifest." >&2
@@ -114,6 +115,7 @@ fi
 
 tile_store_disabled_status=0
 tile_store_disabled_run=false
+diagnostic_view_mode=not-run
 if [[ -s "${tile_store_disabled_apk}" ]]; then
   if [[ ! -s "${tile_store_disabled_manifest}" ]]; then
     echo "ERROR: TileStore-disabled diagnostic APK exists without its validation manifest." >&2
@@ -157,6 +159,7 @@ if [[ -s "${tile_store_disabled_apk}" ]]; then
 fi
 
 primary_renderer_status=0
+primary_view_mode_status=0
 primary_logcat="${primary_evidence}/espana-outdoor-map-logcat.txt"
 if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${primary_logcat}"; then
   echo "ERROR: primary APK did not prove that Impeller is active in the runtime log." >&2
@@ -164,11 +167,22 @@ if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER
 fi
 
 comparison_renderer_status=0
+if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_ANDROID_VIEW mode=${primary_view_mode}" "${primary_logcat}"; then
+  echo "ERROR: primary APK runtime platform-view mode does not match its manifest." >&2
+  primary_view_mode_status=1
+fi
+
+comparison_renderer_status=0
+comparison_view_mode_status=0
 if [[ "${renderer_run}" == "true" ]]; then
   comparison_logcat="${renderer_evidence}/espana-outdoor-map-logcat.txt"
   if [[ ! -s "${comparison_logcat}" ]] || ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "${comparison_logcat}"; then
     echo "ERROR: comparison APK did not prove that Skia is active in the runtime log." >&2
     comparison_renderer_status=1
+  fi
+  if [[ ! -s "${comparison_logcat}" ]] || ! grep -Fq "MAPBOX_ANDROID_VIEW mode=${renderer_view_mode}" "${comparison_logcat}"; then
+    echo "ERROR: comparison APK runtime platform-view mode does not match its manifest." >&2
+    comparison_view_mode_status=1
   fi
 fi
 
@@ -179,6 +193,7 @@ if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_TILE_STORE_USAGE request
   echo "ERROR: primary APK did not prove the default read-only TileStore mode." >&2
   tile_store_identity_status=1
 fi
+diagnostic_view_mode_status=0
 if [[ "${tile_store_disabled_run}" == "true" ]]; then
   diagnostic_logcat="${tile_store_disabled_evidence}/espana-outdoor-map-logcat.txt"
   if [[ ! -s "${diagnostic_logcat}" ]] || ! grep -Fq "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" "${diagnostic_logcat}"; then
@@ -189,11 +204,16 @@ if [[ "${tile_store_disabled_run}" == "true" ]]; then
     echo "ERROR: TileStore-disabled diagnostic APK must retain the default Impeller renderer." >&2
     tile_store_renderer_status=1
   fi
+  if [[ ! -s "${diagnostic_logcat}" ]] || ! grep -Fq "MAPBOX_ANDROID_VIEW mode=${diagnostic_view_mode}" "${diagnostic_logcat}"; then
+    echo "ERROR: TileStore diagnostic runtime platform-view mode does not match its manifest." >&2
+    diagnostic_view_mode_status=1
+  fi
 fi
 
-echo "MAPBOX_FLUTTER_RENDERER_AB style=${primary_style} primary_mode=hybrid-surface primary_renderer=impeller primary_status=${primary_status} comparison_run=${renderer_run} comparison_mode=hybrid-surface comparison_renderer=$([[ "${renderer_run}" == "true" ]] && echo skia || echo not-run) comparison_status=${renderer_status} renderer_identity_status=$((primary_renderer_status + comparison_renderer_status))"
+echo "MAPBOX_FLUTTER_RENDERER_AB style=${primary_style} primary_mode=${primary_view_mode} primary_renderer=impeller primary_status=${primary_status} comparison_run=${renderer_run} comparison_mode=${renderer_view_mode} comparison_renderer=$([[ "${renderer_run}" == "true" ]] && echo skia || echo not-run) comparison_status=${renderer_status} renderer_identity_status=$((primary_renderer_status + comparison_renderer_status))"
+echo "MAPBOX_ANDROID_VIEW_MODE_AB primary_mode=${primary_view_mode} comparison_mode=${renderer_view_mode} diagnostic_mode=${diagnostic_view_mode} identity_status=$((primary_view_mode_status + comparison_view_mode_status + diagnostic_view_mode_status))"
 echo "MAPBOX_TILE_STORE_USAGE_AB primary_mode=default primary_status=${primary_status} diagnostic_run=${tile_store_disabled_run} diagnostic_mode=disabled diagnostic_status=${tile_store_disabled_status} mode_identity_status=${tile_store_identity_status} renderer_identity_status=${tile_store_renderer_status}"
 echo "MAPBOX_SNAPSHOTTER_DIAGNOSTICS_AB primary=false comparison=false tile_store_disabled=false"
-if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 || tile_store_renderer_status != 0 )); then
+if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 || tile_store_renderer_status != 0 || primary_view_mode_status != 0 || comparison_view_mode_status != 0 || diagnostic_view_mode_status != 0 )); then
   exit 1
 fi
