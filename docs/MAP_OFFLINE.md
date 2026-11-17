@@ -216,3 +216,26 @@ El viewport online y el descriptor de la región offline deben usar el mismo URI
 El helper `cordobaOfflineTilesetDescriptorOptions` valida que el pixel ratio sea finito y positivo, conserva zoom 8–15 y permite probar la configuración sin iniciar una descarga.
 
 Esta paridad corrige una diferencia de configuración detectada en la integración. No demuestra persistencia ni renderizado offline: la aceptación sigue requiriendo descarga real, confirmación de style pack y región en TileStore, modo avión, cierre forzado, reapertura y reinicio del dispositivo Android.
+
+
+## Renderer A/B: evidencia real y diagnóstico de estilo — 17/11/2026
+
+Ejecución [43995006900](https://github.com/Baltas80/espana-outdoor/actions/runs/43995006900), artefacto [14290666552](https://github.com/Baltas80/espana-outdoor/actions/runs/43995006900/artifacts/14290666552), source commit `e90ca71`.
+
+Los dos APK llegaron a la pantalla real Mapa y cargaron `outdoors-v12`. El modo Hybrid Composition/SurfaceView mostró únicamente trazos oscuros sobre fondo negro; Virtual Display/TextureView dejó visible el fondo de la app, sin cartografía utilizable. Ambos smoke fallaron correctamente: no apareció `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+
+La evidencia confirma:
+- Hybrid: `STYLE_LOADED`, `RenderMode.PARTIAL`, 3 eventos de fuente `loaded=true` y 47 `loaded=false`.
+- Texture/VD: `STYLE_LOADED`, `RenderMode.PARTIAL`, 6 eventos `loaded=true` y 112 `loaded=false` en el archivo acumulado. El segundo logcat contenía también el proceso anterior, por lo que esas cifras no deben compararse como si fueran exclusivas del segundo modo.
+- Se recibieron teselas, sprites y glyphs desde Network con tamaños no vacíos y sin error explícito. Los misses de TileStore/Cache no equivalen a HTTP 404.
+- La captura confirma que el viewport no es aceptable; el estilo y el hosting siguen sin quedar validados.
+
+### Correcciones de observabilidad
+
+Se ha añadido una inspección de estilo al evento `STYLE_LOADED` que registra, sin volcar URLs ni credenciales, el número de capas/fuentes, la capa de fondo y su `paint`, el tamaño del MapView, el centro/zoom y el resultado de `isStyleLoaded()`. El objetivo es distinguir un estilo cuyo fondo sea realmente oscuro de un problema de composición/renderizado.
+
+Cada ejecución de `smoke_android_map.sh` limpia ahora logcat después de conectar con el emulador y antes de instalar el APK. Así el artefacto `texture-vd` deja de mezclar el proceso Hybrid anterior con el proceso comparativo.
+
+La limpieza solo afecta al emulador efímero de CI; no se ejecuta en el OPPO ni en dispositivos de usuario.
+
+La aceptación sigue bloqueada hasta obtener un PNG cartográfico legible, `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL`, seguidos por las pruebas offline en Android.
