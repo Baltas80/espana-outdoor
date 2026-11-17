@@ -393,6 +393,7 @@ jobs:
             ${{ runner.temp }}/primary/espana-map-page-check.txt
             ${{ runner.temp }}/primary/espana-outdoor-map.png
             ${{ runner.temp }}/primary/espana-mapbox-snapshotter.png
+            ${{ runner.temp }}/primary/espana-mapbox-snapshotter-vector.png
             ${{ runner.temp }}/skia/espana-outdoor-map-logcat.txt
             ${{ runner.temp }}/skia/espana-mapbox-diagnostics.txt
             ${{ runner.temp }}/skia/espana-window.xml
@@ -401,6 +402,7 @@ jobs:
             ${{ runner.temp }}/skia/espana-map-page-check.txt
             ${{ runner.temp }}/skia/espana-outdoor-map.png
             ${{ runner.temp }}/skia/espana-mapbox-snapshotter.png
+            ${{ runner.temp }}/skia/espana-mapbox-snapshotter-vector.png
           if-no-files-found: ignore
       - name: Require Android map native smoke
         if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
