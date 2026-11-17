@@ -527,3 +527,17 @@ El smoke total se limita a 55 minutos, el boot del emulador a 600 segundos y cad
 
 CI [44097670840](https://github.com/Baltas80/espana-outdoor/actions/runs/44097670840) falló en el test estructural porque aún esperaba un timeout de 65 minutos y tres variantes. El experimento Standard actual ejecuta dos APK (TileStore READ_ONLY y DISABLED) y usa 55 minutos; se actualizó la aserción en [0180acea](https://github.com/Baltas80/espana-outdoor/commit/0180acea07e4918687b6e25b340d70dd4070da03). El fallo era del test desactualizado, no del build ni del SDK. La nueva CI debe pasar antes de aceptar el cambio.
 
+
+
+## APKs Standard + Virtual Texture verificados por SHA-256 — 17/11/2026
+
+Run [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153), source commit `647fbedee05e86635a9b7a0d2da329f1aa190788`:
+
+- [APK primario + manifiesto](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14335334142): Standard, Virtual Display/TextureView, Impeller predeterminado, TileStore default/READ_ONLY, Snapshotter desactivado. SHA-256 `e52bd91edb072476fa579de9543787cafadaa13314c96abdd52f4c3aeaa852f7`.
+- [APK TileStore-disabled + manifiesto](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14336391796): misma identidad, estilo, hosting y renderer; TileStore DISABLED. SHA-256 `3f8df4020d2b15e8dd3fb13039a595db08bf28008202665a4754adb6bef10303`.
+
+Los dos APK tienen 200.316.534 bytes, Application ID `com.espanaoutdoors.espana_outdoors.iconspreview` y versionCode 5. Se descargaron los ZIP de artefactos, se inspeccionaron los manifiestos y se recalculó SHA-256 sobre cada APK extraído; los valores coinciden.
+
+El smoke Android seguía ejecutándose cuando se registró esta actualización. Aún no se había publicado PNG/logcat de la comparación, por lo que estos artefactos acreditan compilación, identidad y configuración, no renderizado. TileStore DISABLED es solo diagnóstico online y no se puede utilizar para aceptar mapas offline.
+
+La aceptación sigue exigiendo `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual legible y prueba posterior en Android físico: descarga de región/estilo, force-stop, modo avión, reapertura y reinicio. No se cambia producción.
