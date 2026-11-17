@@ -261,6 +261,7 @@ jobs:
           test "$expected_sha" = "$actual_sha"
           grep -Fxq "workflow_commit=$GITHUB_SHA" "$manifest"
           grep -Fxq "mapbox_android_view_mode=$MAPBOX_ANDROID_VIEW_MODE" "$manifest"
+          grep -Fxq "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" "$manifest"
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             grep -Fxq "source_commit=${{ github.event.pull_request.head.sha }}" "$manifest"
           fi
@@ -615,7 +616,7 @@ jobs:
           actual_sha="$(sha256sum "$diagnostic_apk" | cut -d ' ' -f1)"
           test -n "$expected_sha"
           test "$expected_sha" = "$actual_sha"
-          for key in application_id version_code source_commit mapbox_style_uri mapbox_android_view_mode; do
+          for key in application_id version_code source_commit mapbox_style_uri mapbox_android_view_mode mapbox_map_widget_diagnostic_style; do
             expected="$(sed -n "s/^${key}=//p" "$primary_manifest" | head -n 1)"
             actual="$(sed -n "s/^${key}=//p" "$diagnostic_manifest" | head -n 1)"
             test -n "$expected"
