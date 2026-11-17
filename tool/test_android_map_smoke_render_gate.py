@@ -304,6 +304,10 @@ for marker in (
     "mapbox_style_variant",
     "type: choice",
     "default: outdoors-v12",
+    "android_view_mode",
+    "inputs.android_view_mode == 'virtual-texture'",
+    "MAPBOX_ANDROID_VIEW_MODE:",
+    "virtual-texture",
     "inputs.mapbox_style_variant == 'standard'",
     "github.event_name == 'pull_request' && github.event.pull_request.number == 79",
     "mapbox://styles/mapbox/standard",
@@ -497,7 +501,11 @@ for marker in (
     'if ! grep -Fxq "Success" <<<"${clear_output}"; then',
     'comparison_run=${renderer_run}',
     'comparison_status=${renderer_status}',
-    'comparison_mode=hybrid-surface',
+    'comparison_mode=${renderer_view_mode}',
+    'primary_mode=${primary_view_mode}',
+    'MAPBOX_ANDROID_VIEW mode=${primary_view_mode}',
+    'MAPBOX_ANDROID_VIEW_MODE_AB primary_mode=${primary_view_mode}',
+    'virtual-texture',
     'primary_renderer=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia',
@@ -558,17 +566,17 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         'if [[ "$*" == *"bash tool/smoke_android_map.sh"* ]]; then\n'
         '  mkdir -p "$RUNNER_TEMP"\n'
         '  if [[ "$RUNNER_TEMP" == */primary ]]; then\n'
-        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  elif [[ "$RUNNER_TEMP" == */tile-store-disabled ]]; then\n'
         '    if [[ "${FAIL_TILE_STORE_RENDERER:-false}" == "true" ]]; then\n'
-        '      printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '      printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '    else\n'
-        '      printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '      printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '    fi\n'
         '  elif [[ "${FAIL_SKIA_DIAGNOSTIC:-false}" == "true" ]]; then\n'
-        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  else\n'
-        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  fi\n'
         'fi\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
@@ -582,6 +590,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     test_env = os.environ.copy()
     test_env["PATH"] = str(fake_bin) + os.pathsep + test_env.get("PATH", "")
     test_env["CALL_LOG"] = str(call_log)
+    test_env["VIEW_MODE"] = "hybrid-surface"
 
     successful = subprocess.run(
         ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
@@ -601,6 +610,51 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         raise SystemExit("Android renderer A/B runner did not isolate primary and comparison evidence directories.")
     if "adb shell pm clear com.espanaoutdoors.espana_outdoors.iconspreview" not in calls:
         raise SystemExit("The Skia A/B runner must clear app data before installing the comparison APK.")
+
+    # Verify the A/B harness with Virtual Display + TextureView.
+    for manifest_path in (
+        temp_root / "primary-build" / "android-staging-validation.txt",
+        temp_root / "skia-build" / "android-staging-validation.txt",
+    ):
+        manifest_text = manifest_path.read_text(encoding="utf-8")
+        manifest_path.write_text(
+            manifest_text.replace(
+                "mapbox_android_view_mode=hybrid-surface",
+                "mapbox_android_view_mode=virtual-texture",
+            ),
+            encoding="utf-8",
+        )
+    virtual_env = test_env.copy()
+    virtual_env["VIEW_MODE"] = "virtual-texture"
+    virtual_texture = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=virtual_env,
+        check=False,
+    )
+    if (
+        virtual_texture.returncode != 0
+        or "primary_mode=virtual-texture" not in virtual_texture.stdout
+        or "comparison_mode=virtual-texture" not in virtual_texture.stdout
+        or "identity_status=0" not in virtual_texture.stdout
+    ):
+        raise SystemExit(
+            f"Android A/B runner did not validate Virtual Display/TextureView mode: "
+            f"{virtual_texture.stdout} {virtual_texture.stderr}"
+        )
+    for manifest_path in (
+        temp_root / "primary-build" / "android-staging-validation.txt",
+        temp_root / "skia-build" / "android-staging-validation.txt",
+    ):
+        manifest_text = manifest_path.read_text(encoding="utf-8")
+        manifest_path.write_text(
+            manifest_text.replace(
+                "mapbox_android_view_mode=virtual-texture",
+                "mapbox_android_view_mode=hybrid-surface",
+            ),
+            encoding="utf-8",
+        )
 
     mismatch_env = test_env.copy()
     mismatch_env["FAIL_SKIA_DIAGNOSTIC"] = "true"
@@ -778,10 +832,10 @@ if renderer_build.index("flutter clean") > renderer_build.index("flutter pub get
 
 primary_build = workflow.split("- name: Build Android staging APK", 1)[1]
 primary_build = primary_build.split("- name: Verify APK", 1)[0]
-if "--dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface" not in primary_build:
-    raise SystemExit("The primary Android APK must explicitly use Hybrid Composition/SurfaceView.")
-if 'echo "mapbox_android_view_mode=hybrid-surface"' not in primary_build:
-    raise SystemExit("The primary APK manifest must record its Android hosting mode.")
+if '--dart-define=MAPBOX_ANDROID_VIEW_MODE="$MAPBOX_ANDROID_VIEW_MODE"' not in primary_build:
+    raise SystemExit("The primary Android APK must compile with the selected Android platform-view mode.")
+if 'echo "mapbox_android_view_mode=$MAPBOX_ANDROID_VIEW_MODE"' not in primary_build:
+    raise SystemExit("The primary APK manifest must record the selected Android platform-view mode.")
 if '--dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default' not in primary_build:
     raise SystemExit("The primary Android APK must explicitly select the default TileStore usage mode.")
 if 'echo "mapbox_tile_store_usage_mode=default"' not in primary_build:
