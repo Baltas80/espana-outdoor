@@ -461,6 +461,12 @@ else
 fi
 
 adb logcat -d >"${logcat_file}"
+if [[ "${map_widget_diagnostic_style}" != "none" ]]; then
+  if ! grep -Fq "MAPBOX_DIAGNOSTIC event=MAP_WIDGET_DIAGNOSTIC_STYLE variant=${map_widget_diagnostic_style} result=accepted" "${logcat_file}"; then
+    echo "FAIL: the requested live MapWidget diagnostic style was not accepted."
+    exit 1
+  fi
+fi
 if [[ "${snapshotter_mode}" == "enabled" ]]; then
   snapshotter_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter.png"
   if python3 tool/extract_mapbox_snapshotter_png.py --kind baseline --logcat "${logcat_file}" --output "${snapshotter_file}"; then
