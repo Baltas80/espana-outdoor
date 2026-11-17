@@ -34,6 +34,7 @@ main_dart = MAIN_DART.read_text(encoding="utf-8")
 for marker in (
     "MAPBOX_TILE_STORE_USAGE_MODE",
     "MapboxMapsOptions.setTileStoreUsageMode(TileStoreUsageMode.DISABLED)",
+    "MapboxMapsOptions.setTileStoreUsageMode(TileStoreUsageMode.READ_ONLY)",
     "MapboxMapsOptions.getTileStoreUsageMode()",
     "effective=${effectiveMode.name.toLowerCase()}",
     "await _configureMapboxTileStoreUsage();",
