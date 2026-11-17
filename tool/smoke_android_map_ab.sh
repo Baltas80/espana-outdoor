@@ -9,8 +9,11 @@ primary_manifest="${runner_temp}/primary-build/android-staging-validation.txt"
 renderer_manifest="${runner_temp}/skia-build/android-staging-validation.txt"
 primary_evidence="${runner_temp}/primary"
 renderer_evidence="${runner_temp}/skia"
+tile_store_disabled_apk="${runner_temp}/tile-store-disabled-build/app-release.apk"
+tile_store_disabled_manifest="${runner_temp}/tile-store-disabled-build/android-staging-validation.txt"
+tile_store_disabled_evidence="${runner_temp}/tile-store-disabled"
 
-mkdir -p "${primary_evidence}" "${renderer_evidence}"
+mkdir -p "${primary_evidence}" "${renderer_evidence}" "${tile_store_disabled_evidence}"
 
 manifest_value() {
   local manifest="$1"
@@ -29,6 +32,7 @@ primary_manifest_style="$(manifest_value "${primary_manifest}" mapbox_style_uri)
 primary_view_mode="$(manifest_value "${primary_manifest}" mapbox_android_view_mode)"
 primary_renderer="$(manifest_value "${primary_manifest}" flutter_renderer)"
 primary_impeller="$(manifest_value "${primary_manifest}" impeller_enabled)"
+primary_tile_store_mode="$(manifest_value "${primary_manifest}" mapbox_tile_store_usage_mode)"
 if [[ -z "${primary_app_id}" || -z "${primary_source_commit}" || -z "${primary_version_code}" ]]; then
   echo "ERROR: primary manifest is missing application_id, source_commit or version_code." >&2
   exit 2
@@ -43,6 +47,10 @@ if [[ "${primary_view_mode}" != "hybrid-surface" ]]; then
 fi
 if [[ "${primary_renderer}" != "impeller-default" || "${primary_impeller}" != "default" ]]; then
   echo "ERROR: primary APK manifest must identify the default Impeller configuration." >&2
+  exit 2
+fi
+if [[ "${primary_tile_store_mode}" != "default" ]]; then
+  echo "ERROR: primary APK must use the default TileStore mode." >&2
   exit 2
 fi
 
@@ -94,6 +102,45 @@ if [[ -s "${renderer_apk}" ]]; then
     bash tool/smoke_android_map.sh "${renderer_apk}" online || renderer_status=$?
 fi
 
+tile_store_disabled_status=0
+tile_store_disabled_run=false
+if [[ -s "${tile_store_disabled_apk}" ]]; then
+  if [[ ! -s "${tile_store_disabled_manifest}" ]]; then
+    echo "ERROR: TileStore-disabled diagnostic APK exists without its validation manifest." >&2
+    exit 2
+  fi
+  diagnostic_app_id="$(manifest_value "${tile_store_disabled_manifest}" application_id)"
+  diagnostic_source_commit="$(manifest_value "${tile_store_disabled_manifest}" source_commit)"
+  diagnostic_version_code="$(manifest_value "${tile_store_disabled_manifest}" version_code)"
+  diagnostic_style="$(manifest_value "${tile_store_disabled_manifest}" mapbox_style_uri)"
+  diagnostic_view_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_android_view_mode)"
+  diagnostic_tile_store_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_tile_store_usage_mode)"
+  if [[ "${diagnostic_app_id}" != "${primary_app_id}" || "${diagnostic_source_commit}" != "${primary_source_commit}" || "${diagnostic_version_code}" != "${primary_version_code}" ]]; then
+    echo "ERROR: TileStore diagnostic APK does not share application ID, source commit and version code." >&2
+    exit 2
+  fi
+  if [[ "${diagnostic_style}" != "${primary_manifest_style}" || "${diagnostic_view_mode}" != "${primary_view_mode}" ]]; then
+    echo "ERROR: TileStore diagnostic APK must keep the primary style and Android hosting mode." >&2
+    exit 2
+  fi
+  if [[ "${diagnostic_tile_store_mode}" != "disabled" ]]; then
+    echo "ERROR: diagnostic APK manifest must identify TileStore usage as disabled." >&2
+    exit 2
+  fi
+
+  # The diagnostic build intentionally bypasses TileStore. It must never be
+  # used as an offline acceptance candidate.
+  timeout --foreground --signal=TERM --kill-after=15s 45s adb shell am force-stop "${primary_app_id}"
+  clear_output="$(timeout --foreground --signal=TERM --kill-after=15s 45s adb shell pm clear "${primary_app_id}" | tr -d "\r")"
+  if ! grep -Fxq "Success" <<<"${clear_output}"; then
+    echo "ERROR: failed to clear app data before TileStore-disabled experiment: ${clear_output}" >&2
+    exit 2
+  fi
+  tile_store_disabled_run=true
+  RUNNER_TEMP="${tile_store_disabled_evidence}" timeout --foreground --signal=TERM --kill-after=150s 20m \
+    bash tool/smoke_android_map.sh "${tile_store_disabled_apk}" online || tile_store_disabled_status=$?
+fi
+
 primary_renderer_status=0
 primary_logcat="${primary_evidence}/espana-outdoor-map-logcat.txt"
 if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${primary_logcat}"; then
@@ -110,7 +157,22 @@ if [[ "${renderer_run}" == "true" ]]; then
   fi
 fi
 
+tile_store_identity_status=0
+primary_logcat="${primary_evidence}/espana-outdoor-map-logcat.txt"
+if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" "${primary_logcat}"; then
+  echo "ERROR: primary APK did not prove the default read-only TileStore mode." >&2
+  tile_store_identity_status=1
+fi
+if [[ "${tile_store_disabled_run}" == "true" ]]; then
+  diagnostic_logcat="${tile_store_disabled_evidence}/espana-outdoor-map-logcat.txt"
+  if [[ ! -s "${diagnostic_logcat}" ]] || ! grep -Fq "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" "${diagnostic_logcat}"; then
+    echo "ERROR: diagnostic APK did not prove TileStore is disabled at runtime." >&2
+    tile_store_identity_status=1
+  fi
+fi
+
 echo "MAPBOX_FLUTTER_RENDERER_AB style=${primary_style} primary_mode=hybrid-surface primary_renderer=impeller primary_status=${primary_status} comparison_run=${renderer_run} comparison_mode=hybrid-surface comparison_renderer=$([[ "${renderer_run}" == "true" ]] && echo skia || echo not-run) comparison_status=${renderer_status} renderer_identity_status=$((primary_renderer_status + comparison_renderer_status))"
-if (( primary_status != 0 || renderer_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 )); then
+echo "MAPBOX_TILE_STORE_USAGE_AB primary_mode=default primary_status=${primary_status} diagnostic_run=${tile_store_disabled_run} diagnostic_mode=disabled diagnostic_status=${tile_store_disabled_status} mode_identity_status=${tile_store_identity_status}"
+if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 )); then
   exit 1
 fi
