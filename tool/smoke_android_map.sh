@@ -40,6 +40,9 @@ test -n "${package_name}"
 
 echo "Installing ${package_name}"
 adb wait-for-device
+# Keep the primary and renderer-comparison diagnostics independent. Each smoke
+# runs on the same disposable emulator, so discard boot/previous-app logcat.
+adb logcat -c
 
 # The Google APIs API-35 image repeatedly presents a system ANR for its
 # first-run SDK setup activity. It is unrelated to the app and blocks all UI
