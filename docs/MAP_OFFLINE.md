@@ -225,8 +225,9 @@ Ejecución [43995006900](https://github.com/Baltas80/espana-outdoor/actions/runs
 Los dos APK llegaron a la pantalla real Mapa y cargaron `outdoors-v12`. El modo Hybrid Composition/SurfaceView mostró únicamente trazos oscuros sobre fondo negro; Virtual Display/TextureView dejó visible el fondo de la app, sin cartografía utilizable. Ambos smoke fallaron correctamente: no apareció `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
 
 La evidencia confirma:
-- Hybrid: `STYLE_LOADED`, `RenderMode.PARTIAL`, 3 eventos de fuente `loaded=true` y 47 `loaded=false`.
-- Texture/VD: `STYLE_LOADED`, `RenderMode.PARTIAL`, 6 eventos `loaded=true` y 112 `loaded=false` en el archivo acumulado. El segundo logcat contenía también el proceso anterior, por lo que esas cifras no deben compararse como si fueran exclusivas del segundo modo.
+- Hybrid (PID 3553): `STYLE_LOADED`, `RenderMode.PARTIAL`, 3 eventos de fuente `loaded=true`, 47 `loaded=false` y 7 `unknown`.
+- Texture/VD (PID 4407): `STYLE_LOADED`, `RenderMode.PARTIAL`, 3 eventos `loaded=true`, 65 `loaded=false` y 7 `unknown`. El artefacto comparativo incluía también el PID 3553 del primer experimento; los recuentos anteriores se han separado por PID y no se han mezclado.
+- Ambos manifiestos se han descargado y verificado de nuevo: mismo `application_id`, versionCode 5, commit fuente `e90ca718a78ce1253687232bd97519444ae525bc` y estilo Outdoors; solo cambia `mapbox_android_view_mode`. SHA-256 Hybrid: `9fb85b2c9f98799d31102303e0dfbcac2112497f61e18e9c819276937b0dfe52`. SHA-256 Texture/VD: `20f1dacd06c316f2912e2296a5116c6a4667ef42ded10ac650c8c3565b54d1bb`. Artefactos: [APK Hybrid](https://github.com/Baltas80/espana-outdoor/actions/runs/43995006900/artifacts/14290038306) y [APK Texture/VD](https://github.com/Baltas80/espana-outdoor/actions/runs/43995006900/artifacts/14289563594).
 - Se recibieron teselas, sprites y glyphs desde Network con tamaños no vacíos y sin error explícito. Los misses de TileStore/Cache no equivalen a HTTP 404.
 - La captura confirma que el viewport no es aceptable; el estilo y el hosting siguen sin quedar validados.
 
