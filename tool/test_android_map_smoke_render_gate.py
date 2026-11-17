@@ -27,6 +27,8 @@ map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
 if not MAPBOX_VIEWPORT.is_file():
     raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
 mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
+if "snapshotter!.style" in mapbox_viewport:
+    raise SystemExit("Snapshotter diagnostics must use the direct v3 style API.")
 for marker in (
     "Future<void> _inspectLoadedStyle()",
     "map.getStyleJSON()",
@@ -41,6 +43,7 @@ for marker in (
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
     "mapbox.Snapshotter.create(",
     "mapbox.MapSnapshotOptions(",
+    "snapshotter!.setStyleJSON(styleJson)",
     "mapboxSnapshotterVectorStyleJson()",
     "mapbox://mapbox.mapbox-streets-v8",
     "'source-layer': 'road'",
