@@ -43,7 +43,7 @@ for marker in (
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
     "mapbox.Snapshotter.create(",
     "mapbox.MapSnapshotOptions(",
-    "snapshotter!.setStyleJSON(styleJson)",
+    "setStyleJSON(styleJson)",
     "mapboxSnapshotterVectorStyleJson()",
     "mapbox://mapbox.mapbox-streets-v8",
     "'source-layer': 'road'",
