@@ -347,6 +347,10 @@ if "'MAPBOX_STYLE_URI'" not in mapbox_viewport or "String.fromEnvironment(" not 
     raise SystemExit("Shared Mapbox viewport must accept a compile-time style override.")
 if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_viewport:
     raise SystemExit("Mapbox diagnostic output must identify the selected style URI.")
+if "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'vector' || 'none' }}" not in workflow:
+    raise SystemExit("PR #79 Android staging must exercise the live MapWidget vector style.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" ]]' not in source or '--expected-vector-color "#c43c39"' not in source:
+    raise SystemExit("Vector diagnostic smoke must require visible road-colored pixels.")
 if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
     raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
 if "tool/preflight_mapbox_tiles.py --style-uri \"$MAPBOX_STYLE_URI\"" not in workflow:
@@ -797,7 +801,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     )
     standard_env = test_env.copy()
     standard_env["VIEW_MODE"] = "virtual-texture"
-    standard_env["MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"] = "baseline"
+    standard_env["MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"] = "vector"
     call_log.write_text("", encoding="utf-8")
     tile_store_run = subprocess.run(
         ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/standard"],
