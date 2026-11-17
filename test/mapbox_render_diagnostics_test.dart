@@ -44,6 +44,46 @@ void main() {
     });
   });
 
+  group('Live MapWidget diagnostic styles', () {
+    test('baseline style has no remote sources and a stable expected color', () {
+      final raw = mapboxMapWidgetDiagnosticStyleJson('baseline');
+      expect(raw, isNotNull);
+      final style = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(style['sources'], isEmpty);
+      final layers = style['layers'] as List<dynamic>;
+      expect(layers, hasLength(1));
+      final background = layers.single as Map<String, dynamic>;
+      expect(background['type'], 'background');
+      expect(
+        (background['paint'] as Map<String, dynamic>)['background-color'],
+        '#d9e6c7',
+      );
+    });
+
+    test('vector style uses a single public Streets source and road layer', () {
+      final raw = mapboxMapWidgetDiagnosticStyleJson('vector');
+      expect(raw, isNotNull);
+      final style = jsonDecode(raw!) as Map<String, dynamic>;
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources, hasLength(1));
+      expect(
+        (sources.values.single as Map<String, dynamic>)['url'],
+        'mapbox://mapbox.mapbox-streets-v8',
+      );
+    });
+
+    test('none does not override the requested production style', () {
+      expect(mapboxMapWidgetDiagnosticStyleJson('none'), isNull);
+    });
+
+    test('rejects unknown diagnostic styles', () {
+      expect(
+        () => mapboxMapWidgetDiagnosticStyleJson('unknown'),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('Mapbox style diagnostics', () {
     test('summarizes source and background visibility without exposing URLs', () {
       const secret = 'not-a-real-token';
