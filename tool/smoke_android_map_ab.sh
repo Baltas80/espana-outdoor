@@ -173,6 +173,7 @@ if [[ "${renderer_run}" == "true" ]]; then
 fi
 
 tile_store_identity_status=0
+tile_store_renderer_status=0
 primary_logcat="${primary_evidence}/espana-outdoor-map-logcat.txt"
 if [[ ! -s "${primary_logcat}" ]] || ! grep -Fq "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" "${primary_logcat}"; then
   echo "ERROR: primary APK did not prove the default read-only TileStore mode." >&2
@@ -184,11 +185,15 @@ if [[ "${tile_store_disabled_run}" == "true" ]]; then
     echo "ERROR: diagnostic APK did not prove TileStore is disabled at runtime." >&2
     tile_store_identity_status=1
   fi
+  if [[ ! -s "${diagnostic_logcat}" ]] || ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${diagnostic_logcat}"; then
+    echo "ERROR: TileStore-disabled diagnostic APK must retain the default Impeller renderer." >&2
+    tile_store_renderer_status=1
+  fi
 fi
 
 echo "MAPBOX_FLUTTER_RENDERER_AB style=${primary_style} primary_mode=hybrid-surface primary_renderer=impeller primary_status=${primary_status} comparison_run=${renderer_run} comparison_mode=hybrid-surface comparison_renderer=$([[ "${renderer_run}" == "true" ]] && echo skia || echo not-run) comparison_status=${renderer_status} renderer_identity_status=$((primary_renderer_status + comparison_renderer_status))"
-echo "MAPBOX_TILE_STORE_USAGE_AB primary_mode=default primary_status=${primary_status} diagnostic_run=${tile_store_disabled_run} diagnostic_mode=disabled diagnostic_status=${tile_store_disabled_status} mode_identity_status=${tile_store_identity_status}"
+echo "MAPBOX_TILE_STORE_USAGE_AB primary_mode=default primary_status=${primary_status} diagnostic_run=${tile_store_disabled_run} diagnostic_mode=disabled diagnostic_status=${tile_store_disabled_status} mode_identity_status=${tile_store_identity_status} renderer_identity_status=${tile_store_renderer_status}"
 echo "MAPBOX_SNAPSHOTTER_DIAGNOSTICS_AB primary=false comparison=false tile_store_disabled=false"
-if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 )); then
+if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 || tile_store_renderer_status != 0 )); then
   exit 1
 fi
