@@ -490,3 +490,18 @@ El siguiente staging debe demostrar tres identidades runtime independientes ante
 CI general [44065339116](https://github.com/Baltas80/espana-outdoor/actions/runs/44065339116) y Security [44065336788](https://github.com/Baltas80/espana-outdoor/actions/runs/44065336788) terminaron correctamente sobre el HEAD 08ade9f; Android staging [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090) terminó en fallo del smoke. La nueva corrección aún necesita CI y staging sobre su nuevo HEAD.
 
 No se certifica mapa online/offline ni dispositivo físico. No se modifica la configuración cartográfica de producción.
+
+
+## Android staging 44094615345 — Standard + Virtual Texture (17/11/2026)
+
+El preflight de Mapbox Standard y Analyze and test terminaron correctamente. Se construyó y verificó el APK principal del source commit `c0b8ce4af1c157f386459b535179d820677ea5d9`:
+
+- Artefacto [14334097120](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334097120).
+- SHA-256 recalculado: `72af1cc5c6ed45f0b66c14931b57c7f8eca4ea77a3ed0e2eaf9724674c3e199f`.
+- Manifest: Standard, `virtual-texture` (Virtual Display + TextureView), Impeller predeterminado, TileStore READ_ONLY, Snapshotter desactivado.
+- El smoke Android seguía en ejecución y aún no había publicado capturas/logcat. La API de logs devolvió `BlobNotFound`; por tanto, no existe resultado cartográfico nuevo para ese APK.
+
+Se redujo el límite del paso de smoke a 40 minutos y el arranque del emulador a 600 segundos. El smoke por variante conserva su timeout de 20 minutos. La prueba `tool/test_ci_job_timeouts.py` verifica los dos límites. Commits: `8f18ebf`, `7a75335`, `abb3637`.
+
+Este APK solo prueba el estilo Standard y el hosting Virtual Display en emulador. No valida Outdoors v12, no acredita mapa online, no acredita TileStore offline y no es candidato de producción. El estilo/hosting de producción no se modifica.
+
