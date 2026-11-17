@@ -14,6 +14,10 @@ const mapboxStyleUri = String.fromEnvironment(
   defaultValue: 'mapbox://styles/mapbox/outdoors-v12',
 );
 const mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const mapboxSnapshotterDiagnosticsEnabled = bool.fromEnvironment(
+  'MAPBOX_SNAPSHOTTER_DIAGNOSTICS',
+  defaultValue: false,
+);
 
 /// Staging can compare Android platform-view composition without changing the
 /// production default. v3 defaults to Hybrid Composition + SurfaceView; the
@@ -344,7 +348,14 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         'lng=${center.lng} lat=${center.lat}',
       );
       debugPrint('MAPBOX_STYLE_DIAGNOSTIC ' + mapboxStyleDiagnosticsJson(rawStyleJson));
-      unawaited(_captureSnapshotterDiagnostic(size: size, camera: camera));
+      if (mapboxSnapshotterDiagnosticsEnabled) {
+        unawaited(_captureSnapshotterDiagnostic(size: size, camera: camera));
+      } else {
+        _logMapboxDiagnostic(
+          'SNAPSHOTTER_DIAGNOSTIC',
+          'enabled=false reason=map_widget_isolation',
+        );
+      }
     } catch (error) {
       debugPrint(
         'MAPBOX_STYLE_INSPECTION failed=${sanitizeMapboxDiagnostic(error.toString())}',
@@ -361,7 +372,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     required mapbox.Size size,
     required mapbox.CameraState camera,
   }) async {
-    if (const String.fromEnvironment('APP_ENV') != 'staging' ||
+    if (!mapboxSnapshotterDiagnosticsEnabled ||
+        const String.fromEnvironment('APP_ENV') != 'staging' ||
         defaultTargetPlatform != TargetPlatform.android ||
         _snapshotterCaptureStarted) {
       return;

@@ -158,6 +158,7 @@ jobs:
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
+            --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
@@ -206,6 +207,7 @@ jobs:
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
             echo "mapbox_android_view_mode=hybrid-surface"
             echo "mapbox_tile_store_usage_mode=default"
+            echo "mapbox_snapshotter_diagnostics=false"
             if [[ "$mapbox_runtime" == "available" ]]; then
               echo "validation_scope=runtime-capable-artifact"
             else
@@ -272,6 +274,7 @@ jobs:
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
+            --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
@@ -319,6 +322,7 @@ jobs:
             echo "flutter_renderer=skia-optout"
             echo "impeller_enabled=false"
             echo "mapbox_tile_store_usage_mode=default"
+            echo "mapbox_snapshotter_diagnostics=false"
             echo "mapbox_runtime_token=available"
             echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
@@ -348,6 +352,7 @@ jobs:
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=disabled \
+            --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
@@ -395,6 +400,7 @@ jobs:
             echo "flutter_renderer=impeller-default"
             echo "impeller_enabled=default"
             echo "mapbox_tile_store_usage_mode=disabled"
+            echo "mapbox_snapshotter_diagnostics=false"
             echo "mapbox_runtime_token=available"
             echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"

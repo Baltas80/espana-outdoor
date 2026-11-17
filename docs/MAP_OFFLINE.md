@@ -1,5 +1,19 @@
 # Cartografía y modo offline
 
+## Resultado Android A/B — 17/11/2026, run 44055960774
+
+El run [44055960774](https://github.com/Baltas80/espana-outdoor/actions/runs/44055960774) construyó, verificó e instaló los tres APK (Impeller/TileStore predeterminado, Skia/TileStore predeterminado y TileStore desactivado). Los tres llegaron a la pantalla cartográfica, pero ninguno alcanzó `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; todos quedaron en `RenderMode.PARTIAL` y el gate visual rechazó las capturas.
+
+Hallazgos de los logcat y PNG publicados en el artefacto [14316659955](https://github.com/Baltas80/espana-outdoor/actions/runs/44055960774/artifacts/14316659955):
+- El estilo Outdoors recibió respuestas de red sin error para style, sprites, teselas, glyphs y metadatos de `mapbox.mapbox-streets-v8` (TileJSON: 19.079 bytes).
+- TileStore desactivado siguió descargando style/sprites/teselas/glyphs por red; no mejoró el viewport. La zona del mapa en las capturas Skia y TileStore-disabled es pixel-idéntica.
+- Snapshotter baseline generó el PNG uniforme `#d9e6c7`; Snapshotter vectorial llegó a `vector_capture_started` y terminó en timeout de 60 s, sin PNG.
+- El cambio de TileStore no explica por sí solo el mapa negro. La evidencia tampoco identifica todavía si el bloqueo está en la decodificación vectorial, el renderer nativo o el emulador SwiftShader.
+
+**Corrección de metodología:** el Snapshotter se lanzaba automáticamente desde `STYLE_LOADED` mientras el MapWidget seguía renderizando. Esa carga diagnóstica concurrente podía contaminar la comparación del propio MapWidget. El siguiente A/B desactiva Snapshotter en los tres APK y lo registra en sus manifiestos; la captura Snapshotter queda como opt-in separado. Esto no es una corrección del mapa ni una aceptación: es un experimento para aislar el viewport.
+
+Puerta siguiente: repetir Impeller/Skia/TileStore con Snapshotter desactivado y comparar los eventos/capturas. Si persiste `PARTIAL`, la siguiente validación debe ser el APK exacto en dispositivo físico, porque el emulador de CI utiliza renderizado software.
+
 ## Estado de validación — 17/11/2026 10:24 CET
 
 El último intento Android [44047628989](https://github.com/Baltas80/espana-outdoor/actions/runs/44047628989) no ejecutó el smoke: tras compilar/publicar los APK, el runner rechazó el manifiesto principal porque el artefacto de ese commit antiguo (`4e7dc9c`) no declaraba `mapbox_tile_store_usage_mode=default`. El HEAD actual de PR #79 incorpora ese campo en el manifiesto y en el dart-define del APK principal.

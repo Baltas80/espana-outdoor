@@ -66,6 +66,9 @@ for marker in (
     "mapbox://mapbox.mapbox-streets-v8",
     "'source-layer': 'road'",
     "mapboxStyleDiagnosticsJson(rawStyleJson)",
+    "mapboxSnapshotterDiagnosticsEnabled",
+    "MAPBOX_SNAPSHOTTER_DIAGNOSTICS",
+    "reason=map_widget_isolation",
     "'SNAPSHOTTER_STAGE'",
     "logSnapshotterStage('create_started')",
     "logSnapshotterStage('create_completed')",
@@ -111,6 +114,12 @@ if "espana-mapbox-snapshotter-vector.png" not in source:
     raise SystemExit("Android smoke must preserve the vector Snapshotter PNG separately.")
 if source.rfind("extract_mapbox_snapshotter_png.py") > source.rfind('adb exec-out screencap -p'):
     raise SystemExit("Snapshotter evidence must be extracted from logcat before the smoke exits.")
+if 'snapshotter_mode="${3:-disabled}"' not in source:
+    raise SystemExit("Android MapWidget A/B smoke must default to Snapshotter-disabled isolation.")
+if 'MAPBOX_SNAPSHOTTER_DIAGNOSTIC skipped=true reason=map_widget_isolation' not in source:
+    raise SystemExit("Android smoke must explicitly report when Snapshotter is skipped.")
+if 'if [[ "${snapshotter_mode}" == "enabled" ]]; then' not in source:
+    raise SystemExit("Snapshotter evidence collection must remain available as an explicit opt-in.")
 snapshotter_wait_block = source.split("snapshotter_wait_seconds=", 1)[1].split('adb logcat -d >"${logcat_file}"', 1)[0]
 for marker in (
     "MAPBOX_SNAPSHOTTER_WAIT_SECONDS",
@@ -119,9 +128,9 @@ for marker in (
     "snapshotter_terminal=true",
 ):
     if marker not in snapshotter_wait_block:
-        raise SystemExit(f"Android smoke must wait for terminal Snapshotter evidence: {marker}")
+        raise SystemExit(f"Opt-in Snapshotter capture must wait for terminal evidence: {marker}")
 if source.index("snapshotter_wait_seconds=") > source.rindex('adb logcat -d >"${logcat_file}"'):
-    raise SystemExit("Snapshotter completion must be awaited before the final logcat dump.")
+    raise SystemExit("Opt-in Snapshotter completion must precede the final logcat dump.")
 
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
@@ -353,6 +362,9 @@ for marker in (
     'renderer_apk="${runner_temp}/skia-build/app-release.apk"',
     'tile_store_disabled_apk="${runner_temp}/tile-store-disabled-build/app-release.apk"',
     'RUNNER_TEMP="${tile_store_disabled_evidence}" timeout',
+    'bash tool/smoke_android_map.sh "${primary_apk}" online disabled',
+    'bash tool/smoke_android_map.sh "${renderer_apk}" online disabled',
+    'bash tool/smoke_android_map.sh "${tile_store_disabled_apk}" online disabled',
     'MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled',
     'diagnostic_tile_store_mode',
     'RUNNER_TEMP="${primary_evidence}" timeout',
@@ -397,7 +409,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
         "mapbox_android_view_mode=hybrid-surface\n"
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
-        "mapbox_tile_store_usage_mode=default\n",
+        "mapbox_tile_store_usage_mode=default\n"
+        "mapbox_snapshotter_diagnostics=false\n",
         encoding="utf-8",
     )
     (temp_root / "skia-build" / "android-staging-validation.txt").write_text(
@@ -406,7 +419,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
         "mapbox_android_view_mode=hybrid-surface\n"
         "flutter_renderer=skia-optout\nimpeller_enabled=false\n"
-        "mapbox_tile_store_usage_mode=default\n",
+        "mapbox_tile_store_usage_mode=default\n"
+        "mapbox_snapshotter_diagnostics=false\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
@@ -523,7 +537,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
         "mapbox_android_view_mode=hybrid-surface\n"
-        "mapbox_tile_store_usage_mode=disabled\n",
+        "mapbox_tile_store_usage_mode=disabled\n"
+        "mapbox_snapshotter_diagnostics=false\n",
         encoding="utf-8",
     )
     call_log.write_text("", encoding="utf-8")
@@ -596,6 +611,8 @@ for marker in (
     'echo "validation_scope=runtime-capable-artifact"',
     "--dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default",
     'echo "mapbox_tile_store_usage_mode=default"',
+    "--dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false",
+    'echo "mapbox_snapshotter_diagnostics=false"',
 ):
     if marker not in renderer_build:
         raise SystemExit(f"Mapbox Skia/Impeller renderer build is missing: {marker}")
@@ -614,6 +631,8 @@ if '--dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default' not in primary_build:
     raise SystemExit("The primary Android APK must explicitly select the default TileStore usage mode.")
 if 'echo "mapbox_tile_store_usage_mode=default"' not in primary_build:
     raise SystemExit("The primary APK manifest must record its default TileStore usage mode.")
+if "--dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false" not in primary_build or 'echo "mapbox_snapshotter_diagnostics=false"' not in primary_build:
+    raise SystemExit("The primary MapWidget smoke must disable concurrent Snapshotter diagnostics and record the setting.")
 
 require_renderer = workflow.split("- name: Require Mapbox Skia A/B APK", 1)[1]
 for marker in (
@@ -694,6 +713,8 @@ for marker in (
     "MAPBOX_TILE_STORE_USAGE_MODE=disabled",
     'tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"',
     'echo "mapbox_tile_store_usage_mode=disabled"',
+    "--dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false",
+    'echo "mapbox_snapshotter_diagnostics=false"',
     'echo "validation_scope=diagnostic-only-tile-store-disabled"',
 ):
     if marker not in tile_store_build:

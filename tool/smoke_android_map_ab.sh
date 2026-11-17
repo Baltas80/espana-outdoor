@@ -33,6 +33,7 @@ primary_view_mode="$(manifest_value "${primary_manifest}" mapbox_android_view_mo
 primary_renderer="$(manifest_value "${primary_manifest}" flutter_renderer)"
 primary_impeller="$(manifest_value "${primary_manifest}" impeller_enabled)"
 primary_tile_store_mode="$(manifest_value "${primary_manifest}" mapbox_tile_store_usage_mode)"
+primary_snapshotter_mode="$(manifest_value "${primary_manifest}" mapbox_snapshotter_diagnostics)"
 if [[ -z "${primary_app_id}" || -z "${primary_source_commit}" || -z "${primary_version_code}" ]]; then
   echo "ERROR: primary manifest is missing application_id, source_commit or version_code." >&2
   exit 2
@@ -53,10 +54,14 @@ if [[ "${primary_tile_store_mode}" != "default" ]]; then
   echo "ERROR: primary APK must use the default TileStore mode." >&2
   exit 2
 fi
+if [[ "${primary_snapshotter_mode}" != "false" ]]; then
+  echo "ERROR: MapWidget A/B APK must disable concurrent Snapshotter diagnostics." >&2
+  exit 2
+fi
 
 primary_status=0
 RUNNER_TEMP="${primary_evidence}" timeout --foreground --signal=TERM --kill-after=150s 20m \
-  bash tool/smoke_android_map.sh "${primary_apk}" online || primary_status=$?
+  bash tool/smoke_android_map.sh "${primary_apk}" online disabled || primary_status=$?
 
 renderer_status=0
 renderer_run=false
@@ -72,6 +77,7 @@ if [[ -s "${renderer_apk}" ]]; then
   renderer_view_mode="$(manifest_value "${renderer_manifest}" mapbox_android_view_mode)"
   comparison_renderer="$(manifest_value "${renderer_manifest}" flutter_renderer)"
   comparison_impeller="$(manifest_value "${renderer_manifest}" impeller_enabled)"
+  comparison_snapshotter_mode="$(manifest_value "${renderer_manifest}" mapbox_snapshotter_diagnostics)"
   if [[ "${renderer_app_id}" != "${primary_app_id}" || "${renderer_source_commit}" != "${primary_source_commit}" || "${renderer_version_code}" != "${primary_version_code}" ]]; then
     echo "ERROR: comparison APKs do not share application ID, source commit and version code." >&2
     exit 2
@@ -88,6 +94,10 @@ if [[ -s "${renderer_apk}" ]]; then
     echo "ERROR: comparison APK manifest does not identify the Skia/Impeller opt-out build." >&2
     exit 2
   fi
+  if [[ "${comparison_snapshotter_mode}" != "false" ]]; then
+    echo "ERROR: Skia MapWidget A/B must disable concurrent Snapshotter diagnostics." >&2
+    exit 2
+  fi
 
   # Both APKs share an application ID. Clear the primary app data before
   # installing the Skia comparison so its TileStore/style cache is isolated.
@@ -99,7 +109,7 @@ if [[ -s "${renderer_apk}" ]]; then
   fi
   renderer_run=true
   RUNNER_TEMP="${renderer_evidence}" timeout --foreground --signal=TERM --kill-after=150s 20m \
-    bash tool/smoke_android_map.sh "${renderer_apk}" online || renderer_status=$?
+    bash tool/smoke_android_map.sh "${renderer_apk}" online disabled || renderer_status=$?
 fi
 
 tile_store_disabled_status=0
@@ -115,6 +125,7 @@ if [[ -s "${tile_store_disabled_apk}" ]]; then
   diagnostic_style="$(manifest_value "${tile_store_disabled_manifest}" mapbox_style_uri)"
   diagnostic_view_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_android_view_mode)"
   diagnostic_tile_store_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_tile_store_usage_mode)"
+  diagnostic_snapshotter_mode="$(manifest_value "${tile_store_disabled_manifest}" mapbox_snapshotter_diagnostics)"
   if [[ "${diagnostic_app_id}" != "${primary_app_id}" || "${diagnostic_source_commit}" != "${primary_source_commit}" || "${diagnostic_version_code}" != "${primary_version_code}" ]]; then
     echo "ERROR: TileStore diagnostic APK does not share application ID, source commit and version code." >&2
     exit 2
@@ -125,6 +136,10 @@ if [[ -s "${tile_store_disabled_apk}" ]]; then
   fi
   if [[ "${diagnostic_tile_store_mode}" != "disabled" ]]; then
     echo "ERROR: diagnostic APK manifest must identify TileStore usage as disabled." >&2
+    exit 2
+  fi
+  if [[ "${diagnostic_snapshotter_mode}" != "false" ]]; then
+    echo "ERROR: TileStore MapWidget A/B must disable concurrent Snapshotter diagnostics." >&2
     exit 2
   fi
 
@@ -138,7 +153,7 @@ if [[ -s "${tile_store_disabled_apk}" ]]; then
   fi
   tile_store_disabled_run=true
   RUNNER_TEMP="${tile_store_disabled_evidence}" timeout --foreground --signal=TERM --kill-after=150s 20m \
-    bash tool/smoke_android_map.sh "${tile_store_disabled_apk}" online || tile_store_disabled_status=$?
+    bash tool/smoke_android_map.sh "${tile_store_disabled_apk}" online disabled || tile_store_disabled_status=$?
 fi
 
 primary_renderer_status=0
@@ -173,6 +188,7 @@ fi
 
 echo "MAPBOX_FLUTTER_RENDERER_AB style=${primary_style} primary_mode=hybrid-surface primary_renderer=impeller primary_status=${primary_status} comparison_run=${renderer_run} comparison_mode=hybrid-surface comparison_renderer=$([[ "${renderer_run}" == "true" ]] && echo skia || echo not-run) comparison_status=${renderer_status} renderer_identity_status=$((primary_renderer_status + comparison_renderer_status))"
 echo "MAPBOX_TILE_STORE_USAGE_AB primary_mode=default primary_status=${primary_status} diagnostic_run=${tile_store_disabled_run} diagnostic_mode=disabled diagnostic_status=${tile_store_disabled_status} mode_identity_status=${tile_store_identity_status}"
+echo "MAPBOX_SNAPSHOTTER_DIAGNOSTICS_AB primary=false comparison=false tile_store_disabled=false"
 if (( primary_status != 0 || renderer_status != 0 || tile_store_disabled_status != 0 || primary_renderer_status != 0 || comparison_renderer_status != 0 || tile_store_identity_status != 0 )); then
   exit 1
 fi

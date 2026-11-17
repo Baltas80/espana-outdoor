@@ -3,6 +3,11 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+snapshotter_mode="${3:-disabled}"
+case "${snapshotter_mode}" in
+  enabled|disabled) ;;
+  *) echo "ERROR: Snapshotter mode must be enabled or disabled." >&2; exit 2 ;;
+esac
 ADB_COMMAND="${ADB:-adb}"
 if ! command -v "${ADB_COMMAND}" >/dev/null 2>&1; then
   echo "ERROR: adb executable was not found." >&2
@@ -398,44 +403,53 @@ if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
 fi
 echo "MAP_SMOKE_FOREGROUND package=${package_name} verified=true"
 
-# Snapshotter runs asynchronously from STYLE_LOADED. Do not dump logcat before
-# its bounded native capture has emitted either a success or failure marker.
-snapshotter_wait_seconds="${MAPBOX_SNAPSHOTTER_WAIT_SECONDS:-210}"
-if ! [[ "${snapshotter_wait_seconds}" =~ ^[1-9][0-9]{0,2}$ ]] || (( snapshotter_wait_seconds < 15 || snapshotter_wait_seconds > 240 )); then
-  echo "ERROR: MAPBOX_SNAPSHOTTER_WAIT_SECONDS must be between 15 and 240."
-  exit 2
-fi
-snapshotter_poll_count=$(( (snapshotter_wait_seconds + 2) / 3 ))
-snapshotter_terminal=false
-for attempt in $(seq 1 "${snapshotter_poll_count}"); do
-  adb logcat -d -s flutter:I >"${mapbox_diag_file}"
-  if grep -Eq 'MAPBOX_DIAGNOSTIC event=SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)' "${mapbox_diag_file}" ||
-     grep -Fq 'MAPBOX_SNAPSHOTTER_CAPTURE failed=' "${mapbox_diag_file}"; then
-    snapshotter_terminal=true
-    echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=true elapsed_seconds=$((attempt * 3))"
-    break
+if [[ "${snapshotter_mode}" == "enabled" ]]; then
+  # Snapshotter runs asynchronously from STYLE_LOADED. Do not dump logcat before
+  # its bounded native capture has emitted either a success or failure marker.
+  snapshotter_wait_seconds="${MAPBOX_SNAPSHOTTER_WAIT_SECONDS:-210}"
+  if ! [[ "${snapshotter_wait_seconds}" =~ ^[1-9][0-9]{0,2}$ ]] || (( snapshotter_wait_seconds < 15 || snapshotter_wait_seconds > 240 )); then
+    echo "ERROR: MAPBOX_SNAPSHOTTER_WAIT_SECONDS must be between 15 and 240."
+    exit 2
   fi
-  if (( attempt % 10 == 0 )); then
-    echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false elapsed_seconds=$((attempt * 3))"
+  snapshotter_poll_count=$(( (snapshotter_wait_seconds + 2) / 3 ))
+  snapshotter_terminal=false
+  for attempt in $(seq 1 "${snapshotter_poll_count}"); do
+    adb logcat -d -s flutter:I >"${mapbox_diag_file}"
+    if grep -Eq 'MAPBOX_DIAGNOSTIC event=SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)' "${mapbox_diag_file}" ||
+       grep -Fq 'MAPBOX_SNAPSHOTTER_CAPTURE failed=' "${mapbox_diag_file}"; then
+      snapshotter_terminal=true
+      echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=true elapsed_seconds=$((attempt * 3))"
+      break
+    fi
+    if (( attempt % 10 == 0 )); then
+      echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false elapsed_seconds=$((attempt * 3))"
+    fi
+    sleep 3
+  done
+  if [[ "${snapshotter_terminal}" != "true" ]]; then
+    echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false timeout_seconds=${snapshotter_wait_seconds}"
   fi
-  sleep 3
-done
-if [[ "${snapshotter_terminal}" != "true" ]]; then
-  echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false timeout_seconds=${snapshotter_wait_seconds}"
+  
+  
+else
+  echo "MAPBOX_SNAPSHOTTER_DIAGNOSTIC skipped=true reason=map_widget_isolation"
 fi
 
 adb logcat -d >"${logcat_file}"
-snapshotter_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter.png"
-if python3 tool/extract_mapbox_snapshotter_png.py --kind baseline --logcat "${logcat_file}" --output "${snapshotter_file}"; then
-  echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=true"
-else
-  echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=false reason=diagnostic_capture_missing"
-fi
-snapshotter_vector_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter-vector.png"
-if python3 tool/extract_mapbox_snapshotter_png.py --kind vector --logcat "${logcat_file}" --output "${snapshotter_vector_file}"; then
-  echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=true"
-else
-  echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=false reason=diagnostic_capture_missing"
+if [[ "${snapshotter_mode}" == "enabled" ]]; then
+  snapshotter_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter.png"
+  if python3 tool/extract_mapbox_snapshotter_png.py --kind baseline --logcat "${logcat_file}" --output "${snapshotter_file}"; then
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=true"
+  else
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=false reason=diagnostic_capture_missing"
+  fi
+  snapshotter_vector_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter-vector.png"
+  if python3 tool/extract_mapbox_snapshotter_png.py --kind vector --logcat "${logcat_file}" --output "${snapshotter_vector_file}"; then
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=true"
+  else
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=false reason=diagnostic_capture_missing"
+  fi
+  
 fi
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"

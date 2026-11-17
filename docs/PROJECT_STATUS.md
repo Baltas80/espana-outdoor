@@ -1,5 +1,14 @@
 # España Outdoor — estado técnico
 
+## Snapshot operativo — 17/11/2026 11:19 CET: resultado de la matriz Android y aislamiento de Snapshotter
+
+- Run Android [44055960774](https://github.com/Baltas80/espana-outdoor/actions/runs/44055960774), source HEAD `ed34ea5`: los tres APK (Impeller, Skia y TileStore-disabled) compilaron, pasaron verificación SHA/manifiesto, se instalaron y abrieron la pantalla Mapa. El job falló correctamente en el gate de renderizado.
+- En las tres variantes: `STYLE_LOADED`, un único `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`. El gate visual rechazó las capturas. El PNG de MapWidget no es aceptable.
+- Las respuestas de red de style, sprites, tiles, glyphs y TileJSON Streets v8 llegaron sin error. TileStore-disabled no cambió el viewport respecto a Skia (recorte cartográfico pixel-idéntico); TileStore no queda demostrado como causa.
+- Snapshotter baseline generó PNG; Snapshotter vectorial terminó en timeout de 60 s. El Snapshotter se estaba ejecutando concurrentemente con el MapWidget y podía contaminar el A/B.
+- Nuevo cambio en curso: desactivar Snapshotter durante la matriz MapWidget, registrar la bandera en el manifiesto y conservar la captura nativa solo como opt-in. No modifica producción ni acepta el mapa; busca medir el MapWidget sin una segunda instancia nativa en paralelo.
+- La matriz anterior no acredita offline, persistencia ni dispositivo físico. La siguiente ejecución debe repetir los tres APK sin Snapshotter y, si persiste el fallo, priorizar una prueba del APK exacto en un Android físico.
+
 ## Snapshot operativo — 17/11/2026 10:24 CET: corrección del pipeline Android A/B
 
 - PR [#79](https://github.com/Baltas80/espana-outdoor/pull/79), HEAD `e9802648b563317106ba494f70878adcbd0924b8`: **176 commits ahead, 0 behind** respecto a `main` (`fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`). Sigue en draft.
