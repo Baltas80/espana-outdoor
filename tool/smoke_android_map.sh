@@ -80,20 +80,30 @@ adb install -r "${apk_path}"
 ui_dump() {
   local file="$1"
   local remote_file="/sdcard/espana-outdoor-uiautomator.xml"
-  # UIAutomator expects a regular device-side output file. Writing directly to
-  # a pseudo-terminal is unreliable on non-interactive ADB sessions.
-  if ! adb shell uiautomator dump "$remote_file" >/dev/null 2>&1; then
-    echo "ERROR: UIAutomator dump failed or timed out (45s)." >&2
-    return 1
-  fi
-  if ! adb shell cat "$remote_file" >"${file}"; then
-    echo "ERROR: unable to retrieve the UIAutomator hierarchy from the device." >&2
-    return 1
-  fi
-  if ! grep -q '<hierarchy' "${file}"; then
-    echo "ERROR: UIAutomator returned no hierarchy XML." >&2
-    return 1
-  fi
+  local attempt dump_output
+
+  # The first UIAutomator invocation on a freshly booted API-35 emulator can
+  # return exit code 0 before its device-side XML exists. Retry only this
+  # transient transport/startup condition; never consume a stale hierarchy.
+  for attempt in $(seq 1 4); do
+    rm -f "${file}"
+    adb shell rm -f "${remote_file}" >/dev/null 2>&1 || true
+    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\\r' || true)"
+
+    if adb shell test -s "${remote_file}" >/dev/null 2>&1; then
+      if adb shell cat "${remote_file}" >"${file}" && grep -q '<hierarchy' "${file}"; then
+        echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=success"
+        return 0
+      fi
+    fi
+
+    rm -f "${file}"
+    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry output=$(printf '%s' "${dump_output}" | tr '\\n' ' ' | cut -c1-240)"
+    if (( attempt < 4 )); then sleep 2; fi
+  done
+
+  echo "ERROR: UIAutomator did not produce a readable hierarchy after 4 bounded attempts." >&2
+  return 1
 }
 
 window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
@@ -286,7 +296,9 @@ candidates = []
 for node in root.iter("node"):
     text = (node.attrib.get("text") or "").strip()
     desc = (node.attrib.get("content-desc") or "").strip()
-    if text != "Mapa" and desc != "Mapa":
+    if text != "Mapa" and desc not in ("Mapa", "Mapa\\nMapa"):
+        continue
+    if node.attrib.get("clickable") != "true":
         continue
     match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
     if match:
