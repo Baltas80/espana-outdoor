@@ -425,7 +425,7 @@ La inspección del ZIP corrige una interpretación anterior de la matriz:
 
 - tool/smoke_android_map.sh: UIAutomator ahora elimina el XML remoto anterior, reintenta hasta cuatro veces, comprueba que el fichero remoto existe y no está vacío antes de leerlo y valida la jerarquía. El selector de Mapa exige un nodo semántico clicable y reconoce el label del botón inferior, no su icono decorativo.
 - tool/test_android_map_smoke_render_gate.py: prueba con ADB simulado que recupera una jerarquía después de dos ausencias transitorias y falla de forma cerrada tras cuatro intentos.
-- .github/workflows/staging-android.yml: antes de compilar TileStore-disabled restaura el manifiesto versionado con git checkout -- android/app/src/main/AndroidManifest.xml y exige un diff limpio; verifica que el manifiesto declara Impeller predeterminado.
+- .github/workflows/staging-android.yml: antes de compilar TileStore-disabled restaura byte a byte el manifiesto ya configurado por configure_mobile_native.py, guardado antes de la mutación Skia; lo verifica con cmp y exige que el manifiesto de la variante declare Impeller predeterminado.
 - tool/smoke_android_map_ab.sh: además de verificar TileStore desactivado, exige que el log runtime de esa variante confirme backend=impeller. Una variante que herede Skia queda rechazada.
 
 ### Interpretación y siguiente ejecución
