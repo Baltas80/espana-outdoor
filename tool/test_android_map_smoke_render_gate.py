@@ -562,7 +562,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_android_view_mode=hybrid-surface\n"
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
         "mapbox_tile_store_usage_mode=default\n"
-        "mapbox_snapshotter_diagnostics=false\n",
+        "mapbox_snapshotter_diagnostics=false\n"
+        "mapbox_map_widget_diagnostic_style=none\n",
         encoding="utf-8",
     )
     (temp_root / "skia-build" / "android-staging-validation.txt").write_text(
@@ -572,7 +573,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "mapbox_android_view_mode=hybrid-surface\n"
         "flutter_renderer=skia-optout\nimpeller_enabled=false\n"
         "mapbox_tile_store_usage_mode=default\n"
-        "mapbox_snapshotter_diagnostics=false\n",
+        "mapbox_snapshotter_diagnostics=false\n"
+        "mapbox_map_widget_diagnostic_style=none\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
@@ -598,6 +600,9 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         '  else\n'
         '    printf "%s\\n" "MAPBOX_ANDROID_VIEW mode=${VIEW_MODE:-hybrid-surface}" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  fi\n'
+        'fi\n'
+        'if [[ "${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:-none}" != "none" ]]; then\n'
+        '  printf "%s\\n" "MAPBOX_DIAGNOSTIC event=MAP_WIDGET_DIAGNOSTIC_STYLE variant=${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE} result=accepted" >> "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         'fi\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
@@ -725,6 +730,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
         "mapbox_tile_store_usage_mode=disabled\n"
         "mapbox_snapshotter_diagnostics=false\n"
+        "mapbox_map_widget_diagnostic_style=none\n"
         "validation_scope=diagnostic-only-tile-store-disabled\n",
         encoding="utf-8",
     )
@@ -768,6 +774,9 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     ).replace(
         "mapbox_android_view_mode=hybrid-surface",
         "mapbox_android_view_mode=virtual-texture",
+    ).replace(
+        "mapbox_map_widget_diagnostic_style=none",
+        "mapbox_map_widget_diagnostic_style=baseline",
     )
     primary_manifest_path.write_text(primary_manifest_text, encoding="utf-8")
 
@@ -782,11 +791,13 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
         "mapbox_tile_store_usage_mode=disabled\n"
         "mapbox_snapshotter_diagnostics=false\n"
+        "mapbox_map_widget_diagnostic_style=baseline\n"
         "validation_scope=diagnostic-only-tile-store-disabled\n",
         encoding="utf-8",
     )
     standard_env = test_env.copy()
     standard_env["VIEW_MODE"] = "virtual-texture"
+    standard_env["MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"] = "baseline"
     call_log.write_text("", encoding="utf-8")
     tile_store_run = subprocess.run(
         ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/standard"],
