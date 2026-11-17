@@ -226,27 +226,37 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             grep -Fxq "source_commit=${{ github.event.pull_request.head.sha }}" "$manifest"
           fi
-      - name: Build Mapbox TextureView/VD renderer A/B APK
-        id: build_texture_apk
-        continue-on-error: true
-        if: success() && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+      - name: Preserve verified primary Android staging APK
+        id: preserve_primary_apk
+        if: success() && steps.build_apk.outputs.built == 'true'
         shell: bash
         run: |
           set -euo pipefail
           primary_dir="$RUNNER_TEMP/primary-build"
+          mkdir -p "$primary_dir"
+          apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          manifest="build/android-staging-validation.txt"
+          test -s "$apk"
+          test -s "$manifest"
+          cp "$apk" "$primary_dir/app-release.apk"
+          cp "$manifest" "$primary_dir/android-staging-validation.txt"
+          expected_sha="$(sed -n 's/^apk_sha256=//p' "$manifest")"
+          actual_sha="$(sha256sum "$primary_dir/app-release.apk" | cut -d ' ' -f1)"
+          test -n "$expected_sha"
+          test "$expected_sha" = "$actual_sha"
+          echo "primary_apk_preserved=$primary_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build Mapbox TextureView/VD renderer A/B APK
+        id: build_texture_apk
+        continue-on-error: true
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != '' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        shell: bash
+        run: |
+          set -euo pipefail
           renderer_dir="$RUNNER_TEMP/texture-vd-build"
-          mkdir -p "$primary_dir" "$renderer_dir"
+          mkdir -p "$renderer_dir"
 
-          # Preserve the already-verified Outdoors APK outside Flutter's build
-          # directory before cleaning and compiling the TextureView/VD renderer comparison.
-          primary_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$primary_apk"
-          test -s build/android-staging-validation.txt
-          cp "$primary_apk" "$primary_dir/app-release.apk"
-          cp build/android-staging-validation.txt "$primary_dir/android-staging-validation.txt"
-
-          # Flutter 3.47.5 rejects a custom output-directory flag. Build
-          # Standard through the normal output path, then preserve it separately.
+          # Flutter 3.47.5 rejects a custom output-directory flag. Build the
+          # renderer comparison through the normal output path, then preserve it separately.
           # A clean prevents stale Dart defines from being reused.
           flutter clean
           flutter pub get --enforce-lockfile
@@ -270,9 +280,9 @@ jobs:
           aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
           test -x "$aapt_path"
           badging="$("$aapt_path" dump badging "$renderer_apk")"
-          application_id="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
-          version_code="$(sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
-          version_name="$(sed -n "s/^package:.*versionName='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          application_id="$(sed -n "s/^package: name='\\\\([^']*\\\\)'.*/\\\\1/p" <<<"$badging" | head -n 1)"
+          version_code="$(sed -n "s/^package:.*versionCode='\\\\([^']*\\\\)'.*/\\\\1/p" <<<"$badging" | head -n 1)"
+          version_name="$(sed -n "s/^package:.*versionName='\\\\([^']*\\\\)'.*/\\\\1/p" <<<"$badging" | head -n 1)"
           test -n "$application_id"
           test -n "$version_code"
           source_commit="$GITHUB_SHA"
@@ -306,7 +316,6 @@ jobs:
             echo "mapbox_android_view_mode=virtual-texture"
             echo "validation_scope=runtime-capable-artifact"
           } > "$renderer_dir/android-staging-validation.txt"
-          echo "primary_apk_preserved=$primary_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
           echo "renderer_apk_built=$renderer_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Android staging APK
         if: success() && steps.build_apk.outputs.built == 'true'
