@@ -309,9 +309,9 @@ if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app
 if "cancel-in-progress: false" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
     raise SystemExit("Android staging must preserve the active emulator smoke and queue newer commits.")
 
-# Style A/B is staging-only. The normal workflow_dispatch default and
-# production MapWidget default remain Outdoors; PR #79 automatically runs a
-# Standard-only diagnostic so the style itself is isolated from the renderer.
+# Style A/B is staging-only. PR #79 runs Standard + vector on the production
+# Hybrid Composition/SurfaceView hosting path. workflow_dispatch can opt into
+# Virtual Display/TextureView explicitly for a separate comparison.
 for marker in (
     "mapbox_style_variant",
     "type: choice",
@@ -329,6 +329,13 @@ for marker in (
 ):
     if marker not in workflow:
         raise SystemExit(f"Android staging workflow is missing controlled style selection: {marker}")
+
+view_mode_assignment = next(
+    line.strip() for line in workflow.splitlines()
+    if line.strip().startswith("MAPBOX_ANDROID_VIEW_MODE:")
+)
+if view_mode_assignment != "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}":
+    raise SystemExit("PR staging must default to production Hybrid Composition/SurfaceView; Virtual Display is an explicit manual opt-in.")
 skia_step = workflow.split(
     "- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1
 )[1].split("\n      - name:", 1)[0]
@@ -768,16 +775,14 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
-    # Exercise the exact PR #79 Standard + Virtual Display/TextureView diagnostic.
-    # The primary and diagnostic APKs must differ only in TileStore usage.
+    # Exercise the exact PR #79 Standard + vector diagnostic on the
+    # production Hybrid Composition/SurfaceView hosting path. The primary and
+    # diagnostic APKs must differ only in TileStore usage.
     primary_manifest_path = temp_root / "primary-build" / "android-staging-validation.txt"
     primary_manifest_text = primary_manifest_path.read_text(encoding="utf-8")
     primary_manifest_text = primary_manifest_text.replace(
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12",
         "mapbox_style_uri=mapbox://styles/mapbox/standard",
-    ).replace(
-        "mapbox_android_view_mode=hybrid-surface",
-        "mapbox_android_view_mode=virtual-texture",
     ).replace(
         "mapbox_map_widget_diagnostic_style=none",
         "mapbox_map_widget_diagnostic_style=vector",
@@ -791,7 +796,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/standard\n"
-        "mapbox_android_view_mode=virtual-texture\n"
+        "mapbox_android_view_mode=hybrid-surface\n"
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
         "mapbox_tile_store_usage_mode=disabled\n"
         "mapbox_snapshotter_diagnostics=false\n"
@@ -800,7 +805,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         encoding="utf-8",
     )
     standard_env = test_env.copy()
-    standard_env["VIEW_MODE"] = "virtual-texture"
+    standard_env["VIEW_MODE"] = "hybrid-surface"
     standard_env["MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"] = "vector"
     call_log.write_text("", encoding="utf-8")
     tile_store_run = subprocess.run(
@@ -813,8 +818,8 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     tile_store_calls = call_log.read_text(encoding="utf-8")
     if tile_store_run.returncode != 0 or "diagnostic_run=true" not in tile_store_run.stdout:
         raise SystemExit(f"TileStore-disabled Standard A/B runner failed its success-path test: {tile_store_run.stderr}")
-    if "primary_mode=virtual-texture" not in tile_store_run.stdout or "diagnostic_mode=virtual-texture" not in tile_store_run.stdout or "identity_status=0" not in tile_store_run.stdout:
-        raise SystemExit("Standard TileStore A/B must preserve Virtual Display/TextureView in both APKs.")
+    if "primary_mode=hybrid-surface" not in tile_store_run.stdout or "diagnostic_mode=hybrid-surface" not in tile_store_run.stdout or "identity_status=0" not in tile_store_run.stdout:
+        raise SystemExit("Standard TileStore A/B must preserve Hybrid Composition/SurfaceView in both APKs.")
     if tile_store_calls.count("bash tool/smoke_android_map.sh") != 2:
         raise SystemExit("TileStore-disabled A/B must run primary and diagnostic APKs exactly once.")
     if f"RUNNER_TEMP={temp_root}/tile-store-disabled" not in tile_store_calls:

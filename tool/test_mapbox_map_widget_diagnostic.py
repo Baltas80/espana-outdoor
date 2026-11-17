@@ -32,6 +32,7 @@ required_workflow = (
     "&& 'vector' || 'none'",
     "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
     "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
+    "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
 )
 for marker in required_workflow:
     if marker not in WORKFLOW:

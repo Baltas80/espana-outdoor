@@ -604,3 +604,28 @@ This is the first successful live MapWidget baseline on the CI emulator. It demo
 PR #79 now selects `MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=vector` for Android staging. It applies the existing minimal Streets v8 style (one vector source and one visible `road` line layer) through the same live MapWidget. The screenshot verifier additionally requires red road pixels (`#c43c39`) in a central crop, while the smoke still requires `MAP_LOADED`, `RenderMode.FULL` and `MAP_IDLE`. This prevents the baseline background or app controls from being mistaken for vector cartography.
 
 The experiment is staging-only. Production remains Outdoors v12 with Hybrid Composition/SurfaceView. A successful vector diagnostic is still not offline acceptance; physical Android download, airplane-mode, force-stop, reopen and reboot tests remain mandatory.
+
+
+## Resultado vectorial Standard + Virtual Texture — 17/11/2026
+
+Run [44190764028](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028), source commit `6fccce274d4b8b52c58f09d05a3feb5777b2782f`, workflow merge commit `c91fd2004d3576cc6ffc075711ba460ecbe5c6fd`.
+
+Se descargaron y verificaron los dos APK y el artefacto de smoke:
+
+- [APK principal + manifiesto 14379536090](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14379536090): SHA-256 `b77c035c74b1d6c0c6706190f5a930db950d7399d2098761e5fa188423fdc650`, TileStore predeterminado/READ_ONLY.
+- [APK diagnóstico + manifiesto 14380145217](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14380145217): SHA-256 `b98d72783b8bff46079e5c1fb9f59f1e740cacceceac2a166f84c2db30affa89`, TileStore DISABLED.
+- [Capturas, jerarquías y logcat 14379377165](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14379377165).
+
+Ambos APK tienen 200.316.534 bytes, Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, Flutter 3.47.5, Mapbox Standard, Impeller y **Virtual Display + TextureView**. Los SHA-256 se recalcularon sobre los APK extraídos y coinciden con los manifiestos.
+
+La pantalla Mapa estaba visible y el estilo vectorial local fue aceptado. El JSON runtime contiene una fuente vectorial Streets v8 y una capa `road` visible sobre el fondo `#d9e6c7`. No aparecieron carreteras en las capturas: solo fondo, controles, escala y atribución. Los dos APK registraron `STYLE_LOADED` y `RenderMode.PARTIAL`, pero no `MAP_LOADED`, `MAP_IDLE`, `RenderMode.FULL` ni `MAP_LOAD_ERROR`. Hubo respuestas de teselas por red sin error; el TileStore-disabled llegó a informar `loaded=true` para la tesela central `12/1993/1581`, pero tampoco completó el frame ni dibujó carreteras.
+
+**Conclusión de alcance:** el experimento confirma que el estilo y la fuente se aceptan, pero no resuelve el renderizado. Además, no probó el hosting de producción: ambos APK usaron Virtual Display/TextureView, mientras producción conserva Hybrid Composition/SurfaceView. No se puede atribuir el fallo al renderer de producción a partir de este run.
+
+### Siguiente experimento: hosting de producción
+
+PR #79 cambia ahora la selección automática de Android staging para usar `hybrid-surface` por defecto, manteniendo Standard + vector y el A/B TileStore READ_ONLY/DISABLED. `workflow_dispatch` conserva Virtual Display/TextureView como opción explícita de comparación. Se actualizan los guards y fixtures para exigir que ambas variantes Standard compartan Hybrid Composition/SurfaceView.
+
+La configuración de producción no cambia: Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`. El APK TileStore-disabled sigue siendo solo diagnóstico online y no sirve para aceptar offline.
+
+La aceptación cartográfica sigue pendiente: carreteras visibles, `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, después Outdoors v12 y validación física en OPPO. La descarga offline, modo avión, cierre/reapertura y reinicio no están certificados.
