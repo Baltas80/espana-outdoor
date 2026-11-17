@@ -487,7 +487,9 @@ jobs:
           fi
       - name: Android map native smoke
         id: android_map_smoke
-        timeout-minutes: 65
+        # PR #79 currently runs one Standard + Virtual Display experiment.
+        # Keep a finite bound for emulator boot plus the 20-minute smoke.
+        timeout-minutes: 40
         # Preserve the runner long enough to upload diagnostics before enforcing
         # the failure in a separate always() gate below.
         continue-on-error: true
@@ -506,7 +508,7 @@ jobs:
           disk-size: 6000M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 600
           script: bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_STYLE_URI"
       - name: Upload Android map smoke evidence
         if: always()
