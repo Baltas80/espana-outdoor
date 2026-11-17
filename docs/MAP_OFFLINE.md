@@ -1,3 +1,19 @@
+## Standard + Hybrid Composition — 17/11/2026, run 44084139266
+
+Run [44084139266](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266), source commit `e03aafcc1d1b271c961cc9493c8076e823675c79`. El APK principal compiló, se instaló y llegó a la pantalla Mapa con `mapbox://styles/mapbox/standard`, Impeller, Hybrid Composition + SurfaceView y TileStore `READ_ONLY`. El smoke falló únicamente en el gate visual.
+
+- Estilo: `STYLE_LOADED=1`, 190 capas y 10 fuentes.
+- Render: `MAP_LOADED=0`, `MAP_IDLE=0`, `RenderMode.FULL=0`, un `RenderMode.PARTIAL`, `MAP_LOAD_ERROR=0`.
+- Recursos: 6 solicitudes `RequestType.TILE`, todas con miss de TileStore; 82 eventos `MODEL`, incluidos 50 recursos obtenidos de red y 32 misses de caché. La captura 1080×2400 fue rechazada (entropía 0,649 bits; color dominante 0,901).
+- EGL emulado registró tiempos de frame anómalos, con una muestra de 63,8 s. Esto hace plausible una limitación del renderizador software del emulador, pero no demuestra que sea la causa.
+- Artefactos: [APK y manifiesto 14328803228](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266/artifacts/14328803228), [captura y logcat 14329217699](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266/artifacts/14329217699).
+
+La ausencia de teselas en TileStore no demuestra por sí sola un bloqueo de red: Mapbox documenta que `READ_ONLY` consulta los tile packs y, si falta una tesela, puede solicitarla individualmente y guardarla en disk cache ([conceptos de offline](https://docs.mapbox.com/android/maps/guides/offline/concepts/), [API TileStoreUsageMode](https://docs.mapbox.com/android/maps/api/11.8.1/mapbox-maps-android/com.mapbox.maps/-tile-store-usage-mode/)).
+
+### Siguiente experimento: Virtual Display + TextureView
+
+La matriz anterior solo probó Hybrid Composition + SurfaceView. La API Flutter de Mapbox admite también `textureView: true` con `AndroidPlatformViewHostingMode.VD` ([MapWidget](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/MapWidget-class.html), [AndroidPlatformViewHostingMode](https://docs.mapbox.com/flutter/maps/api/latest/mapbox_maps_flutter/AndroidPlatformViewHostingMode.html)). La PR #79 añade una variante staging `virtual-texture`; para su ejecución automática usa Standard + Virtual Display/TextureView, mientras el valor de producción sigue siendo Hybrid Composition + SurfaceView. Se exige que el manifiesto y el log runtime confirmen el mismo modo. No se acepta offline ni se cambia producción con este experimento.
+
 # Cartografía y modo offline
 
 ## A/B Android aislado — 17/11/2026, run 44075481486
