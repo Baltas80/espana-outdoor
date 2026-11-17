@@ -14,16 +14,23 @@ import zlib
 from pathlib import Path
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-CHUNK_RE = re.compile(
-    r"MAPBOX_SNAPSHOTTER_PNG_CHUNK index=(\d+) total=(\d+) data=([A-Za-z0-9+/=]+)"
-)
-BEGIN_RE = re.compile(
-    r"MAPBOX_SNAPSHOTTER_PNG_BEGIN bytes=(\d+) chunks=(\d+) sha256=([0-9a-f]{64})"
-)
-END_RE = re.compile(r"MAPBOX_SNAPSHOTTER_PNG_END sha256=([0-9a-f]{64})")
+def capture_prefix(kind: str) -> str:
+    if kind == "baseline":
+        return "MAPBOX_SNAPSHOTTER_PNG"
+    if kind == "vector":
+        return "MAPBOX_SNAPSHOTTER_VECTOR_PNG"
+    raise ValueError(f"unsupported Snapshotter capture kind: {kind}")
 
 
-def decode_log_lines(lines: list[str]) -> tuple[bytes, int, int]:
+def decode_log_lines(lines: list[str], kind: str = "baseline") -> tuple[bytes, int, int]:
+    prefix = capture_prefix(kind)
+    chunk_re = re.compile(
+        rf"{re.escape(prefix)}_CHUNK index=(\d+) total=(\d+) data=([A-Za-z0-9+/=]+)"
+    )
+    begin_re = re.compile(
+        rf"{re.escape(prefix)}_BEGIN bytes=(\d+) chunks=(\d+) sha256=([0-9a-f]{{64}})"
+    )
+    end_re = re.compile(rf"{re.escape(prefix)}_END sha256=([0-9a-f]{{64}})")
     chunks: dict[int, str] = {}
     expected_total: int | None = None
     expected_bytes: int | None = None
@@ -31,12 +38,12 @@ def decode_log_lines(lines: list[str]) -> tuple[bytes, int, int]:
     end_digest: str | None = None
 
     for line in lines:
-        begin = BEGIN_RE.search(line)
+        begin = begin_re.search(line)
         if begin:
             expected_bytes = int(begin.group(1))
             expected_total = int(begin.group(2))
             expected_digest = begin.group(3)
-        match = CHUNK_RE.search(line)
+        match = chunk_re.search(line)
         if match:
             index, total = int(match.group(1)), int(match.group(2))
             if total < 1 or index < 0 or index >= total:
@@ -47,7 +54,7 @@ def decode_log_lines(lines: list[str]) -> tuple[bytes, int, int]:
             if index in chunks and chunks[index] != match.group(3):
                 raise ValueError(f"snapshotter chunk {index} was duplicated with different data")
             chunks[index] = match.group(3)
-        end = END_RE.search(line)
+        end = end_re.search(line)
         if end:
             end_digest = end.group(1)
 
@@ -101,31 +108,35 @@ def _self_test() -> None:
     chunk_size = 7
     parts = [encoded[i : i + chunk_size] for i in range(0, len(encoded), chunk_size)]
     digest = hashlib.sha256(png).hexdigest()
-    lines = [
-        f"MAPBOX_SNAPSHOTTER_PNG_BEGIN bytes={len(png)} chunks={len(parts)} sha256={digest}",
-        *[
-            f"MAPBOX_SNAPSHOTTER_PNG_CHUNK index={index} total={len(parts)} data={part}"
-            for index, part in enumerate(parts)
-        ],
-        f"MAPBOX_SNAPSHOTTER_PNG_END sha256={digest}",
-    ]
-    restored, width, height = decode_log_lines(lines)
-    assert restored == png and (width, height) == (1, 1)
 
-    broken = lines[:-2] + lines[-1:]
-    try:
-        decode_log_lines(broken)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("incomplete snapshotter captures must be rejected")
+    for kind in ("baseline", "vector"):
+        prefix = capture_prefix(kind)
+        lines = [
+            f"{prefix}_BEGIN bytes={len(png)} chunks={len(parts)} sha256={digest}",
+            *[
+                f"{prefix}_CHUNK index={index} total={len(parts)} data={part}"
+                for index, part in enumerate(parts)
+            ],
+            f"{prefix}_END sha256={digest}",
+        ]
+        restored, width, height = decode_log_lines(lines, kind)
+        assert restored == png and (width, height) == (1, 1)
+
+        broken = lines[:-2] + lines[-1:]
+        try:
+            decode_log_lines(broken, kind)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"incomplete {kind} Snapshotter captures must be rejected")
+
     print("MAPBOX_SNAPSHOTTER_EXTRACTOR_SELF_TEST passed")
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--logcat", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--kind", choices=("baseline", "vector"), default="baseline")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
 
@@ -137,7 +148,8 @@ def main() -> int:
 
     try:
         payload, width, height = decode_log_lines(
-            args.logcat.read_text(encoding="utf-8", errors="replace").splitlines()
+            args.logcat.read_text(encoding="utf-8", errors="replace").splitlines(),
+            args.kind,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(payload)
@@ -147,8 +159,9 @@ def main() -> int:
 
     digest = hashlib.sha256(payload).hexdigest()
     print(
-        f"MAPBOX_SNAPSHOTTER_CAPTURE extracted=true width={width} height={height} "
-        f"bytes={len(payload)} sha256={digest} output={args.output}"
+        f"MAPBOX_SNAPSHOTTER_CAPTURE kind={args.kind} extracted=true "
+        f"width={width} height={height} bytes={len(payload)} "
+        f"sha256={digest} output={args.output}"
     )
     return 0
 
