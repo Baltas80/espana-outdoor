@@ -407,3 +407,33 @@ Interpretación:
 - Si aparecen solicitudes de tiles desde Network y el Snapshotter genera calles, investigar el camino TileStore/cache y el estado de los paquetes offline.
 - Si las solicitudes siguen sin salir o el Snapshotter sigue agotando el timeout, investigar el motor nativo, la cobertura/cámara y el emulador; no atribuir el fallo al TileStore sin más evidencia.
 - La aceptación sigue exigiendo MapWidget con `MAP_LOADED`, `FULL`, `IDLE`, captura visual válida y pruebas offline reales en dispositivo físico.
+
+
+## Corrección de evidencia A/B y aislamiento de variantes — 17/11/2026 12:17 CET
+
+Ejecución [Android staging 44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090), source HEAD 08ade9fa646e970985c1228f1f2c266935c2e4df, artefacto de evidencias [14321294721](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090/artifacts/14321294721).
+
+La inspección del ZIP corrige una interpretación anterior de la matriz:
+
+- **APK principal (Impeller):** compiló y superó la verificación del APK/manifiesto, pero el smoke no llegó a la página Mapa. La primera llamada de UIAutomator devolvió sin crear /sdcard/espana-outdoor-uiautomator.xml; el cat falló con “No such file or directory”. La captura conservada corresponde a Inicio y el log no contiene FLUTTER_RENDERER. No existe evidencia cartográfica válida del APK principal en este run.
+- **APK Skia:** llegó a Mapa cartográfico, registró backend=skia y TileStore READ_ONLY; el gate rechazó la captura. Métricas: 34 colores cuantizados, entropía 0,651 bits, color dominante 0,901; RenderMode.PARTIAL, sin MAP_LOADED, MAP_IDLE ni RenderMode.FULL.
+- **APK TileStore-disabled:** llegó a Mapa cartográfico y registró TileStore DISABLED, pero también backend=skia. Su captura fue rechazada con las mismas métricas agregadas (34 colores, 0,651 bits, 0,901 dominante), RenderMode.PARTIAL y sin eventos de carga completa.
+
+**Defecto del experimento identificado:** tool/prepare_android_skia_ab.py modifica el android/app/src/main/AndroidManifest.xml versionado para añadir EnableImpeller=false. El workflow compilaba después el APK TileStore-disabled sin restaurar ese manifiesto; por eso heredó Skia pese a declarar flutter_renderer=impeller-default. La comparación TileStore-disabled no era independiente y no permite concluir que desactivar TileStore no tenga efecto.
+
+### Correcciones publicadas en PR #79
+
+- tool/smoke_android_map.sh: UIAutomator ahora elimina el XML remoto anterior, reintenta hasta cuatro veces, comprueba que el fichero remoto existe y no está vacío antes de leerlo y valida la jerarquía. El selector de Mapa exige un nodo semántico clicable y reconoce el label del botón inferior, no su icono decorativo.
+- tool/test_android_map_smoke_render_gate.py: prueba con ADB simulado que recupera una jerarquía después de dos ausencias transitorias y falla de forma cerrada tras cuatro intentos.
+- .github/workflows/staging-android.yml: antes de compilar TileStore-disabled restaura el manifiesto versionado con git checkout -- android/app/src/main/AndroidManifest.xml y exige un diff limpio; verifica que el manifiesto declara Impeller predeterminado.
+- tool/smoke_android_map_ab.sh: además de verificar TileStore desactivado, exige que el log runtime de esa variante confirme backend=impeller. Una variante que herede Skia queda rechazada.
+
+### Interpretación y siguiente ejecución
+
+La evidencia válida de este run solo confirma que **Skia + TileStore READ_ONLY** y **Skia + TileStore DISABLED** no superaron el gate visual en SwiftShader. No hubo una prueba válida del MapWidget Impeller y la comparación de TileStore quedó contaminada.
+
+El siguiente staging debe demostrar tres identidades runtime independientes antes de comparar imágenes: principal Impeller + READ_ONLY, comparativo Skia + READ_ONLY y diagnóstico Impeller + DISABLED. Cada APK debe llegar a Mapa cartográfico; después se comparan callbacks, eventos de teselas y PNG. El gate sigue exigiendo MAP_LOADED, RenderMode.FULL, MAP_IDLE y captura visual válida.
+
+CI general [44065339116](https://github.com/Baltas80/espana-outdoor/actions/runs/44065339116) y Security [44065336788](https://github.com/Baltas80/espana-outdoor/actions/runs/44065336788) terminaron correctamente sobre el HEAD 08ade9f; Android staging [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090) terminó en fallo del smoke. La nueva corrección aún necesita CI y staging sobre su nuevo HEAD.
+
+No se certifica mapa online/offline ni dispositivo físico. No se modifica la configuración cartográfica de producción.
