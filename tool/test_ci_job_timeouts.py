@@ -45,4 +45,11 @@ if not re.search(r"(?m)^        timeout-minutes: 55$", smoke_step.group(1)):
 if not re.search(r"(?m)^          emulator-boot-timeout: 600$", smoke_step.group(1)):
     raise SystemExit("Android emulator boot must be bounded to 600 seconds.")
 
+for workflow_name, workflow_source in (("CI", ci), ("Android staging", staging)):
+    setup_java = re.search(r"(?ms)^      - name: Setup Java 21\\n(.*?)(?=^      - name: |\\Z)", workflow_source)
+    if setup_java is None or not re.search(r"(?m)^          cache: gradle$", setup_java.group(1)):
+        raise SystemExit(f"{workflow_name} must cache Gradle dependencies with setup-java.")
+    if not re.search(r"(?m)^          cache-dependency-path: \\|$", setup_java.group(1)):
+        raise SystemExit(f"{workflow_name} must key the Gradle cache from committed Android build files.")
+
 print("github_actions_job_timeouts=true")
