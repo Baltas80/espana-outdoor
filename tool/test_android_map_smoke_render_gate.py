@@ -597,10 +597,12 @@ for marker in (
     "${{ runner.temp }}/primary/espana-map-page-check.txt",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
     "${{ runner.temp }}/primary/espana-mapbox-snapshotter.png",
+    "${{ runner.temp }}/primary/espana-mapbox-snapshotter-vector.png",
     "${{ runner.temp }}/skia/espana-system-dialog.xml",
     "${{ runner.temp }}/skia/espana-map-page-check.txt",
     "${{ runner.temp }}/skia/espana-outdoor-map.png",
     "${{ runner.temp }}/skia/espana-mapbox-snapshotter.png",
+    "${{ runner.temp }}/skia/espana-mapbox-snapshotter-vector.png",
     "${{ runner.temp }}/skia/espana-mapbox-diagnostics.txt",
 ):
     if marker not in evidence_upload:
