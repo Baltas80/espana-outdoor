@@ -197,9 +197,18 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       return;
     }
     _snapshotterCaptureStarted = true;
+    final stopwatch = Stopwatch()..start();
+    void logSnapshotterStage(String stage, [String details = '']) {
+      _logMapboxDiagnostic(
+        'SNAPSHOTTER_STAGE',
+        'stage=$stage elapsed_ms=${stopwatch.elapsedMilliseconds}'
+            '${details.isEmpty ? '' : ' $details'}',
+      );
+    }
 
     mapbox.Snapshotter? snapshotter;
     try {
+      logSnapshotterStage('create_started');
       final styleLoaded = Completer<void>();
       snapshotter = await mapbox.Snapshotter.create(
         options: mapbox.MapSnapshotOptions(
@@ -225,10 +234,16 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
             );
           }
         },
-      );
+      ).timeout(const Duration(seconds: 30));
+      logSnapshotterStage('create_completed');
 
-      await snapshotter.style.setStyleURI(mapboxStyleUri);
+      logSnapshotterStage('style_set_started');
+      await snapshotter.style
+          .setStyleURI(mapboxStyleUri)
+          .timeout(const Duration(seconds: 30));
+      logSnapshotterStage('style_set_completed');
       await styleLoaded.future.timeout(const Duration(seconds: 45));
+      logSnapshotterStage('style_loaded');
       await snapshotter.setCamera(
         mapbox.CameraOptions(
           center: camera.center,
@@ -236,7 +251,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           bearing: camera.bearing,
           pitch: camera.pitch,
         ),
-      );
+      ).timeout(const Duration(seconds: 15));
+      logSnapshotterStage('camera_set');
 
       final png = await snapshotter.start().timeout(
         const Duration(seconds: 45),
@@ -244,6 +260,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       if (png == null || png.isEmpty) {
         throw StateError('snapshotter_returned_empty_png');
       }
+      logSnapshotterStage('capture_completed', 'bytes=${png.length}');
 
       final encoded = base64Encode(png);
       const chunkSize = 700;
@@ -265,16 +282,28 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       }
       debugPrint('MAPBOX_SNAPSHOTTER_PNG_END sha256=$digest');
     } catch (error) {
+      logSnapshotterStage(
+        'failed',
+        'error=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
       debugPrint(
         'MAPBOX_SNAPSHOTTER_CAPTURE failed=${sanitizeMapboxDiagnostic(error.toString())}',
       );
     } finally {
-      try {
-        await snapshotter?.dispose();
-      } catch (error) {
-        debugPrint(
-          'MAPBOX_SNAPSHOTTER_DISPOSE failed=${sanitizeMapboxDiagnostic(error.toString())}',
-        );
+      final activeSnapshotter = snapshotter;
+      if (activeSnapshotter != null) {
+        try {
+          await activeSnapshotter.dispose().timeout(const Duration(seconds: 10));
+          logSnapshotterStage('disposed');
+        } catch (error) {
+          logSnapshotterStage(
+            'dispose_failed',
+            'error=${sanitizeMapboxDiagnostic(error.toString())}',
+          );
+          debugPrint(
+            'MAPBOX_SNAPSHOTTER_DISPOSE failed=${sanitizeMapboxDiagnostic(error.toString())}',
+          );
+        }
       }
     }
   }
