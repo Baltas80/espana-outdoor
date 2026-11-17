@@ -291,6 +291,9 @@ for marker in (
     'comparison_run=${renderer_run}',
     'comparison_status=${renderer_status}',
     'comparison_mode=hybrid-surface',
+    'primary_renderer=impeller',
+    'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller',
+    'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia',
     '--kill-after=150s 20m',
 ):
     if marker not in ab_runner_source:
@@ -319,14 +322,16 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
-        "mapbox_android_view_mode=hybrid-surface\n",
+        "mapbox_android_view_mode=hybrid-surface\n"
+        "flutter_renderer=impeller-default\nimpeller_enabled=default\n",
         encoding="utf-8",
     )
     (temp_root / "skia-build" / "android-staging-validation.txt").write_text(
         "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\n"
         "version_code=5\nsource_commit=test-commit\n"
         "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\n"
-        "mapbox_android_view_mode=hybrid-surface\n",
+        "mapbox_android_view_mode=hybrid-surface\n"
+        "flutter_renderer=skia-optout\nimpeller_enabled=false\n",
         encoding="utf-8",
     )
     fake_bin = temp_root / "bin"
@@ -337,6 +342,16 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "#!/usr/bin/env bash\n"
         'printf "RUNNER_TEMP=%s\n" "${RUNNER_TEMP:-}" >> "$CALL_LOG"\n'
         'printf "ARGS=%s\n" "$*" >> "$CALL_LOG"\n'
+        'if [[ "$*" == *"bash tool/smoke_android_map.sh"* ]]; then\n'
+        '  mkdir -p "$RUNNER_TEMP"\n'
+        '  if [[ "$RUNNER_TEMP" == */primary ]]; then\n'
+        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '  elif [[ "${FAIL_SKIA_DIAGNOSTIC:-false}" == "true" ]]; then\n'
+        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '  else\n'
+        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '  fi\n'
+        'fi\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
         'if [[ "${FAIL_RENDERER:-false}" == "true" && "$*" == *skia-build/app-release.apk* ]]; then exit 8; fi\n'
@@ -356,14 +371,28 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         check=False,
     )
     if successful.returncode != 0 or "comparison_run=true" not in successful.stdout:
-        raise SystemExit(f"Android renderer A/B runner failed its success-path test: {successful.stderr}")
+        raise SystemExit(f"Android Skia A/B runner failed its success-path test: {successful.stderr}")
+    if "primary_renderer=impeller" not in successful.stdout or "comparison_renderer=skia" not in successful.stdout:
+        raise SystemExit("Android Skia A/B runner did not prove the two runtime renderers.")
     calls = call_log.read_text(encoding="utf-8")
     if calls.count("bash tool/smoke_android_map.sh") != 2 or "primary-build/app-release.apk" not in calls or "skia-build/app-release.apk" not in calls:
         raise SystemExit("Android renderer A/B runner did not invoke both APKs in the success-path test.")
     if f"RUNNER_TEMP={temp_root}/primary" not in calls or f"RUNNER_TEMP={temp_root}/skia" not in calls:
         raise SystemExit("Android renderer A/B runner did not isolate primary and comparison evidence directories.")
     if "adb shell pm clear com.espanaoutdoors.espana_outdoors.iconspreview" not in calls:
-        raise SystemExit("The renderer A/B runner must clear app data before installing the comparison APK.")
+        raise SystemExit("The Skia A/B runner must clear app data before installing the comparison APK.")
+
+    mismatch_env = test_env.copy()
+    mismatch_env["FAIL_SKIA_DIAGNOSTIC"] = "true"
+    mismatched = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=mismatch_env,
+        check=False,
+    )
+    if mismatched.returncode == 0 or "renderer_identity_status=1" not in mismatched.stdout:
+        raise SystemExit("The Skia A/B runner must reject a comparison APK that still reports Impeller.")
 
     call_log.write_text("", encoding="utf-8")
     failing_env = test_env.copy()
@@ -432,11 +461,14 @@ for marker in (
     'renderer_dir="$RUNNER_TEMP/skia-build"',
     "flutter clean",
     "flutter pub get --enforce-lockfile",
+    "python3 tool/prepare_android_skia_ab.py android/app/src/main/AndroidManifest.xml",
     '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI"',
     "--dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface",
     'cp "$renderer_apk" "$renderer_dir/app-release.apk"',
     'echo "mapbox_style_uri=$MAPBOX_STYLE_URI"',
     'echo "mapbox_android_view_mode=hybrid-surface"',
+    'echo "flutter_renderer=skia-optout"',
+    'echo "impeller_enabled=false"',
     'echo "validation_scope=runtime-capable-artifact"',
 ):
     if marker not in renderer_build:
@@ -463,6 +495,8 @@ for marker in (
     'test "$expected_sha" = "$actual_sha"',
     'grep -Fxq "mapbox_style_uri=$MAPBOX_STYLE_URI" "$renderer_manifest"',
     'grep -Fxq "mapbox_android_view_mode=hybrid-surface" "$renderer_manifest"',
+    'grep -Fxq "flutter_renderer=skia-optout" "$renderer_manifest"',
+    'grep -Fxq "impeller_enabled=false" "$renderer_manifest"',
 ):
     if marker not in require_renderer:
         raise SystemExit(f"Mapbox renderer A/B artifact verification is missing: {marker}")
