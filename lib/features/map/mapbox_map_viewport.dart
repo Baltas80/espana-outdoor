@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mapbox;
 
 const mapboxStyleUri = String.fromEnvironment(
   'MAPBOX_STYLE_URI',
@@ -125,6 +129,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   int _resourceEventsLogged = 0;
   String? _lastRenderMode;
   bool _mapOptionsLogged = false;
+  bool _snapshotterCaptureStarted = false;
 
   static const _maxSourceDataEventsToLog = 250;
   static const _maxResourceEventsToLog = 100;
@@ -169,10 +174,108 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         'width=${size.width} height=${size.height} zoom=${camera.zoom} '
         'lng=${center.lng} lat=${center.lat}',
       );
+      unawaited(_captureSnapshotterDiagnostic(size: size, camera: camera));
     } catch (error) {
       debugPrint(
         'MAPBOX_STYLE_INSPECTION failed=${sanitizeMapboxDiagnostic(error.toString())}',
       );
+    }
+  }
+
+  /// Captures a second image through Mapbox's standalone native Snapshotter.
+  ///
+  /// This bypasses the live MapWidget/platform-view composition path. Comparing
+  /// it with adb screencap distinguishes a native Mapbox rendering problem from
+  /// a Flutter/Android view-composition problem. It runs only in Android staging.
+  Future<void> _captureSnapshotterDiagnostic({
+    required mapbox.Size size,
+    required mapbox.CameraState camera,
+  }) async {
+    if (const String.fromEnvironment('APP_ENV') != 'staging' ||
+        defaultTargetPlatform != TargetPlatform.android ||
+        _snapshotterCaptureStarted) {
+      return;
+    }
+    _snapshotterCaptureStarted = true;
+
+    mapbox.Snapshotter? snapshotter;
+    try {
+      final styleLoaded = Completer<void>();
+      snapshotter = await mapbox.Snapshotter.create(
+        options: mapbox.MapSnapshotOptions(
+          size: size,
+          pixelRatio: 1.0,
+          glyphsRasterizationOptions: mapbox.GlyphsRasterizationOptions(
+            rasterizationMode:
+                mapbox.GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
+            fontFamily: 'sans-serif',
+          ),
+          showsLogo: false,
+          showsAttribution: false,
+        ),
+        onStyleLoadedListener: (_) {
+          if (!styleLoaded.isCompleted) styleLoaded.complete();
+        },
+        onMapLoadErrorListener: (event) {
+          if (!styleLoaded.isCompleted) {
+            styleLoaded.completeError(
+              StateError(
+                'type=${event.type} message=${sanitizeMapboxDiagnostic(event.message)}',
+              ),
+            );
+          }
+        },
+      );
+
+      await snapshotter.style.setStyleURI(mapboxStyleUri);
+      await styleLoaded.future.timeout(const Duration(seconds: 45));
+      await snapshotter.setCamera(
+        mapbox.CameraOptions(
+          center: camera.center,
+          zoom: camera.zoom,
+          bearing: camera.bearing,
+          pitch: camera.pitch,
+        ),
+      );
+
+      final png = await snapshotter.start().timeout(
+        const Duration(seconds: 45),
+      );
+      if (png == null || png.isEmpty) {
+        throw StateError('snapshotter_returned_empty_png');
+      }
+
+      final encoded = base64Encode(png);
+      const chunkSize = 700;
+      final totalChunks = (encoded.length + chunkSize - 1) ~/ chunkSize;
+      final digest = sha256.convert(png).toString();
+      debugPrint(
+        'MAPBOX_SNAPSHOTTER_PNG_BEGIN bytes=${png.length} '
+        'chunks=$totalChunks sha256=$digest',
+      );
+      for (var index = 0; index < totalChunks; index++) {
+        final start = index * chunkSize;
+        final end = (start + chunkSize < encoded.length)
+            ? start + chunkSize
+            : encoded.length;
+        debugPrint(
+          'MAPBOX_SNAPSHOTTER_PNG_CHUNK index=$index '
+          'total=$totalChunks data=${encoded.substring(start, end)}',
+        );
+      }
+      debugPrint('MAPBOX_SNAPSHOTTER_PNG_END sha256=$digest');
+    } catch (error) {
+      debugPrint(
+        'MAPBOX_SNAPSHOTTER_CAPTURE failed=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
+    } finally {
+      try {
+        await snapshotter?.dispose();
+      } catch (error) {
+        debugPrint(
+          'MAPBOX_SNAPSHOTTER_DISPOSE failed=${sanitizeMapboxDiagnostic(error.toString())}',
+        );
+      }
     }
   }
 
