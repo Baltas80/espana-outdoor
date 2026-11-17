@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
@@ -128,6 +131,48 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   void _logMapboxDiagnostic(String event, [String details = '']) {
     final suffix = details.isEmpty ? '' : ' $details';
     debugPrint('MAPBOX_DIAGNOSTIC event=$event$suffix');
+  }
+
+  Future<void> _inspectLoadedStyle() async {
+    final map = _map;
+    if (map == null) return;
+
+    try {
+      final decoded = jsonDecode(await map.getStyleJSON());
+      if (decoded is! Map) {
+        throw const FormatException('Mapbox returned a non-object style JSON.');
+      }
+
+      final rawLayers = decoded['layers'];
+      final layers = rawLayers is List
+          ? rawLayers.whereType<Map>().toList(growable: false)
+          : const <Map>[];
+      final rawSources = decoded['sources'];
+      final sourceCount = rawSources is Map ? rawSources.length : 0;
+      final backgroundLayers = layers
+          .where((layer) => layer['type'] == 'background')
+          .toList(growable: false);
+      final backgroundPaint = backgroundLayers.isEmpty
+          ? 'none'
+          : jsonEncode(backgroundLayers.first['paint'] ?? const <String, Object?>{});
+      final size = await map.getSize();
+      final camera = await map.getCameraState();
+      final styleLoaded = await map.isStyleLoaded();
+      final center = camera.center.coordinates;
+
+      debugPrint(
+        'MAPBOX_STYLE_INSPECTION style_loaded=$styleLoaded '
+        'layer_count=${layers.length} source_count=$sourceCount '
+        'background_layer_count=${backgroundLayers.length} '
+        'background_paint=${sanitizeMapboxDiagnostic(backgroundPaint)} '
+        'width=${size.width} height=${size.height} zoom=${camera.zoom} '
+        'lng=${center.lng} lat=${center.lat}',
+      );
+    } catch (error) {
+      debugPrint(
+        'MAPBOX_STYLE_INSPECTION failed=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
+    }
   }
 
   bool _sameRoutePoints(List<Position> first, List<Position> second) {
@@ -288,6 +333,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       onMapCreated: _onMapCreated,
       onStyleLoadedListener: (_) {
         _logMapboxDiagnostic('STYLE_LOADED');
+        unawaited(_inspectLoadedStyle());
       },
       onMapLoadedListener: (_) {
         _logMapboxDiagnostic('MAP_LOADED');
