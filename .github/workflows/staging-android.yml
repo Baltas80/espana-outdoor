@@ -157,6 +157,7 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
+            --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
             --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
             --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
@@ -204,6 +205,7 @@ jobs:
             echo "mapbox_runtime_token=$mapbox_runtime"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
             echo "mapbox_android_view_mode=hybrid-surface"
+            echo "mapbox_tile_store_usage_mode=default"
             if [[ "$mapbox_runtime" == "available" ]]; then
               echo "validation_scope=runtime-capable-artifact"
             else
@@ -322,6 +324,159 @@ jobs:
             echo "validation_scope=runtime-capable-artifact"
           } > "$renderer_dir/android-staging-validation.txt"
           echo "renderer_apk_built=$renderer_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build Mapbox Skia comparison APK (Impeller disabled)
+        id: build_skia_apk
+        continue-on-error: true
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != '' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          renderer_dir="$RUNNER_TEMP/skia-build"
+          mkdir -p "$renderer_dir"
+
+          # Flutter 3.47.5 rejects a custom output-directory flag. Build the
+          # renderer comparison through the normal output path, then preserve it separately.
+          # A clean prevents stale Dart defines from being reused.
+          flutter clean
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          python3 tool/prepare_android_skia_ab.py android/app/src/main/AndroidManifest.xml
+          flutter build apk --release \
+            --dart-define=APP_ENV="$APP_ENV" \
+            --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
+            --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
+            --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
+            --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
+            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
+            --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
+            --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
+            --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
+            --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
+            --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
+            --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+
+          renderer_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$renderer_apk"
+          python3 tool/verify_android_release.py --apk "$renderer_apk"
+          aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
+          test -x "$aapt_path"
+          badging="$("$aapt_path" dump badging "$renderer_apk")"
+          application_id="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_code="$(sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_name="$(sed -n "s/^package:.*versionName='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          test -n "$application_id"
+          test -n "$version_code"
+          source_commit="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            source_commit="${{ github.event.pull_request.head.sha }}"
+          fi
+          apk_sha256="$(sha256sum "$renderer_apk" | cut -d ' ' -f1)"
+          apk_size_bytes="$(stat -c '%s' "$renderer_apk")"
+          flutter_version="$(flutter --version | head -n 1)"
+          app_version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+          cp "$renderer_apk" "$renderer_dir/app-release.apk"
+          {
+            echo "profile=staging"
+            echo "build_variant=release"
+            echo "application_id=$application_id"
+            echo "version_code=$version_code"
+            echo "version_name=$version_name"
+            echo "app_version=$app_version"
+            echo "apk_file=app-release.apk"
+            echo "apk_size_bytes=$apk_size_bytes"
+            echo "apk_sha256=$apk_sha256"
+            echo "source_commit=$source_commit"
+            echo "workflow_commit=$GITHUB_SHA"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "flutter=$flutter_version"
+            echo "flutter_renderer=skia-optout"
+            echo "impeller_enabled=false"
+            echo "mapbox_tile_store_usage_mode=default"
+            echo "mapbox_runtime_token=available"
+            echo "mapbox_downloads_token=available"
+            echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
+            echo "mapbox_android_view_mode=hybrid-surface"
+            echo "validation_scope=runtime-capable-artifact"
+          } > "$renderer_dir/android-staging-validation.txt"
+          echo "renderer_apk_built=$renderer_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build Mapbox TileStore-disabled diagnostic APK
+        id: build_tile_store_disabled_apk
+        continue-on-error: true
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != '' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tile_store_dir="$RUNNER_TEMP/skia-build"
+          mkdir -p "$tile_store_dir"
+
+          # Flutter 3.47.5 rejects a custom output-directory flag. Build the
+          # TileStore-disabled diagnostic through the normal output path, then preserve it separately.
+          # A clean prevents stale Dart defines from being reused.
+          flutter clean
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          flutter build apk --release \
+            --dart-define=APP_ENV="$APP_ENV" \
+            --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
+            --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
+            --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
+            --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=disabled \
+            --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
+            --dart-define=SOURCE_GATEWAY_BASE_URL="$SOURCE_GATEWAY_BASE_URL" \
+            --dart-define=COMMUNITY_API_BASE_URL="$COMMUNITY_API_BASE_URL" \
+            --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL" \
+            --dart-define=OIDC_ISSUER="$OIDC_ISSUER" \
+            --dart-define=OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
+            --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
+
+          diagnostic_apk="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$diagnostic_apk"
+          python3 tool/verify_android_release.py --apk "$diagnostic_apk"
+          aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
+          test -x "$aapt_path"
+          badging="$("$aapt_path" dump badging "$diagnostic_apk")"
+          application_id="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_code="$(sed -n "s/^package:.*versionCode='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          version_name="$(sed -n "s/^package:.*versionName='\\([^']*\\)'.*/\\1/p" <<<"$badging" | head -n 1)"
+          test -n "$application_id"
+          test -n "$version_code"
+          source_commit="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            source_commit="${{ github.event.pull_request.head.sha }}"
+          fi
+          apk_sha256="$(sha256sum "$diagnostic_apk" | cut -d ' ' -f1)"
+          apk_size_bytes="$(stat -c '%s' "$diagnostic_apk")"
+          flutter_version="$(flutter --version | head -n 1)"
+          app_version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+          cp "$diagnostic_apk" "$tile_store_dir/app-release.apk"
+          {
+            echo "profile=staging"
+            echo "build_variant=release"
+            echo "application_id=$application_id"
+            echo "version_code=$version_code"
+            echo "version_name=$version_name"
+            echo "app_version=$app_version"
+            echo "apk_file=app-release.apk"
+            echo "apk_size_bytes=$apk_size_bytes"
+            echo "apk_sha256=$apk_sha256"
+            echo "source_commit=$source_commit"
+            echo "workflow_commit=$GITHUB_SHA"
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "flutter=$flutter_version"
+            echo "flutter_renderer=impeller-default"
+            echo "impeller_enabled=default"
+            echo "mapbox_tile_store_usage_mode=disabled"
+            echo "mapbox_runtime_token=available"
+            echo "mapbox_downloads_token=available"
+            echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
+            echo "mapbox_android_view_mode=hybrid-surface"
+            echo "validation_scope=diagnostic-only-tile-store-disabled"
+          } > "$tile_store_dir/android-staging-validation.txt"
+          echo "diagnostic_apk_built=$tile_store_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Android staging APK
         if: success() && steps.build_apk.outputs.built == 'true'
         uses: actions/upload-artifact@v7.0.0
@@ -339,6 +494,15 @@ jobs:
           path: |
             ${{ runner.temp }}/skia-build/app-release.apk
             ${{ runner.temp }}/skia-build/android-staging-validation.txt
+          if-no-files-found: error
+      - name: Upload Mapbox TileStore-disabled diagnostic APK
+        if: success() && steps.build_tile_store_disabled_apk.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: mapbox-tile-store-disabled-apk
+          path: |
+            ${{ runner.temp }}/tile-store-disabled-build/app-release.apk
+            ${{ runner.temp }}/tile-store-disabled-build/android-staging-validation.txt
           if-no-files-found: error
       - name: Enable KVM for Android emulator
         id: kvm_setup
@@ -403,6 +567,15 @@ jobs:
             ${{ runner.temp }}/skia/espana-outdoor-map.png
             ${{ runner.temp }}/skia/espana-mapbox-snapshotter.png
             ${{ runner.temp }}/skia/espana-mapbox-snapshotter-vector.png
+            ${{ runner.temp }}/tile-store-disabled/espana-outdoor-map-logcat.txt
+            ${{ runner.temp }}/tile-store-disabled/espana-mapbox-diagnostics.txt
+            ${{ runner.temp }}/tile-store-disabled/espana-window.xml
+            ${{ runner.temp }}/tile-store-disabled/espana-window-post-map.xml
+            ${{ runner.temp }}/tile-store-disabled/espana-system-dialog.xml
+            ${{ runner.temp }}/tile-store-disabled/espana-map-page-check.txt
+            ${{ runner.temp }}/tile-store-disabled/espana-outdoor-map.png
+            ${{ runner.temp }}/tile-store-disabled/espana-mapbox-snapshotter.png
+            ${{ runner.temp }}/tile-store-disabled/espana-mapbox-snapshotter-vector.png
           if-no-files-found: ignore
       - name: Require Android map native smoke
         if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
@@ -434,4 +607,32 @@ jobs:
           grep -Fxq "mapbox_android_view_mode=hybrid-surface" "$renderer_manifest"
           grep -Fxq "flutter_renderer=skia-optout" "$renderer_manifest"
           grep -Fxq "impeller_enabled=false" "$renderer_manifest"
+
+      - name: Require Mapbox TileStore-disabled diagnostic APK
+        if: always() && steps.build_tile_store_disabled_apk.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.build_tile_store_disabled_apk.outcome }}" != "success" ]]; then
+            echo "::error::Mapbox TileStore-disabled diagnostic APK build failed."
+            exit 1
+          fi
+          diagnostic_apk="$RUNNER_TEMP/tile-store-disabled-build/app-release.apk"
+          diagnostic_manifest="$RUNNER_TEMP/tile-store-disabled-build/android-staging-validation.txt"
+          primary_manifest="$RUNNER_TEMP/primary-build/android-staging-validation.txt"
+          test -s "$diagnostic_apk"
+          test -s "$diagnostic_manifest"
+          test -s "$primary_manifest"
+          expected_sha="$(sed -n 's/^apk_sha256=//p' "$diagnostic_manifest")"
+          actual_sha="$(sha256sum "$diagnostic_apk" | cut -d ' ' -f1)"
+          test -n "$expected_sha"
+          test "$expected_sha" = "$actual_sha"
+          for key in application_id version_code source_commit mapbox_style_uri mapbox_android_view_mode; do
+            expected="$(sed -n "s/^${key}=//p" "$primary_manifest" | head -n 1)"
+            actual="$(sed -n "s/^${key}=//p" "$diagnostic_manifest" | head -n 1)"
+            test -n "$expected"
+            test "$expected" = "$actual"
+          done
+          grep -Fxq "mapbox_tile_store_usage_mode=disabled" "$diagnostic_manifest"
+          grep -Fxq "validation_scope=diagnostic-only-tile-store-disabled" "$diagnostic_manifest"
 
