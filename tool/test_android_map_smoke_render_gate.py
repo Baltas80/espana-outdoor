@@ -306,8 +306,8 @@ if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app
         "Android APK metadata parser failed its aapt badging fixture: "
         + (metadata_result.stderr or metadata_result.stdout)
     )
-if "cancel-in-progress: true" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
-    raise SystemExit("A newer Android staging commit must supersede queued stale runs on the same branch.")
+if "cancel-in-progress: false" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
+    raise SystemExit("Android staging must preserve the active emulator smoke and queue newer commits.")
 
 # Style A/B is staging-only. The normal workflow_dispatch default and
 # production MapWidget default remain Outdoors; PR #79 automatically runs a
