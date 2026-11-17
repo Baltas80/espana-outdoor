@@ -41,7 +41,7 @@ for marker in (
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
     "mapbox.Snapshotter.create(",
     "mapbox.MapSnapshotOptions(",
-    "MAPBOX_SNAPSHOTTER_STAGE",
+    "'SNAPSHOTTER_STAGE'",
     "logSnapshotterStage('create_started')",
     "logSnapshotterStage('create_completed')",
     "logSnapshotterStage('capture_completed'",
@@ -83,7 +83,7 @@ if source.rfind("extract_mapbox_snapshotter_png.py") > source.rfind('adb exec-ou
 snapshotter_wait_block = source.split("snapshotter_wait_seconds=", 1)[1].split('adb logcat -d >"${logcat_file}"', 1)[0]
 for marker in (
     "MAPBOX_SNAPSHOTTER_WAIT_SECONDS",
-    "MAPBOX_SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)",
+    "MAPBOX_DIAGNOSTIC event=SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)",
     "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT",
     "snapshotter_terminal=true",
 ):
