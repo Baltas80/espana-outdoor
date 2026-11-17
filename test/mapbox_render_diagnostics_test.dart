@@ -1,8 +1,27 @@
+import 'dart:convert';
 import 'package:espana_outdoors/features/map/mapbox_map_viewport.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Mapbox Snapshotter baseline style', () {
+    test('is a self-contained background-only style with no network sources', () {
+      final style =
+          jsonDecode(mapboxSnapshotterBaselineStyleJson()) as Map<String, dynamic>;
+
+      expect(style['version'], 8);
+      expect(style['sources'], isEmpty);
+      final layers = style['layers'] as List<dynamic>;
+      expect(layers, hasLength(1));
+      final background = layers.single as Map<String, dynamic>;
+      expect(background['type'], 'background');
+      expect(
+        (background['paint'] as Map<String, dynamic>)['background-color'],
+        '#d9e6c7',
+      );
+    });
+  });
+
   group('Mapbox MapOptions', () {
     test('uses the device pixel ratio and offline-compatible glyph settings', () {
       final options = mapboxMapOptionsForPixelRatio(3.0);
