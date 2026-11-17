@@ -8,6 +8,12 @@ case "${snapshotter_mode}" in
   enabled|disabled) ;;
   *) echo "ERROR: Snapshotter mode must be enabled or disabled." >&2; exit 2 ;;
 esac
+
+map_widget_diagnostic_style="${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:-none}"
+case "${map_widget_diagnostic_style}" in
+  none|baseline|vector) ;;
+  *) echo "ERROR: unsupported MapWidget diagnostic style." >&2; exit 2 ;;
+esac
 ADB_COMMAND="${ADB:-adb}"
 if ! command -v "${ADB_COMMAND}" >/dev/null 2>&1; then
   echo "ERROR: adb executable was not found." >&2
@@ -503,7 +509,14 @@ fi
 # cartographic viewport rendered. Reject blank/partial maps before uploading
 # the smoke evidence or reporting a successful Android staging run.
 set +e
-python3 tool/verify_android_map_screenshot.py "${screenshot_file}" --foreground-package "${package_name}"
+if [[ "${map_widget_diagnostic_style}" == "baseline" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-solid-color "#d9e6c7"
+else
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}"
+fi
 screenshot_status=$?
 set -e
 
