@@ -39,6 +39,10 @@ for marker in (
     "import 'dart:ui' as ui;",
     "ui.ImageFilter.isShaderFilterSupported",
     "_logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer')",
+    "mapbox.Snapshotter.create(",
+    "mapbox.MapSnapshotOptions(",
+    "MAPBOX_SNAPSHOTTER_PNG_CHUNK",
+    "sha256.convert(png)",
 ):
     if marker not in mapbox_viewport:
         raise SystemExit(f"Mapbox style inspection is missing: {marker}")
@@ -53,6 +57,22 @@ skia_prepare_test = subprocess.run(
 )
 if skia_prepare_test.returncode != 0:
     raise SystemExit(f"Android Skia A/B manifest self-test failed: {skia_prepare_test.stderr}")
+
+SNAPSHOTTER_EXTRACTOR = ROOT / "tool" / "extract_mapbox_snapshotter_png.py"
+if not SNAPSHOTTER_EXTRACTOR.is_file():
+    raise SystemExit("The Mapbox Snapshotter logcat extractor is missing.")
+snapshotter_test = subprocess.run(
+    [sys.executable, str(SNAPSHOTTER_EXTRACTOR), "--self-test"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+if snapshotter_test.returncode != 0:
+    raise SystemExit(f"Mapbox Snapshotter extractor self-test failed: {snapshotter_test.stderr}")
+if "extract_mapbox_snapshotter_png.py" not in source:
+    raise SystemExit("Android smoke must attempt to extract the native Snapshotter PNG.")
+if source.index("extract_mapbox_snapshotter_png.py") > source.index('adb exec-out screencap -p'):
+    raise SystemExit("Snapshotter evidence must be extracted from logcat before the smoke exits.")
 
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
@@ -545,9 +565,11 @@ for marker in (
     "${{ runner.temp }}/primary/espana-system-dialog.xml",
     "${{ runner.temp }}/primary/espana-map-page-check.txt",
     "${{ runner.temp }}/primary/espana-outdoor-map.png",
+    "${{ runner.temp }}/primary/espana-mapbox-snapshotter.png",
     "${{ runner.temp }}/skia/espana-system-dialog.xml",
     "${{ runner.temp }}/skia/espana-map-page-check.txt",
     "${{ runner.temp }}/skia/espana-outdoor-map.png",
+    "${{ runner.temp }}/skia/espana-mapbox-snapshotter.png",
     "${{ runner.temp }}/skia/espana-mapbox-diagnostics.txt",
 ):
     if marker not in evidence_upload:
