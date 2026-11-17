@@ -387,7 +387,7 @@ for marker in (
     'renderer_apk="$RUNNER_TEMP/texture-vd-build/app-release.apk"',
     'renderer_manifest="$RUNNER_TEMP/texture-vd-build/android-staging-validation.txt"',
     'expected_sha="$(sed -n \'s/^apk_sha256=//p\' "$renderer_manifest")"',
-    'actual_sha="$(sha256sum "$renderer_apk" | cut -d \' ' -f1)"',
+    "actual_sha=\"$(sha256sum \"$renderer_apk\" | cut -d ' ' -f1)\"",
     'test "$expected_sha" = "$actual_sha"',
     'grep -Fxq "mapbox_style_uri=$MAPBOX_STYLE_URI" "$renderer_manifest"',
     'grep -Fxq "mapbox_android_view_mode=virtual-texture" "$renderer_manifest"',
