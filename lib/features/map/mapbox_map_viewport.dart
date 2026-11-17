@@ -22,6 +22,7 @@ class MapboxAndroidViewConfiguration {
   });
 
   final bool textureView;
+  // ignore: experimental_member_use
   final AndroidPlatformViewHostingMode hostingMode;
 }
 
@@ -30,11 +31,13 @@ MapboxAndroidViewConfiguration mapboxAndroidViewConfiguration(String mode) {
     case 'hybrid-surface':
       return const MapboxAndroidViewConfiguration(
         textureView: false,
+        // ignore: experimental_member_use
         hostingMode: AndroidPlatformViewHostingMode.HC,
       );
     case 'virtual-texture':
       return const MapboxAndroidViewConfiguration(
         textureView: true,
+        // ignore: experimental_member_use
         hostingMode: AndroidPlatformViewHostingMode.VD,
       );
     default:
