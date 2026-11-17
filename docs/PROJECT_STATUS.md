@@ -872,3 +872,14 @@ La inspección del logcat encontró que el listener de recursos agotaba su lími
 CI general [44102148065](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148065) terminó correctamente; Security [44102148017](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148017) terminó 8/8. Android staging falló solo en el requisito de smoke cartográfico, con APKs y evidencias publicados.
 
 Commits de instrumentación: [805b80a](https://github.com/Baltas80/espana-outdoor/commit/805b80a26f633635f706dc10d5f9977fab0993ef), [cee5ec4](https://github.com/Baltas80/espana-outdoor/commit/cee5ec4b248cf62a8ca5acaac092bfd010d8aad2), [4a4a193](https://github.com/Baltas80/espana-outdoor/commit/4a4a193d9610731a48b3d65b58dc12e6c422acab). La nueva instrumentación necesita CI y Android staging propios. No se ha cambiado producción ni certificado el modo offline.
+
+
+## Evidencia nueva — Android staging 44114771231 (17/11/2026)
+
+La repetición de [Android staging 44114771231](https://github.com/Baltas80/espana-outdoor/actions/runs/44114771231), intento 2, generó dos capturas negras de la pantalla Mapa con Standard + Virtual Display/TextureView + Impeller. Ambos APK cargaron 190 capas y 10 fuentes, pero solo emitieron `STYLE_LOADED` y un frame `PARTIAL`; no hubo `MAP_LOADED`, `MAP_IDLE`, `FULL` ni `MAP_LOAD_ERROR`.
+
+La instrumentación registra exactamente 14 respuestas TILE correctas desde Network por variante (745.634 bytes), además de glyphs y sprites descargados. Los misses `NOT_FOUND` de TileStore tienen fallback de red correcto. READ_ONLY y DISABLED producen los mismos contadores y bytes; TileStore no explica el mapa negro en este run. El emulador usa `swiftshader_indirect` y EGL registra intervalos extremos (>60 s); es una limitación probable del entorno, aún no causa raíz demostrada.
+
+Nuevo diagnóstico en PR #79: aplicar un estilo JSON local de fondo sólido al MapWidget real, sin fuentes ni red, exclusivamente en Android staging. La prueba comprobará si el PlatformView nativo puede producir un frame completo. Si el fondo local también sale negro, se detienen las variaciones de estilo y se pasa a superficie/render thread y dispositivo OPPO físico. Producción conserva Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico desactivado.
+
+La prueba física OPPO, la descarga y persistencia offline, el modo avión y el reinicio siguen pendientes. No se acepta mapa ni producción.
