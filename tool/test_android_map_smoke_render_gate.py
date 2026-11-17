@@ -227,7 +227,7 @@ for marker in (
     'timeout --foreground --signal=TERM --kill-after=15s 45s adb shell pm clear',
     'if ! grep -Fxq "Success" <<<"${clear_output}"; then',
     'comparison_run=${renderer_run}',
-    'renderer_status=${renderer_status}',
+    'comparison_status=${renderer_status}',
     'comparison_mode=virtual-texture',
     '--kill-after=150s 20m',
 ):
