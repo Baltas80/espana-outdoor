@@ -811,3 +811,23 @@ Los APK Skia y TileStore-disabled sí llegaron a Mapa cartográfico, pero ambos 
 - Las correcciones nuevas todavía no tienen CI ni Android staging completados.
 
 No se certifica el mapa online/offline, el dispositivo OPPO ni producción. El siguiente run debe demostrar Impeller + READ_ONLY, Skia + READ_ONLY e Impeller + DISABLED como tres variantes runtime independientes antes de comparar el renderizado. La prueba física, el modo avión, persistencia tras cierre/reinicio, identidad compartida y servicios de producción siguen pendientes.
+
+
+## Corrección posterior: artefacto parcial del smoke Standard — 17/11/2026
+
+Se descargó e inspeccionó [android-map-smoke-44094615345, artefacto 14334810511](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334810511), que no estaba disponible en la primera consulta. Contiene XML de UI y un snapshot de diagnóstico, pero no captura PNG ni logcat final.
+
+Evidencia:
+- La pantalla Mapa estaba realmente visible; el viewport Mapbox ocupaba `[0,304][1080,2195]` (no era un contenedor de tamaño cero).
+- Runtime confirmado: `backend=impeller`, `mode=virtual-texture`, `texture_view=true`, `hosting=VD`, pixel ratio 2.625.
+- Estilo Standard: `STYLE_LOADED=1`; `MAP_LOADED=0`, `MAP_IDLE=0`, `MAP_LOAD_ERROR=0`; único frame observado: `RenderMode.PARTIAL`.
+- En la ventana capturada: 7 solicitudes `TILE` contra TileStore con `NOT_FOUND` no canceladas y 5 canceladas; **no se observó respuesta `TILE` desde Network**. Sí se recibieron 42 recursos `MODEL` desde Network, además del estilo/import y sprites. Esto no demuestra todavía que TileStore bloquee el fallback: requiere una comparación con el mismo estilo, hosting, cámara y APK, variando solo TileStore.
+- El artefacto no contiene captura de pantalla ni logcat completo; no se acepta el mapa.
+
+Nuevo experimento añadido al workflow de PR #79:
+- Construir un APK diagnóstico adicional Standard + Virtual Texture + TileStore DISABLED.
+- Restaurar el manifiesto nativo configurado incluso cuando el build Skia se omite.
+- Mantener iguales estilo, hosting, renderer, cámara y versión; verificar el modo en manifiesto y runtime.
+- El smoke ejecutará ambos APK en el mismo emulador y publicará evidencia separada. El APK TileStore-disabled es solo diagnóstico online y nunca acepta offline.
+
+El límite del smoke se ajustó a 55 minutos para dos variantes de 20 minutos y arranque de emulador limitado a 600 segundos. La aceptación sigue exigiendo `MAP_LOADED + RenderMode.FULL + MAP_IDLE` y captura legible. No se modifica producción.
