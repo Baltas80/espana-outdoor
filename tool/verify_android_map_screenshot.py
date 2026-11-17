@@ -166,6 +166,74 @@ def verify_expected_solid_color(
     return failures
 
 
+def _rgb(value: str) -> tuple[int, int, int]:
+    if len(value) != 7 or value[0] != "#":
+        raise ValueError("expected color must use #RRGGBB")
+    try:
+        return tuple(int(value[index : index + 2], 16) for index in (1, 3, 5))
+    except ValueError as error:
+        raise ValueError("expected color must use #RRGGBB") from error
+
+
+def verify_expected_vector_render(
+    payload: bytes,
+    expected_line_color: str,
+    expected_background_color: str = "#d9e6c7",
+) -> tuple[dict[str, float | int], list[str]]:
+    """Require the diagnostic background and actual road-colored pixels.
+
+    The crop deliberately excludes the top toast, map controls and bottom
+    navigation so UI chrome cannot satisfy the vector-feature check.
+    """
+    width, height, channels, pixels = decode_png(payload)
+    if width < 300 or height < 300:
+        raise ValueError("screenshot viewport is too small")
+    line = _rgb(expected_line_color)
+    background = _rgb(expected_background_color)
+    min_x, max_x = round(width * 0.08), round(width * 0.65)
+    min_y, max_y = round(height * 0.30), round(height * 0.68)
+    sampled = opaque = line_pixels = background_pixels = 0
+    for y in range(min_y, max_y):
+        row = y * width * channels
+        for x in range(min_x, max_x):
+            offset = row + x * channels
+            red, green, blue = pixels[offset : offset + 3]
+            alpha = pixels[offset + 3] if channels == 4 else 255
+            sampled += 1
+            if alpha < 240:
+                continue
+            opaque += 1
+            if (
+                abs(red - background[0]) <= 8
+                and abs(green - background[1]) <= 8
+                and abs(blue - background[2]) <= 8
+            ):
+                background_pixels += 1
+            if (
+                max(abs(red - line[0]), abs(green - line[1]), abs(blue - line[2])) <= 72
+                and red >= green * 1.15
+                and red >= blue * 1.15
+            ):
+                line_pixels += 1
+    metrics: dict[str, float | int] = {
+        "width": width,
+        "height": height,
+        "vector_crop_pixels": sampled,
+        "opaque_ratio": opaque / sampled if sampled else 0.0,
+        "vector_line_pixels": line_pixels,
+        "vector_line_ratio": line_pixels / sampled if sampled else 0.0,
+        "vector_background_ratio": background_pixels / sampled if sampled else 0.0,
+    }
+    failures: list[str] = []
+    if metrics["opaque_ratio"] <= 0.95:
+        failures.append("opaque_ratio")
+    if metrics["vector_background_ratio"] < 0.30:
+        failures.append("expected_vector_background")
+    if line_pixels < 30 or metrics["vector_line_ratio"] < 0.00005:
+        failures.append("vector_features_missing")
+    return metrics, failures
+
+
 def _self_test() -> None:
     width = height = 400
     rows = bytearray()
@@ -192,6 +260,17 @@ def _self_test() -> None:
     solid_metrics = analyze_png(solid_png)
     assert verify_expected_solid_color(solid_metrics, "#d9e6c7") == []
     assert verify_expected_solid_color(solid_metrics, "#000000") == ["expected_background_color"]
+    vector_rows = bytearray()
+    for y in range(height):
+        vector_rows.append(0)
+        for x in range(width):
+            color = (196, 60, 57, 255) if 198 <= x <= 202 and 100 <= y <= 299 else (217, 230, 199, 255)
+            vector_rows.extend(color)
+    vector_png = PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(vector_rows))) + chunk(b"IEND", b"")
+    _, vector_failures = verify_expected_vector_render(vector_png, "#c43c39")
+    assert vector_failures == []
+    _, missing_vector_failures = verify_expected_vector_render(solid_png, "#c43c39")
+    assert "vector_features_missing" in missing_vector_failures
     print("ANDROID_MAP_SCREENSHOT_SELF_TEST passed")
 
 
@@ -200,6 +279,8 @@ def main() -> int:
     parser.add_argument("png", nargs="?", type=Path)
     parser.add_argument("--foreground-package")
     parser.add_argument("--expected-solid-color")
+    parser.add_argument("--expected-vector-color")
+    parser.add_argument("--expected-background-color", default="#d9e6c7")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     try:
@@ -222,7 +303,26 @@ def main() -> int:
             f"dominant_ratio={metrics['dominant_ratio']:.3f} "
             f"dominant_color_key={metrics['dominant_color_key']:04x}"
         )
-        if args.expected_solid_color:
+        if args.expected_solid_color and args.expected_vector_color:
+            parser.error("choose either --expected-solid-color or --expected-vector-color")
+        if args.expected_vector_color:
+            vector_metrics, failures = verify_expected_vector_render(
+                args.png.read_bytes(), args.expected_vector_color, args.expected_background_color
+            )
+            print(
+                "MAPBOX_OFFLINE_VECTOR_METRICS "
+                f"width={vector_metrics['width']} height={vector_metrics['height']} "
+                f"line_pixels={vector_metrics['vector_line_pixels']} "
+                f"line_ratio={vector_metrics['vector_line_ratio']:.6f} "
+                f"background_ratio={vector_metrics['vector_background_ratio']:.3f} "
+                f"opaque_ratio={vector_metrics['opaque_ratio']:.3f}"
+            )
+            print(
+                "MAPBOX_OFFLINE_RENDER_GATE mode=vector "
+                f"line_color={args.expected_vector_color} "
+                f"background_color={args.expected_background_color} min_line_pixels=30"
+            )
+        elif args.expected_solid_color:
             print(
                 "MAPBOX_OFFLINE_RENDER_GATE mode=solid "
                 f"expected_color={args.expected_solid_color} dominant_min=0.90"
