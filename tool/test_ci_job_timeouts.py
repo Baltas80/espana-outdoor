@@ -34,8 +34,14 @@ for job, minutes in (
 if not re.search(r"(?m)^    timeout-minutes: 105$", job_block(staging, "android-staging")):
     raise SystemExit("Android staging must have a 105-minute job-level timeout for build, upload and smoke evidence.")
 
-staging_concurrency = re.search(r"(?ms)^concurrency:\\n(.*?)(?=^permissions:)", staging)
-if staging_concurrency is None or not re.search(r"(?m)^  cancel-in-progress: false$", staging_concurrency.group(1)):
+staging_lines = staging.splitlines()
+try:
+    concurrency_start = staging_lines.index("concurrency:")
+    permissions_start = staging_lines.index("permissions:")
+except ValueError as exc:
+    raise SystemExit("Android staging must declare workflow concurrency and permissions.") from exc
+concurrency_lines = {line.strip() for line in staging_lines[concurrency_start:permissions_start]}
+if "cancel-in-progress: false" not in concurrency_lines:
     raise SystemExit("Android staging must preserve an active emulator smoke when newer commits arrive.")
 
 smoke_step = re.search(
