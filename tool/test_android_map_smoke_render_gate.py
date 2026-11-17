@@ -419,16 +419,19 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         'if [[ "$*" == *"bash tool/smoke_android_map.sh"* ]]; then\n'
         '  mkdir -p "$RUNNER_TEMP"\n'
         '  if [[ "$RUNNER_TEMP" == */primary ]]; then\n'
-        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '  elif [[ "$RUNNER_TEMP" == */tile-store-disabled ]]; then\n'
+        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  elif [[ "${FAIL_SKIA_DIAGNOSTIC:-false}" == "true" ]]; then\n'
-        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  else\n'
-        '    printf "%s\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  fi\n'
         'fi\n'
         'if [[ "$*" == *"adb shell pm clear"* ]]; then echo "Success"; exit 0; fi\n'
         'if [[ "${FAIL_PRIMARY:-false}" == "true" && "$*" == *primary-build/app-release.apk* ]]; then exit 7; fi\n'
         'if [[ "${FAIL_RENDERER:-false}" == "true" && "$*" == *skia-build/app-release.apk* ]]; then exit 8; fi\n'
+        'if [[ "${FAIL_TILE_STORE:-false}" == "true" && "$*" == *tile-store-disabled-build/app-release.apk* ]]; then exit 9; fi\n'
         "exit 0\n",
         encoding="utf-8",
     )
@@ -511,6 +514,46 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
+    tile_store_dir = temp_root / "tile-store-disabled-build"
+    tile_store_dir.mkdir()
+    (tile_store_dir / "app-release.apk").write_bytes(b"tile-store-disabled-apk")
+    (tile_store_dir / "android-staging-validation.txt").write_text(
+        "application_id=com.espanaoutdoors.espana_outdoors.iconspreview\\n"
+        "version_code=5\\nsource_commit=test-commit\\n"
+        "mapbox_style_uri=mapbox://styles/mapbox/outdoors-v12\\n"
+        "mapbox_android_view_mode=hybrid-surface\\n"
+        "mapbox_tile_store_usage_mode=disabled\\n",
+        encoding="utf-8",
+    )
+    call_log.write_text("", encoding="utf-8")
+    tile_store_run = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=test_env,
+        check=False,
+    )
+    tile_store_calls = call_log.read_text(encoding="utf-8")
+    if tile_store_run.returncode != 0 or "tile_store_run=true" not in tile_store_run.stdout:
+        raise SystemExit(f"TileStore-disabled A/B runner failed its success-path test: {tile_store_run.stderr}")
+    if tile_store_calls.count("bash tool/smoke_android_map.sh") != 2:
+        raise SystemExit("TileStore-disabled A/B must run primary and diagnostic APKs exactly once.")
+    if f"RUNNER_TEMP={temp_root}/tile-store-disabled" not in tile_store_calls:
+        raise SystemExit("TileStore-disabled evidence must use an isolated directory.")
+    diagnostic_log = (temp_root / "tile-store-disabled" / "espana-outdoor-map-logcat.txt").read_text(encoding="utf-8")
+    if "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" not in diagnostic_log:
+        raise SystemExit("TileStore-disabled A/B did not verify the runtime usage mode.")
+    failing_tile_store_env = test_env.copy()
+    failing_tile_store_env["FAIL_TILE_STORE"] = "true"
+    failed_tile_store = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=failing_tile_store_env,
+        check=False,
+    )
+    if failed_tile_store.returncode == 0:
+        raise SystemExit("A TileStore-disabled diagnostic failure must fail the A/B smoke.")
 
 prepare_primary = workflow.split("- name: Preserve verified primary Android staging APK", 1)[1]
 prepare_primary = prepare_primary.split("- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1)[0]
