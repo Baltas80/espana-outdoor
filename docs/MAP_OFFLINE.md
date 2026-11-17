@@ -1,3 +1,15 @@
+## Preflight independiente de token y tesela vectorial
+
+Android staging ejecuta `tool/preflight_mapbox_tiles.py` antes de compilar cuando existe `MAPBOX_ACCESS_TOKEN`. Consulta el JSON del estilo seleccionado y solicita una tesela vectorial Streets v8 en Córdoba (z12/x1993/y1581). El token se toma exclusivamente del entorno; no se imprime ni se incluye en mensajes de error. Un HTTP 401/403 identifica un problema de credenciales/permisos de tiles, mientras que un resultado correcto confirma acceso al endpoint pero no certifica el renderizador Android.
+
+Las pruebas locales sin red se ejecutan con:
+
+```bash
+python3 tool/test_preflight_mapbox_tiles.py
+```
+
+Este preflight separa autorización/red de la composición Android. El gate de mapa sigue exigiendo `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL`; un HTTP 200 de tesela no permite aceptar un mapa negro ni certificar offline.
+
 ## Standard + Hybrid Composition — 17/11/2026, run 44084139266
 
 Run [44084139266](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266), source commit `e03aafcc1d1b271c961cc9493c8076e823675c79`. El APK principal compiló, se instaló y llegó a la pantalla Mapa con `mapbox://styles/mapbox/standard`, Impeller, Hybrid Composition + SurfaceView y TileStore `READ_ONLY`. El smoke falló únicamente en el gate visual.
