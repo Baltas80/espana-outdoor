@@ -346,7 +346,7 @@ required = (
     "ANDROID_EMULATOR_SYSTEM_PACKAGE",
     "adb() {",
     "timeout --foreground --signal=TERM",
-    "UIAutomator dump failed or timed out",
+    "UIAutomator did not produce a readable hierarchy after 4 bounded attempts.",
     "capture_failure_evidence()",
     "trap 'exit 124' TERM",
     "trap capture_failure_evidence EXIT",
