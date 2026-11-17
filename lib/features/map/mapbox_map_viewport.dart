@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -203,6 +204,9 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   }
 
   Future<void> _onMapCreated(MapboxMap map) async {
+    final renderer =
+        ui.ImageFilter.isShaderFilterSupported ? 'impeller' : 'skia';
+    _logMapboxDiagnostic('FLUTTER_RENDERER', 'backend=$renderer');
     _map = map;
     widget.onMapCreated?.call(map);
     map.addInteraction(
