@@ -57,6 +57,7 @@ env:
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
   MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
   MAPBOX_ANDROID_VIEW_MODE: ${{ (inputs.android_view_mode == 'virtual-texture' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'virtual-texture' || 'hybrid-surface' }}
+  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'baseline' || 'none' }}
 
 jobs:
   android-staging:
@@ -89,8 +90,17 @@ jobs:
             hybrid-surface|virtual-texture) ;;
             *) echo "Unsupported MAPBOX_ANDROID_VIEW_MODE"; exit 1 ;;
           esac
+          case "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" in
+            none|baseline|vector) ;;
+            *) echo "Unsupported MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"; exit 1 ;;
+          esac
+          if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+            echo "MapWidget diagnostic styles are restricted to pull-request staging."
+            exit 1
+          fi
           echo "Mapbox staging style: $MAPBOX_STYLE_URI"
           echo "Mapbox Android view mode: $MAPBOX_ANDROID_VIEW_MODE"
+          echo "MapWidget diagnostic style: $MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
       - name: Preflight Mapbox style and vector tile access
         if: env.MAPBOX_ACCESS_TOKEN != ''
         shell: bash
@@ -176,6 +186,7 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE="$MAPBOX_ANDROID_VIEW_MODE" \
+            --dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE="$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
             --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
@@ -225,6 +236,7 @@ jobs:
             echo "mapbox_runtime_token=$mapbox_runtime"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
             echo "mapbox_android_view_mode=$MAPBOX_ANDROID_VIEW_MODE"
+            echo "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
             echo "mapbox_tile_store_usage_mode=default"
             echo "mapbox_snapshotter_diagnostics=false"
             if [[ "$mapbox_runtime" == "available" ]]; then
@@ -299,6 +311,7 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE=hybrid-surface \
+            --dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE="$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=default \
             --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
@@ -353,6 +366,7 @@ jobs:
             echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
             echo "mapbox_android_view_mode=hybrid-surface"
+            echo "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
             echo "validation_scope=runtime-capable-artifact"
           } > "$renderer_dir/android-staging-validation.txt"
           echo "renderer_apk_built=$renderer_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
@@ -390,6 +404,7 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN" \
             --dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI" \
             --dart-define=MAPBOX_ANDROID_VIEW_MODE="$MAPBOX_ANDROID_VIEW_MODE" \
+            --dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE="$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" \
             --dart-define=MAPBOX_TILE_STORE_USAGE_MODE=disabled \
             --dart-define=MAPBOX_SNAPSHOTTER_DIAGNOSTICS=false \
             --dart-define=VALHALLA_BASE_URL="$VALHALLA_BASE_URL" \
@@ -444,6 +459,7 @@ jobs:
             echo "mapbox_downloads_token=available"
             echo "mapbox_style_uri=$MAPBOX_STYLE_URI"
             echo "mapbox_android_view_mode=$MAPBOX_ANDROID_VIEW_MODE"
+            echo "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
             echo "validation_scope=diagnostic-only-tile-store-disabled"
           } > "$tile_store_dir/android-staging-validation.txt"
           echo "diagnostic_apk_built=$tile_store_dir/app-release.apk" >> "$GITHUB_STEP_SUMMARY"
