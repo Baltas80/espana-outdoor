@@ -701,3 +701,28 @@ PR #79 permanece draft. No fusionar ni certificar mapa online/offline hasta tene
 No se acepta el mapa online ni offline. Siguen pendientes: descarga/persistencia y modo avión con cierre/reapertura/reinicio; validación del APK candidato en OPPO; identidad compartida web/Android contra Keycloak/PostgreSQL reales; estado operativo de Valhalla y despliegues externos; protección de main.
 
 No fusionar PR #79 ni modificar el estilo de producción hasta superar el gate cartográfico, pruebas offline y validación física. Ver detalles y criterio de interpretación en [docs/MAP_OFFLINE.md](MAP_OFFLINE.md).
+
+## Actualización de entrega — 17/11/2026 09:29 CET
+
+### Evidencia nueva de Android staging
+
+- [Run 44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329): Android staging completó la compilación de los APK de comparación y el smoke; el job terminó en failure porque el gate cartográfico rechazó el mapa.
+- El Snapshotter baseline sin fuentes generó un PNG uniforme `#d9e6c7` (1079×1891, 12.325 bytes; SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`).
+- El Snapshotter vectorial cargó el TileJSON de Mapbox Streets v8 desde Network (19.079 bytes), pero las solicitudes de tiles observadas consultaron TileStore, devolvieron `NOT_FOUND` y algunas fueron canceladas. No se observó respuesta de red de tiles en ese Snapshotter antes del timeout de 60 s.
+- El MapWidget principal sí recibió respuestas de teselas/glyphs desde Network, pero mantuvo `RenderMode.PARTIAL`; no emitió `MAP_LOADED` ni `MAP_IDLE`. Captura no aceptable.
+- La evidencia no demuestra todavía que TileStore sea la causa. La documentación de Mapbox indica que READ_ONLY es el valor predeterminado y debe recurrir a solicitudes individuales cuando no encuentra un paquete; se añade una prueba controlada con TileStore desactivado exclusivamente en staging.
+
+### Cambio en curso
+
+- `main.dart` aplica `MapboxMapsOptions.setTileStoreUsageMode(DISABLED)` únicamente cuando `APP_ENV=staging`, plataforma Android y `MAPBOX_TILE_STORE_USAGE_MODE=disabled`. Registra el modo efectivo antes de `runApp`.
+- El workflow conserva el APK principal con modo predeterminado, construye un APK diagnóstico separado, registra su manifiesto y SHA-256, lo instala después de limpiar los datos y publica logcat/capturas por separado.
+- El APK TileStore-disabled se etiqueta `diagnostic-only-tile-store-disabled`; no se puede utilizar como candidato de producción ni como evidencia de aceptación offline.
+- Se amplía el test del orquestador para verificar identidad del modo, aislamiento de evidencias y fallo cerrado ante un experimento incompleto.
+
+### CI del HEAD anterior
+
+- Security baseline [44040272336](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272336): 8/8.
+- CI general [44040272332](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272332): success.
+- Android staging [44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329): failure esperado del gate cartográfico; no se acepta el mapa.
+
+El nuevo HEAD debe volver a ejecutar Security, CI y Android staging antes de considerar validado el cambio. PR #79 permanece draft; no se fusiona ni despliega.
