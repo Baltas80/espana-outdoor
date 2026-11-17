@@ -91,6 +91,10 @@ jobs:
           esac
           echo "Mapbox staging style: $MAPBOX_STYLE_URI"
           echo "Mapbox Android view mode: $MAPBOX_ANDROID_VIEW_MODE"
+      - name: Preflight Mapbox style and vector tile access
+        if: env.MAPBOX_ACCESS_TOKEN != ''
+        shell: bash
+        run: python3 tool/preflight_mapbox_tiles.py --style-uri "$MAPBOX_STYLE_URI"
       - name: Verify staging build profile
         run: python3 tool/verify_build_profile.py --profile staging
       - name: Setup Java 21
@@ -136,6 +140,7 @@ jobs:
         run: |
           flutter analyze --no-fatal-infos
           flutter test --coverage
+          python3 tool/test_preflight_mapbox_tiles.py
       - name: Build Android staging APK
         id: build_apk
         if: success()
