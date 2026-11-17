@@ -758,7 +758,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         raise SystemExit("A non-A/B staging run must invoke only the primary APK.")
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
-        # Exercise the exact PR #79 Standard + Virtual Display/TextureView diagnostic.
+    # Exercise the exact PR #79 Standard + Virtual Display/TextureView diagnostic.
     # The primary and diagnostic APKs must differ only in TileStore usage.
     primary_manifest_path = temp_root / "primary-build" / "android-staging-validation.txt"
     primary_manifest_text = primary_manifest_path.read_text(encoding="utf-8")
