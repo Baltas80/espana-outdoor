@@ -150,8 +150,8 @@ for job, minutes in (
         raise SystemExit(f"CI job {job} must have a {minutes}-minute upper bound.")
 
 android_job = job_block(workflow, "android-staging")
-if "timeout-minutes: 75" not in android_job:
-    raise SystemExit("Android staging job must have a 75-minute upper bound.")
+if "timeout-minutes: 105" not in android_job:
+    raise SystemExit("Android staging job must allow three APK builds and the bounded A/B smoke to finish.")
 
 # The renderer APK metadata parser must stay byte-for-byte aligned with the
 # primary parser. A prior extra escape made sed fail after a successful build,
