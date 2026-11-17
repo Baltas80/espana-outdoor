@@ -3,6 +3,7 @@
 
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -55,6 +56,36 @@ for job, minutes in (
 android_job = job_block(workflow, "android-staging")
 if "timeout-minutes: 75" not in android_job:
     raise SystemExit("Android staging job must have a 75-minute upper bound.")
+
+# The renderer APK metadata parser must stay byte-for-byte aligned with the
+# primary parser. A prior extra escape made sed fail after a successful build,
+# so the comparison APK was never preserved or installed.
+primary_build_block = android_job.split("- name: Build Android staging APK", 1)[1].split("- name: Verify APK", 1)[0]
+renderer_build_block = android_job.split("- name: Build Mapbox TextureView/VD renderer A/B APK", 1)[1].split("- name: Upload Android staging APK", 1)[0]
+primary_metadata_lines = []
+renderer_metadata_lines = []
+for key in ("application_id", "version_code", "version_name"):
+    prefix = f'{key}="$(sed -n '
+    primary_line = next((line.strip() for line in primary_build_block.splitlines() if line.strip().startswith(prefix)), None)
+    renderer_line = next((line.strip() for line in renderer_build_block.splitlines() if line.strip().startswith(prefix)), None)
+    if primary_line is None or renderer_line is None:
+        raise SystemExit(f"Android APK metadata parser is missing {key}.")
+    if primary_line != renderer_line:
+        raise SystemExit(f"Renderer APK {key} parser must match the verified primary parser exactly.")
+    primary_metadata_lines.append(primary_line)
+
+badging_fixture = "package: name='com.example.app' versionCode='42' versionName='1.2.3' platformBuildVersionName='15'"
+metadata_script = (
+    f"badging={shlex.quote(badging_fixture)}\\n"
+    + "\\n".join(primary_metadata_lines)
+    + '\\nprintf "%s\\t%s\\t%s\\n" "$application_id" "$version_code" "$version_name"\\n'
+)
+metadata_result = subprocess.run(["bash", "-c", metadata_script], capture_output=True, text=True, check=False)
+if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app\\t42\\t1.2.3\\n":
+    raise SystemExit(
+        "Android APK metadata parser failed its aapt badging fixture: "
+        + (metadata_result.stderr or metadata_result.stdout)
+    )
 if "cancel-in-progress: true" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
     raise SystemExit("A newer Android staging commit must supersede queued stale runs on the same branch.")
 
