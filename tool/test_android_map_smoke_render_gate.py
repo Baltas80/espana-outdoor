@@ -35,7 +35,7 @@ for marker in (
         raise SystemExit(f"UIAutomator hierarchy retry guard is missing: {marker}")
 if ui_dump_block.index('adb shell test -s "${remote_file}"') > ui_dump_block.index('adb shell cat "${remote_file}"'):
     raise SystemExit("UIAutomator must verify the remote XML exists before reading it.")
-if 'node.attrib.get("clickable") != "true"' not in source or 'desc not in ("Mapa", "Mapa\\\\nMapa")' not in source:
+if 'node.attrib.get("clickable") != "true"' not in source or 'desc not in ("Mapa", "Mapa\\nMapa")' not in source:
     raise SystemExit("Android smoke must tap a clickable Mapa navigation node, not its decorative icon.")
 
 ui_dump_harness = r'''set -euo pipefail
