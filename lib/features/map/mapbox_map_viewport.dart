@@ -112,6 +112,148 @@ String mapboxSnapshotterBaselineStyleJson() {
   });
 }
 
+/// A minimal Mapbox Streets vector source with one visible road layer.
+/// It separates vector-tile retrieval/decoding from the production style.
+String mapboxSnapshotterVectorStyleJson() {
+  return jsonEncode(<String, Object?>{
+    'version': 8,
+    'sources': <String, Object?>{
+      'espana-outdoor-diagnostic-streets': <String, Object?>{
+        'type': 'vector',
+        'url': 'mapbox://mapbox.mapbox-streets-v8',
+        'minzoom': 0,
+        'maxzoom': 14,
+      },
+    },
+    'layers': <Object?>[
+      <String, Object?>{
+        'id': 'espana-outdoor-diagnostic-background',
+        'type': 'background',
+        'paint': <String, Object?>{
+          'background-color': '#d9e6c7',
+        },
+      },
+      <String, Object?>{
+        'id': 'espana-outdoor-diagnostic-roads',
+        'type': 'line',
+        'source': 'espana-outdoor-diagnostic-streets',
+        'source-layer': 'road',
+        'minzoom': 5,
+        'paint': <String, Object?>{
+          'line-color': '#c43c39',
+          'line-width': 2.5,
+        },
+      },
+    ],
+  });
+}
+
+String _safeMapboxStyleOrigin(Object? rawValue) {
+  if (rawValue is! String) return 'none';
+  final uri = Uri.tryParse(rawValue);
+  if (uri == null) return 'invalid';
+  if (uri.scheme.isEmpty) return 'relative';
+  final host = uri.host.isEmpty ? '-' : uri.host;
+  return uri.scheme + '://' + host;
+}
+
+/// Returns useful style structure without exposing full URLs or access tokens.
+String mapboxStyleDiagnosticsJson(String rawStyleJson) {
+  final decoded = jsonDecode(rawStyleJson);
+  if (decoded is! Map) {
+    throw const FormatException('Mapbox style JSON must be an object.');
+  }
+
+  final sourceSummaries = <Map<String, Object?>>[];
+  final rawSources = decoded['sources'];
+  if (rawSources is Map) {
+    for (final entry in rawSources.entries) {
+      final source = entry.value;
+      if (source is! Map) continue;
+      final tiles = source['tiles'];
+      sourceSummaries.add(<String, Object?>{
+        'id': entry.key.toString(),
+        'type': source['type'] ?? 'unknown',
+        'url_origin': _safeMapboxStyleOrigin(source['url']),
+        'tiles_count': tiles is List ? tiles.length : 0,
+        'minzoom': source['minzoom'],
+        'maxzoom': source['maxzoom'],
+      });
+    }
+  }
+
+  final typeCounts = <String, int>{};
+  final backgrounds = <Map<String, Object?>>[];
+  final firstLayers = <Map<String, Object?>>[];
+  final rawLayers = decoded['layers'];
+  if (rawLayers is List) {
+    for (final rawLayer in rawLayers) {
+      if (rawLayer is! Map) continue;
+      final type = rawLayer['type']?.toString() ?? 'unknown';
+      typeCounts[type] = (typeCounts[type] ?? 0) + 1;
+      final layout = rawLayer['layout'] is Map
+          ? rawLayer['layout'] as Map
+          : const <String, Object?>{};
+      final paint = rawLayer['paint'] is Map
+          ? rawLayer['paint'] as Map
+          : const <String, Object?>{};
+      if (type == 'background') {
+        backgrounds.add(<String, Object?>{
+          'id': rawLayer['id'],
+          'visibility': layout['visibility'] ?? 'visible',
+          'color': paint['background-color'],
+          'opacity': paint['background-opacity'] ?? 1,
+        });
+      }
+      if (firstLayers.length < 12) {
+        firstLayers.add(<String, Object?>{
+          'id': rawLayer['id'],
+          'type': type,
+          'source': rawLayer['source'],
+          'source_layer': rawLayer['source-layer'],
+          'visibility': layout['visibility'] ?? 'visible',
+        });
+      }
+    }
+  }
+
+  return jsonEncode(<String, Object?>{
+    'source_count': sourceSummaries.length,
+    'sources': sourceSummaries,
+    'layer_type_counts': typeCounts,
+    'background_layers': backgrounds,
+    'first_layers': firstLayers,
+    'glyphs_origin': _safeMapboxStyleOrigin(decoded['glyphs']),
+    'sprite_origin': _safeMapboxStyleOrigin(decoded['sprite']),
+  });
+}
+
+void _emitMapboxSnapshotterPng(String kind, List<int> png) {
+  final prefix = kind == 'baseline'
+      ? 'MAPBOX_SNAPSHOTTER_PNG'
+      : 'MAPBOX_SNAPSHOTTER_VECTOR_PNG';
+  final encoded = base64Encode(png);
+  const chunkSize = 700;
+  final totalChunks = (encoded.length + chunkSize - 1) ~/ chunkSize;
+  final digest = sha256.convert(png).toString();
+  debugPrint(
+    prefix + '_BEGIN bytes=' + png.length.toString() +
+        ' chunks=' + totalChunks.toString() + ' sha256=' + digest,
+  );
+  for (var index = 0; index < totalChunks; index++) {
+    final start = index * chunkSize;
+    final end = (start + chunkSize < encoded.length)
+        ? start + chunkSize
+        : encoded.length;
+    debugPrint(
+      prefix + '_CHUNK index=' + index.toString() +
+          ' total=' + totalChunks.toString() +
+          ' data=' + encoded.substring(start, end),
+    );
+  }
+  debugPrint(prefix + '_END sha256=' + digest);
+}
+
 /// Shared Mapbox surface for the main map, route planner and GPX detail.
 class MapboxMapViewport extends StatefulWidget {
   const MapboxMapViewport({
@@ -162,7 +304,8 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     if (map == null) return;
 
     try {
-      final decoded = jsonDecode(await map.getStyleJSON());
+      final rawStyleJson = await map.getStyleJSON();
+      final decoded = jsonDecode(rawStyleJson);
       if (decoded is! Map) {
         throw const FormatException('Mapbox returned a non-object style JSON.');
       }
@@ -192,6 +335,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         'width=${size.width} height=${size.height} zoom=${camera.zoom} '
         'lng=${center.lng} lat=${center.lat}',
       );
+      debugPrint('MAPBOX_STYLE_DIAGNOSTIC ' + mapboxStyleDiagnosticsJson(rawStyleJson));
       unawaited(_captureSnapshotterDiagnostic(size: size, camera: camera));
     } catch (error) {
       debugPrint(
@@ -225,9 +369,10 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     }
 
     mapbox.Snapshotter? snapshotter;
+    Completer<void>? styleLoaded;
+    var activeStyleLabel = 'baseline';
     try {
       logSnapshotterStage('create_started');
-      final styleLoaded = Completer<void>();
       snapshotter = await mapbox.Snapshotter.create(
         options: mapbox.MapSnapshotOptions(
           size: size,
@@ -241,81 +386,96 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           showsAttribution: false,
         ),
         onStyleLoadedListener: (_) {
-          logSnapshotterStage('style_loaded_callback');
-          if (!styleLoaded.isCompleted) styleLoaded.complete();
+          logSnapshotterStage(activeStyleLabel + '_style_loaded_callback');
+          final pending = styleLoaded;
+          if (pending != null && !pending.isCompleted) pending.complete();
         },
         onMapLoadErrorListener: (event) {
           final details =
               'type=${event.type} message=${sanitizeMapboxDiagnostic(event.message)}';
-          logSnapshotterStage('map_load_error', details);
-          if (!styleLoaded.isCompleted) {
-            styleLoaded.completeError(StateError(details));
+          logSnapshotterStage('map_load_error', 'style=' + activeStyleLabel + ' ' + details);
+          final pending = styleLoaded;
+          if (pending != null && !pending.isCompleted) {
+            pending.completeError(StateError(details));
           }
         },
         onStyleDataLoadedListener: (event) {
-          logSnapshotterStage('style_data_loaded', 'type=${event.type}');
+          logSnapshotterStage(
+            'style_data_loaded',
+            'style=' + activeStyleLabel + ' type=${event.type}',
+          );
         },
         onStyleImageMissingListener: (event) {
-          logSnapshotterStage('style_image_missing', 'id=${event.id}');
+          logSnapshotterStage(
+            'style_image_missing',
+            'style=' + activeStyleLabel + ' id=${event.id}',
+          );
         },
       ).timeout(const Duration(seconds: 30));
       logSnapshotterStage('create_completed');
 
-      // This deliberately contains no external sources. If it cannot render,
-      // the failure is below style/tile loading (native renderer or emulator).
-      debugPrint('MAPBOX_SNAPSHOTTER_BASELINE style=solid-no-source');
-      logSnapshotterStage('style_set_json_started');
-      await snapshotter.style
-          .setStyleJSON(mapboxSnapshotterBaselineStyleJson())
-          .timeout(const Duration(seconds: 30));
-      logSnapshotterStage('style_set_json_completed');
-      await styleLoaded.future.timeout(const Duration(seconds: 45));
-      logSnapshotterStage('style_loaded');
-      await snapshotter.setCamera(
-        mapbox.CameraOptions(
-          center: camera.center,
-          zoom: camera.zoom,
-          bearing: camera.bearing,
-          pitch: camera.pitch,
-        ),
-      ).timeout(const Duration(seconds: 15));
-      logSnapshotterStage('camera_set');
-
-      logSnapshotterStage('capture_started');
-      final png = await snapshotter.start().timeout(
-        const Duration(seconds: 45),
-      );
-      if (png == null || png.isEmpty) {
-        throw StateError('snapshotter_returned_empty_png');
-      }
-      logSnapshotterStage('capture_completed', 'bytes=${png.length}');
-
-      final encoded = base64Encode(png);
-      const chunkSize = 700;
-      final totalChunks = (encoded.length + chunkSize - 1) ~/ chunkSize;
-      final digest = sha256.convert(png).toString();
-      debugPrint(
-        'MAPBOX_SNAPSHOTTER_PNG_BEGIN bytes=${png.length} '
-        'chunks=$totalChunks sha256=$digest',
-      );
-      for (var index = 0; index < totalChunks; index++) {
-        final start = index * chunkSize;
-        final end = (start + chunkSize < encoded.length)
-            ? start + chunkSize
-            : encoded.length;
-        debugPrint(
-          'MAPBOX_SNAPSHOTTER_PNG_CHUNK index=$index '
-          'total=$totalChunks data=${encoded.substring(start, end)}',
+      Future<void> captureStyle({
+        required String label,
+        required String styleJson,
+        required int captureTimeoutSeconds,
+      }) async {
+        activeStyleLabel = label;
+        styleLoaded = Completer<void>();
+        logSnapshotterStage(label + '_style_set_started');
+        await snapshotter!.style
+            .setStyleJSON(styleJson)
+            .timeout(const Duration(seconds: 30));
+        logSnapshotterStage(label + '_style_set_completed');
+        await styleLoaded!.future.timeout(const Duration(seconds: 45));
+        logSnapshotterStage(label + '_style_loaded');
+        await snapshotter!.setCamera(
+          mapbox.CameraOptions(
+            center: camera.center,
+            zoom: camera.zoom,
+            bearing: camera.bearing,
+            pitch: camera.pitch,
+          ),
+        ).timeout(const Duration(seconds: 15));
+        logSnapshotterStage(label + '_camera_set');
+        logSnapshotterStage(label + '_capture_started');
+        final png = await snapshotter!.start().timeout(
+          Duration(seconds: captureTimeoutSeconds),
         );
+        if (png == null || png.isEmpty) {
+          throw StateError(label + '_snapshotter_returned_empty_png');
+        }
+        logSnapshotterStage(
+          label + '_capture_completed',
+          'bytes=' + png.length.toString(),
+        );
+        _emitMapboxSnapshotterPng(label, png);
       }
-      debugPrint('MAPBOX_SNAPSHOTTER_PNG_END sha256=$digest');
+
+      // No external sources: proves that the native renderer can draw a frame.
+      debugPrint('MAPBOX_SNAPSHOTTER_BASELINE style=solid-no-source');
+      await captureStyle(
+        label: 'baseline',
+        styleJson: mapboxSnapshotterBaselineStyleJson(),
+        captureTimeoutSeconds: 45,
+      );
+
+      // One Mapbox Streets vector source and one road layer isolate tile
+      // retrieval/decoding from the 148-layer production style.
+      debugPrint('MAPBOX_SNAPSHOTTER_VECTOR style=single-streets-road-layer');
+      await captureStyle(
+        label: 'vector',
+        styleJson: mapboxSnapshotterVectorStyleJson(),
+        captureTimeoutSeconds: 60,
+      );
     } catch (error) {
       logSnapshotterStage(
         'failed',
-        'error=${sanitizeMapboxDiagnostic(error.toString())}',
+        'style=' + activeStyleLabel +
+            ' error=${sanitizeMapboxDiagnostic(error.toString())}',
       );
       debugPrint(
-        'MAPBOX_SNAPSHOTTER_CAPTURE failed=${sanitizeMapboxDiagnostic(error.toString())}',
+        'MAPBOX_SNAPSHOTTER_CAPTURE failed style=' + activeStyleLabel +
+            ' error=${sanitizeMapboxDiagnostic(error.toString())}',
       );
     } finally {
       final activeSnapshotter = snapshotter;
