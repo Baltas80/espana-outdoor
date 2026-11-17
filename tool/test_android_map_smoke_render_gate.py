@@ -795,7 +795,7 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         "flutter_renderer=impeller-default\nimpeller_enabled=default\n"
         "mapbox_tile_store_usage_mode=disabled\n"
         "mapbox_snapshotter_diagnostics=false\n"
-        "mapbox_map_widget_diagnostic_style=baseline\n"
+        "mapbox_map_widget_diagnostic_style=vector\n"
         "validation_scope=diagnostic-only-tile-store-disabled\n",
         encoding="utf-8",
     )
