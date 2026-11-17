@@ -457,6 +457,8 @@ for marker in (
     'primary_renderer=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller',
     'MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia',
+    'if ! grep -Fq "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "${diagnostic_logcat}"; then',
+    'tile_store_renderer_status=',
     '--kill-after=150s 20m',
 ):
     if marker not in ab_runner_source:
@@ -513,8 +515,12 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
         '  mkdir -p "$RUNNER_TEMP"\n'
         '  if [[ "$RUNNER_TEMP" == */primary ]]; then\n'
         '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
-        '  elif [[ "$RUNNER_TEMP" == */tile-store-disabled ]]; then\n'
-        '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
+        '  elif [[ "$RUNNER_TEMP" == */tile-store-disabled ]]; then\\n'
+        '    if [[ "${FAIL_TILE_STORE_RENDERER:-false}" == "true" ]]; then\\n'
+        '      printf "%s\\\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=skia" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\\n'
+        '    else\\n'
+        '      printf "%s\\\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=disabled effective=disabled" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\\n'
+        '    fi\\n'
         '  elif [[ "${FAIL_SKIA_DIAGNOSTIC:-false}" == "true" ]]; then\n'
         '    printf "%s\\n" "MAPBOX_DIAGNOSTIC event=FLUTTER_RENDERER backend=impeller" "MAPBOX_TILE_STORE_USAGE requested=default effective=read_only" > "$RUNNER_TEMP/espana-outdoor-map-logcat.txt"\n'
         '  else\n'
@@ -590,6 +596,18 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     )
     if failed_renderer.returncode == 0:
         raise SystemExit("A renderer comparison failure must fail the A/B smoke.")
+
+    failing_tile_store_renderer_env = test_env.copy()
+    failing_tile_store_renderer_env["FAIL_TILE_STORE_RENDERER"] = "true"
+    failed_tile_store_renderer = subprocess.run(
+        ["bash", str(AB_RUNNER), str(temp_root), "mapbox://styles/mapbox/outdoors-v12"],
+        capture_output=True,
+        text=True,
+        env=failing_tile_store_renderer_env,
+        check=False,
+    )
+    if failed_tile_store_renderer.returncode == 0 or "renderer_identity_status=1" not in failed_tile_store_renderer.stdout:
+        raise SystemExit("The TileStore-disabled A/B must reject a Skia APK after the manifest is restored.")
 
     (temp_root / "skia-build" / "app-release.apk").unlink()
     call_log.write_text("", encoding="utf-8")
@@ -788,6 +806,8 @@ print("android_map_smoke_network_preflight=true")
 tile_store_build = workflow.split("- name: Build Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Upload Android staging APK", 1)[0]
 for marker in (
     "steps.build_apk.outputs.built == 'true'",
+    "git checkout -- android/app/src/main/AndroidManifest.xml",
+    "git diff --exit-code -- android/app/src/main/AndroidManifest.xml",
     "MAPBOX_TILE_STORE_USAGE_MODE=disabled",
     'tile_store_dir="$RUNNER_TEMP/tile-store-disabled-build"',
     'echo "mapbox_tile_store_usage_mode=disabled"',
@@ -797,6 +817,8 @@ for marker in (
 ):
     if marker not in tile_store_build:
         raise SystemExit(f"TileStore-disabled diagnostic build is missing: {marker}")
+if tile_store_build.index("git checkout -- android/app/src/main/AndroidManifest.xml") > tile_store_build.index("flutter build apk --release"):
+    raise SystemExit("Restore the committed Impeller-default manifest before building the TileStore diagnostic.")
 tile_store_upload = workflow.split("- name: Upload Mapbox TileStore-disabled diagnostic APK", 1)[1].split("- name: Enable KVM", 1)[0]
 for marker in (
     "mapbox-tile-store-disabled-apk",
@@ -808,6 +830,8 @@ for marker in (
 tile_store_requirement = workflow.split("- name: Require Mapbox TileStore-disabled diagnostic APK", 1)[1]
 for marker in (
     "steps.build_tile_store_disabled_apk.outcome",
+    'flutter_renderer=impeller-default',
+    'impeller_enabled=default',
     'mapbox_tile_store_usage_mode=disabled',
     'validation_scope=diagnostic-only-tile-store-disabled',
     'test "$expected_sha" = "$actual_sha"',
