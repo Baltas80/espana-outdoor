@@ -60,6 +60,9 @@ adb() {
       remote_present=1
     fi
     write_state
+    if [[ "$NEVER_CREATE" == "true" || "$dump_calls" -lt 3 ]]; then
+      return 1
+    fi
     return 0
   fi
   if [[ "$1" == "shell" && "$2" == "test" && "$3" == "-s" ]]; then
@@ -403,8 +406,14 @@ if "adb logcat -c" not in logcat_reset_block:
     raise SystemExit("Each Android smoke must clear logcat before installing its APK so A/B evidence is isolated.")
 
 ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
-if "|| true" in ui_dump_body:
-    raise SystemExit("UIAutomator dump failures/timeouts must not be swallowed.")
+for marker in (
+    "set +e",
+    "dump_status=$?",
+    "set -e",
+    "command_status=${dump_status}",
+):
+    if marker not in ui_dump_body:
+        raise SystemExit(f"UIAutomator must preserve command status while retrying: {marker}")
 for marker in (
     'adb shell uiautomator dump "$remote_file"',
     'adb shell cat "$remote_file"',
