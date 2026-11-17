@@ -347,15 +347,27 @@ with tempfile.TemporaryDirectory(prefix="mapbox-renderer-ab-runner-") as temp_di
     if "adb shell pm clear" in primary_only_calls:
         raise SystemExit("A non-A/B staging run must not clear app data without a comparison APK.")
 
+prepare_primary = workflow.split("- name: Preserve verified primary Android staging APK", 1)[1]
+prepare_primary = prepare_primary.split("- name: Build Mapbox TextureView/VD renderer A/B APK", 1)[0]
+for marker in (
+    "steps.build_apk.outputs.built == 'true'",
+    'primary_dir="$RUNNER_TEMP/primary-build"',
+    'cp "$apk" "$primary_dir/app-release.apk"',
+    'cp "$manifest" "$primary_dir/android-staging-validation.txt"',
+    'test "$expected_sha" = "$actual_sha"',
+):
+    if marker not in prepare_primary:
+        raise SystemExit(f"Primary Android staging artifact must be preserved and reverified: {marker}")
+
 renderer_build = workflow.split("- name: Build Mapbox TextureView/VD renderer A/B APK", 1)[1]
 renderer_build = renderer_build.split("- name: Upload Android staging APK", 1)[0]
 for marker in (
     "github.event.pull_request.number == 79",
+    "steps.build_apk.outputs.built == 'true'",
+    "env.MAPBOX_ACCESS_TOKEN != ''",
+    "env.MAPBOX_DOWNLOADS_TOKEN != ''",
     "continue-on-error: true",
-    'primary_dir="$RUNNER_TEMP/primary-build"',
     'renderer_dir="$RUNNER_TEMP/texture-vd-build"',
-    'cp "$primary_apk" "$primary_dir/app-release.apk"',
-    'cp build/android-staging-validation.txt "$primary_dir/android-staging-validation.txt"',
     "flutter clean",
     "flutter pub get --enforce-lockfile",
     '--dart-define=MAPBOX_STYLE_URI="$MAPBOX_STYLE_URI"',
@@ -369,8 +381,6 @@ for marker in (
         raise SystemExit(f"Mapbox TextureView/VD renderer build is missing: {marker}")
 if "--build-dir" in workflow:
     raise SystemExit("Flutter 3.47.5 does not support --build-dir; preserve A/B APKs outside build/ instead.")
-if renderer_build.index('cp "$primary_apk" "$primary_dir/app-release.apk"') > renderer_build.index("flutter clean"):
-    raise SystemExit("The verified primary APK must be preserved before flutter clean.")
 if renderer_build.index("flutter clean") > renderer_build.index("flutter pub get --enforce-lockfile"):
     raise SystemExit("A clean renderer build must restore dependencies from the committed lockfile.")
 
