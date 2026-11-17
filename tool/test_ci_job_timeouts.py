@@ -32,6 +32,17 @@ for job, minutes in (
         raise SystemExit(f"CI job {job} must have a job-level {minutes}-minute timeout.")
 
 if not re.search(r"(?m)^    timeout-minutes: 105$", job_block(staging, "android-staging")):
-    raise SystemExit("Android staging must have a 105-minute job-level timeout for three APK builds and the bounded A/B smoke.")
+    raise SystemExit("Android staging must have a 105-minute job-level timeout for build, upload and smoke evidence.")
+
+smoke_step = re.search(
+    r"(?ms)^      - name: Android map native smoke\\n(.*?)(?=^      - name: Upload Android map smoke evidence)",
+    staging,
+)
+if smoke_step is None:
+    raise SystemExit("Android staging is missing its bounded native smoke step.")
+if not re.search(r"(?m)^        timeout-minutes: 40$", smoke_step.group(1)):
+    raise SystemExit("Android map native smoke must have a 40-minute step timeout.")
+if not re.search(r"(?m)^          emulator-boot-timeout: 600$", smoke_step.group(1)):
+    raise SystemExit("Android emulator boot must be bounded to 600 seconds.")
 
 print("github_actions_job_timeouts=true")
