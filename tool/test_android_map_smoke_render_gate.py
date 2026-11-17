@@ -27,6 +27,18 @@ map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
 if not MAPBOX_VIEWPORT.is_file():
     raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
 mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
+for marker in (
+    "Future<void> _inspectLoadedStyle()",
+    "map.getStyleJSON()",
+    "map.getSize()",
+    "map.getCameraState()",
+    "map.isStyleLoaded()",
+    "MAPBOX_STYLE_INSPECTION",
+    "background_layer_count=",
+    "unawaited(_inspectLoadedStyle())",
+):
+    if marker not in mapbox_viewport:
+        raise SystemExit(f"Mapbox style inspection is missing: {marker}")
 if not NETWORK_PREFLIGHT.is_file():
     raise SystemExit("Android map smoke references a missing emulator network preflight script.")
 network_preflight = NETWORK_PREFLIGHT.read_text(encoding="utf-8")
@@ -193,6 +205,10 @@ map_screen_test = subprocess.run(
 )
 if map_screen_test.returncode != 0:
     raise SystemExit(f"Map page hierarchy verifier self-test failed: {map_screen_test.stderr}")
+
+logcat_reset_block = source.split("adb wait-for-device", 1)[1].split('adb install -r', 1)[0]
+if "adb logcat -c" not in logcat_reset_block:
+    raise SystemExit("Each Android smoke must clear logcat before installing its APK so A/B evidence is isolated.")
 
 ui_dump_body = source.split("ui_dump() {", 1)[1].split("\n}", 1)[0]
 if "|| true" in ui_dump_body:
