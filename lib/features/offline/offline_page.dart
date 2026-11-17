@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../app/outdoor_visuals.dart';
+import '../map/mapbox_map_viewport.dart';
 
-const _styleUri = 'mapbox://styles/mapbox/outdoors-v12';
 const _regionId = 'espana-outdoor-cordoba-poc';
 const _accessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 
@@ -19,6 +19,26 @@ final _cordobaRegion = Polygon(
     ],
   ],
 );
+
+/// Builds the Córdoba TileStore descriptor with the same style and
+/// display density as the live MapWidget. Raster tiles use this pixel ratio.
+TilesetDescriptorOptions cordobaOfflineTilesetDescriptorOptions({
+  required double pixelRatio,
+}) {
+  if (!pixelRatio.isFinite || pixelRatio <= 0) {
+    throw ArgumentError.value(
+      pixelRatio,
+      'pixelRatio',
+      'must be finite and greater than zero',
+    );
+  }
+  return TilesetDescriptorOptions(
+    styleURI: mapboxStyleUri,
+    minZoom: 8,
+    maxZoom: 15,
+    pixelRatio: pixelRatio,
+  );
+}
 
 /// Downloads a deliberately small Córdoba region to validate Mapbox offline
 /// rendering on Android before expanding coverage or promising all-Spain maps.
@@ -56,7 +76,7 @@ class _OfflinePageState extends State<OfflinePage> {
       setState(() {
         _hasOfflineRegion =
             regions.any((region) => region.id == _regionId) &&
-            stylePacks.any((pack) => pack.styleURI == _styleUri);
+            stylePacks.any((pack) => pack.styleURI == mapboxStyleUri);
         _message = _hasOfflineRegion
             ? 'Mapbox detecta la región de Córdoba y el estilo guardados.'
             : 'Todavía no hay una descarga confirmada en este dispositivo.';
@@ -80,8 +100,9 @@ class _OfflinePageState extends State<OfflinePage> {
     });
 
     try {
+      final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
       final styleFuture = _offlineManager!.loadStylePack(
-        _styleUri,
+        mapboxStyleUri,
         StylePackLoadOptions(
           glyphsRasterizationMode:
               GlyphsRasterizationMode.IDEOGRAPHS_RASTERIZED_LOCALLY,
@@ -104,10 +125,8 @@ class _OfflinePageState extends State<OfflinePage> {
         TileRegionLoadOptions(
           geometry: _cordobaRegion.toJson(),
           descriptorsOptions: [
-            TilesetDescriptorOptions(
-              styleURI: _styleUri,
-              minZoom: 8,
-              maxZoom: 15,
+            cordobaOfflineTilesetDescriptorOptions(
+              pixelRatio: devicePixelRatio,
             ),
           ],
           acceptExpired: true,
