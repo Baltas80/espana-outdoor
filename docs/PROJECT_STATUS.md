@@ -1,3 +1,29 @@
+# Actualización operativa — 17/11/2026 14:47 CET
+
+## Android staging 44094615345: APK construido; smoke prolongado sin evidencia final
+
+- Source commit: `c0b8ce4af1c157f386459b535179d820677ea5d9`.
+- Preflight de estilo/tesela Standard y Analyze and test: superados.
+- APK staging publicado: [artefacto 14334097120](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334097120).
+- Application ID: `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5.
+- Estilo: Mapbox Standard. Hosting: Virtual Display + TextureView. Renderer: Impeller. TileStore: default READ_ONLY. Snapshotter concurrente: desactivado.
+- SHA-256 recalculado del APK: `72af1cc5c6ed45f0b66c14931b57c7f8eca4ea77a3ed0e2eaf9724674c3e199f`.
+- El job seguía en `Android map native smoke`; todavía no había artefacto de capturas/logcat. La descarga de logs devolvió `BlobNotFound`, por lo que no se atribuye el retraso a un fallo de Mapbox ni se declara resultado visual.
+- Security baseline del mismo source commit: 8/8 jobs completados correctamente. CI general tenía Source Gateway y Rescue Link correctos; Android release e iOS seguían en ejecución.
+
+### Corrección del límite de ejecución
+
+La revisión del workflow mostró que este experimento de PR #79 construye un solo APK (Standard + Virtual Texture), mientras que el paso de smoke conservaba 65 minutos y el boot del emulador 900 segundos. Se ajustaron los límites a 40 minutos para el paso y 600 segundos para el arranque. El smoke por variante conserva su timeout de 20 minutos. Se añadió una prueba estática que exige ambos límites.
+
+Commits:
+- [8f18ebf](https://github.com/Baltas80/espana-outdoor/commit/8f18ebff6759538b1bf45e379502c62d890bc58b) — límites de ejecución.
+- [7a75335](https://github.com/Baltas80/espana-outdoor/commit/7a75335fc647f27a5b105358bd4f0d993c6d5408) — test de límites.
+- [abb3637](https://github.com/Baltas80/espana-outdoor/commit/abb3637f00b8907ef51b5d52a8478700b7b3013c) — corrección de expresión regular del test.
+
+La nueva ejecución debe confirmar el efecto del límite y producir la captura. Ningún resultado de este run acepta el mapa. Producción conserva Outdoors v12 + Hybrid Composition/SurfaceView.
+
+---
+
 # Actualización operativa — 17/11/2026
 
 ## Mapbox Android: Standard + Hybrid Composition no aceptado
