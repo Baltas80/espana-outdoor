@@ -694,3 +694,12 @@ El artefacto [Android staging 44238493176](https://github.com/Baltas80/espana-ou
 Se corrige la inspección para usar la API viva de `StyleManager`: `getStyleLayers()`, `getStyleSources()`, `styleLayerExists()` y `styleSourceExists()`. Los gestores diagnósticos reciben IDs explícitos y distintos, y se registran sus IDs, conteos de anotaciones y propiedades de capa reducidas (tipo, fuente, visibilidad, color y tamaño), sin volcar estilos completos ni credenciales.
 
 Esta corrección mejora la observabilidad; no afirma que las anotaciones se estén renderizando. La captura del run 44238493176 sigue mostrando 0 píxeles rojos y azules pese a que la variante TileStore-disabled alcanzó `MAP_LOADED`, `RenderMode.FULL` y `MAP_IDLE`. La nueva ejecución debe determinar si el SDK ha registrado las capas reales y si sus propiedades son visibles. El gate visual continúa siendo obligatorio.
+
+
+## Resultado del experimento de anotaciones — run 44244043121, 18/11/2026
+
+El artefacto `android-map-smoke-44244043121` se descargó y se inspeccionaron las capturas y los logcats. En ambas variantes (TileStore default y disabled) se crearon 1 polyline y 1 circle; los managers, capas y fuentes GeoJSON existen y son visibles en el estilo. La captura muestra solo el fondo diagnóstico: `line_pixels=0`, `point_pixels=0`, `background_ratio=1.000`. No se alcanzaron `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; el gate rechazó la prueba.
+
+El emulator backend es Google SwiftShader. Los logcats contienen `GL2Encoder.cpp:s_glGetStringi:4944 GL error 0x501` y latencias EGL elevadas. No se declara causa raíz a partir de esa señal. El resultado es consistente con los experimentos anteriores: el estilo baseline puede dibujar el fondo, pero geometrías lineales/teselas/anotaciones no aparecen en este emulador.
+
+PR #79 cambia el backend del emulador a ANGLE (`angle_indirect`) como siguiente comparación aislada. El selector solo afecta al staging diagnóstico de PR #79; manual dispatch permite elegir SwiftShader o ANGLE y el resto de ejecuciones conserva SwiftShader. No se cambia la configuración de producción. La próxima evidencia debe superar el gate visual completo o dejar una limitación del emulador claramente demostrada. El OPPO físico sigue siendo necesario para aceptación de cartografía y offline.
