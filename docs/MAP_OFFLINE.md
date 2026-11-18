@@ -702,4 +702,9 @@ El artefacto `android-map-smoke-44244043121` se descargó y se inspeccionaron la
 
 El emulator backend es Google SwiftShader. Los logcats contienen `GL2Encoder.cpp:s_glGetStringi:4944 GL error 0x501` y latencias EGL elevadas. No se declara causa raíz a partir de esa señal. El resultado es consistente con los experimentos anteriores: el estilo baseline puede dibujar el fondo, pero geometrías lineales/teselas/anotaciones no aparecen en este emulador.
 
-PR #79 cambia el backend del emulador a ANGLE (`angle_indirect`) como siguiente comparación aislada. El selector solo afecta al staging diagnóstico de PR #79; manual dispatch permite elegir SwiftShader o ANGLE y el resto de ejecuciones conserva SwiftShader. No se cambia la configuración de producción. La próxima evidencia debe superar el gate visual completo o dejar una limitación del emulador claramente demostrada. El OPPO físico sigue siendo necesario para aceptación de cartografía y offline.
+PR #79 cambia el backend del emulador a ANGLE usando `swangle` como siguiente comparación aislada. El selector solo afecta al staging diagnóstico de PR #79; manual dispatch permite elegir `swiftshader` o `swangle` y el resto de ejecuciones conserva `swiftshader`. No se cambia la configuración de producción. La próxima evidencia debe superar el gate visual completo o dejar una limitación del emulador claramente demostrada. El OPPO físico sigue siendo necesario para aceptación de cartografía y offline.
+
+
+### Corrección del modo ANGLE — 18/11/2026
+
+La documentación oficial de Android Emulator señala `angle_indirect` y `swiftshader_indirect` como modos obsoletos. El experimento se ajusta a `swangle` (SwiftShader + ANGLE) y deja `swiftshader` como modo predeterminado para los demás runs. El run iniciado con el modo antiguo se conserva, pero no se considera la validación final del selector actualizado.
