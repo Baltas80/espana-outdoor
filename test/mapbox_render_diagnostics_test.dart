@@ -44,6 +44,38 @@ void main() {
     });
   });
 
+  group('MapWidget GeoJSON diagnostic style', () {
+    test('uses inline LineStrings without a remote source or source-layer', () {
+      final raw = mapboxMapWidgetDiagnosticStyleJson('geojson');
+      expect(raw, isNotNull);
+      final style = jsonDecode(raw!) as Map<String, dynamic>;
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources, hasLength(1));
+      final source = sources['espana-outdoor-diagnostic-geojson'] as Map<String, dynamic>;
+      expect(source['type'], 'geojson');
+      final data = source['data'] as Map<String, dynamic>;
+      expect(data['type'], 'FeatureCollection');
+      final features = data['features'] as List<dynamic>;
+      expect(features, hasLength(2));
+      for (final feature in features) {
+        final geometry = (feature as Map<String, dynamic>)['geometry'] as Map<String, dynamic>;
+        expect(geometry['type'], 'LineString');
+        expect((geometry['coordinates'] as List<dynamic>).length, greaterThanOrEqualTo(5));
+      }
+
+      final layers = style['layers'] as List<dynamic>;
+      expect(layers, hasLength(2));
+      final line = layers.last as Map<String, dynamic>;
+      expect(line['type'], 'line');
+      expect(line['source'], 'espana-outdoor-diagnostic-geojson');
+      expect(line.containsKey('source-layer'), isFalse);
+      expect(
+        (line['paint'] as Map<String, dynamic>)['line-color'],
+        '#c43c39',
+      );
+    });
+  });
+
   group('Live MapWidget diagnostic styles', () {
     test('baseline style has no remote sources and a stable expected color', () {
       final raw = mapboxMapWidgetDiagnosticStyleJson('baseline');
