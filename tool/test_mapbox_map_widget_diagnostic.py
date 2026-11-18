@@ -60,8 +60,8 @@ required_workflow = (
     "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
     "emulator_gpu_mode:",
     "MAPBOX_EMULATOR_GPU_MODE:",
-    "&& 'angle_indirect' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader_indirect'",
-    "swiftshader_indirect|angle_indirect)",
+    "&& 'swangle' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader'",
+    "swiftshader|swangle)",
     "-gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }}",
 )
 for marker in required_workflow:
