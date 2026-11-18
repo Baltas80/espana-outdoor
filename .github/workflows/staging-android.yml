@@ -209,7 +209,7 @@ jobs:
           fi
       - name: Upload Android staging APK
         if: success() && steps.build_apk.outputs.built == 'true'
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-staging-apk
           path: |
@@ -251,7 +251,7 @@ jobs:
           script: bash tool/smoke_android_map.sh build/app/outputs/flutter-apk/app-release.apk online
       - name: Upload Android map smoke evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: android-map-smoke-${{ github.run_id }}
           path: |
