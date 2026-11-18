@@ -1,4 +1,5 @@
 
+
 // ESPANA_OUTDOOR_RELEASE_SIGNING
 val releaseStoreFilePath = System.getenv("ANDROID_RELEASE_STORE_FILE")?.trim()?.takeIf { it.isNotEmpty() }
 val releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
@@ -9,10 +10,6 @@ if (System.getenv("APP_ENV") == "production" && !releaseSigningConfigured) {
     throw GradleException("Production Android builds require a configured release keystore.")
 }
 
-plugins {
-    id("com.android.application")
-    id("dev.flutter.flutter-gradle-plugin")
-}
 
 android {
     namespace = "com.example.espana_outdoors"
