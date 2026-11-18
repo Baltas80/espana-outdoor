@@ -106,7 +106,7 @@ jobs:
             *) echo "Unsupported MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"; exit 1 ;;
           esac
           if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" && "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            echo "MapWidget diagnostic styles are restricted to pull-request staging."
+            echo "MapWidget diagnostic styles are restricted to PR or explicit workflow_dispatch staging."
             exit 1
           fi
           echo "Mapbox staging style: $MAPBOX_STYLE_URI"
