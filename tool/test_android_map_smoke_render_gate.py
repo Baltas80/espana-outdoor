@@ -394,6 +394,16 @@ view_mode_assignment = next(
 )
 if view_mode_assignment != "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}":
     raise SystemExit("PR staging must default to production Hybrid Composition/SurfaceView; Virtual Display is an explicit manual opt-in.")
+gpu_assignment = next(
+    line.strip() for line in workflow.splitlines()
+    if line.strip().startswith("MAPBOX_EMULATOR_GPU_MODE:")
+)
+expected_gpu_assignment = "MAPBOX_EMULATOR_GPU_MODE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'angle_indirect' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader_indirect' }}"
+if gpu_assignment != expected_gpu_assignment:
+    raise SystemExit("PR #79 must use ANGLE while manual dispatches remain controlled and all other runs default to SwiftShader.")
+smoke_step = android_step_block("Android map native smoke")
+if "emulator-options: -no-window -gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }}" not in smoke_step:
+    raise SystemExit("Android emulator must use the validated GPU-backend selector.")
 skia_step = workflow.split(
     "- name: Build Mapbox Skia comparison APK (Impeller disabled)", 1
 )[1].split("\n      - name:", 1)[0]
