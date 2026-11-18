@@ -355,9 +355,9 @@ if "'MAPBOX_STYLE_URI'" not in mapbox_viewport or "String.fromEnvironment(" not 
 if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_viewport:
     raise SystemExit("Mapbox diagnostic output must identify the selected style URI.")
 if "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'geojson' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}" not in workflow:
-    raise SystemExit("PR #79 Android staging must exercise the live MapWidget vector style.")
+    raise SystemExit("PR #79 Android staging must exercise the live MapWidget GeoJSON line style.")
 if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in source or '--expected-line-color "#c43c39"' not in source:
-    raise SystemExit("Vector diagnostic smoke must require visible road-colored pixels.")
+    raise SystemExit("GeoJSON line smoke must require visible red geometry pixels.")
 if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
     raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
 if "tool/preflight_mapbox_tiles.py --style-uri \"$MAPBOX_STYLE_URI\"" not in workflow:
