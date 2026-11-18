@@ -69,21 +69,8 @@ jobs:
             echo "ANDROID_RELEASE_CERT_SHA256=$certificate_sha256"
           } >> "$GITHUB_ENV"
 
-      - name: Generate Android project
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp pubspec.yaml "${RUNNER_TEMP}/pubspec.yaml"
-          cp lib/main.dart "${RUNNER_TEMP}/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "${RUNNER_TEMP}/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "${RUNNER_TEMP}/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "${RUNNER_TEMP}/pubspec.yaml" pubspec.yaml
-          cp "${RUNNER_TEMP}/main.dart" lib/main.dart
-          if [[ -f "${RUNNER_TEMP}/analysis_options.yaml" ]]; then cp "${RUNNER_TEMP}/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "${RUNNER_TEMP}/widget_test.dart" ]]; then cp "${RUNNER_TEMP}/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
+      - name: Verify Android native configuration
+        run: python3 tool/verify_mobile_native.py --platform android
 
       - name: Check production endpoints and Mapbox token
         shell: bash
@@ -114,12 +101,6 @@ jobs:
         run: python3 tool/verify_build_profile.py --profile production
 
 
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
-
-      - name: Verify Android native configuration
-        run: python3 tool/verify_mobile_native.py --platform android
-
       - name: Dependencies
         run: flutter pub get
 
@@ -141,8 +122,8 @@ jobs:
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
           )
-          flutter build apk --release "${DART_DEFINES[@]}"
-          flutter build appbundle --release "${DART_DEFINES[@]}"
+          flutter build apk --flavor production --release "${DART_DEFINES[@]}"
+          flutter build appbundle --flavor production --release "${DART_DEFINES[@]}"
 
       - name: Verify Android release assets
         shell: bash

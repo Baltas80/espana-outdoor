@@ -1,9 +1,19 @@
-﻿
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// ESPANA_OUTDOOR_RELEASE_SIGNING
+val releaseStoreFilePath = System.getenv("ANDROID_RELEASE_STORE_FILE")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured = releaseStoreFilePath != null && !releaseStorePassword.isNullOrBlank() && releaseKeyAlias != null && !releaseKeyPassword.isNullOrBlank() && file(releaseStoreFilePath).isFile
+if (System.getenv("APP_ENV") == "production" && !releaseSigningConfigured) {
+    throw GradleException("Production Android builds require a configured release keystore.")
+}
+
+
 
 android {
     namespace = "com.example.espana_outdoors"
@@ -15,6 +25,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    flavorDimensions += "environment"
+    productFlavors {
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".iconspreview"
+        }
+        create("production") {
+            dimension = "environment"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.espanaoutdoors.espana_outdoors"
         manifestPlaceholders["appAuthRedirectScheme"] = "com.espanaoutdoors"
@@ -24,9 +45,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseSigningConfigured) { signingConfigs.getByName("release") } else { signingConfigs.getByName("debug") }
         }
     }
 }

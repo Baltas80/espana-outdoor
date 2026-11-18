@@ -86,21 +86,6 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate mobile platform projects
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter create . --platforms=android,ios --org com.espanaoutdoors
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
       - name: Verify Android native configuration
         run: python3 tool/verify_mobile_native.py --platform android
       - name: Verify CI build profile
@@ -134,8 +119,8 @@ jobs:
         run: flutter test --coverage --concurrency=1
       - name: Android release build
         run: |
-          flutter build apk --release --dart-define=APP_ENV=ci
-          flutter build appbundle --release --dart-define=APP_ENV=ci
+          flutter build apk --flavor production --release --dart-define=APP_ENV=ci
+          flutter build appbundle --flavor production --release --dart-define=APP_ENV=ci
       - name: Verify Android release assets
         shell: bash
         run: |
