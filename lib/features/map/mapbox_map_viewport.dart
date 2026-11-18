@@ -258,6 +258,16 @@ String mapboxMapWidgetGeoJsonStyleJson() {
   });
 }
 
+/// A stable line used by the annotation-manager diagnostic after the active
+/// style has loaded. Coordinates cross the Córdoba camera center.
+List<Position> mapboxMapWidgetDiagnosticAnnotationLine() => <Position>[
+      Position(-4.813, 37.871),
+      Position(-4.799, 37.879),
+      Position(-4.7794, 37.8882),
+      Position(-4.762, 37.898),
+      Position(-4.747, 37.906),
+    ];
+
 String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
   switch (variant) {
     case 'none':
@@ -268,11 +278,13 @@ String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
       return mapboxSnapshotterVectorStyleJson();
     case 'geojson':
       return mapboxMapWidgetGeoJsonStyleJson();
+    case 'annotation':
+      return mapboxSnapshotterBaselineStyleJson();
     default:
       throw ArgumentError.value(
         variant,
         'variant',
-        'must be none, baseline, vector or geojson',
+        'must be none, baseline, vector, geojson or annotation',
       );
   }
 }
@@ -422,6 +434,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
   CircleAnnotationManager? _circleManager;
   bool _routeCameraFitted = false;
   bool _annotationsReady = false;
+  bool _annotationManagersCreating = false;
   int _sourceDataEventsLogged = 0;
   final Map<String, int> _resourceEventsLoggedByKind = <String, int>{};
   final Set<String> _resourceSuppressionLogged = <String>{};
@@ -436,6 +449,12 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     final suffix = details.isEmpty ? '' : ' $details';
     debugPrint('MAPBOX_DIAGNOSTIC event=$event$suffix');
   }
+
+  bool get _isAnnotationDiagnostic =>
+      mapboxMapWidgetDiagnosticStyle == 'annotation' &&
+      _mapWidgetDiagnosticAppEnvironment == 'staging' &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android;
 
   Future<void> _inspectLoadedStyle() async {
     final map = _map;
@@ -722,13 +741,27 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
         widget.onTap?.call(context.point.coordinates);
       }),
     );
+  }
+
+  /// Annotation managers add style sources/layers. Create them only after the
+  /// active style has loaded so a subsequent loadStyleJson cannot discard them.
+  Future<void> _ensureAnnotationManagers() async {
+    final map = _map;
+    if (map == null || _annotationsReady || _annotationManagersCreating) return;
+    _annotationManagersCreating = true;
     try {
       _lineManager = await map.annotations.createPolylineAnnotationManager();
       _circleManager = await map.annotations.createCircleAnnotationManager();
       _annotationsReady = true;
       await _syncAnnotations();
+      _logMapboxDiagnostic('ANNOTATION_MANAGERS', 'result=ready');
     } catch (error) {
-      debugPrint('Mapbox annotations unavailable: $error');
+      _logMapboxDiagnostic(
+        'ANNOTATION_MANAGERS',
+        'result=failed error=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
+    } finally {
+      _annotationManagersCreating = false;
     }
   }
 
@@ -745,6 +778,16 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
             geometry: LineString(coordinates: widget.routePoints),
             lineColor: const Color(0xFF38B66A).toARGB32(),
             lineWidth: 4,
+          ),
+        );
+      } else if (_isAnnotationDiagnostic) {
+        await lines.create(
+          PolylineAnnotationOptions(
+            geometry: LineString(
+              coordinates: mapboxMapWidgetDiagnosticAnnotationLine(),
+            ),
+            lineColor: const Color(0xFFC43C39).toARGB32(),
+            lineWidth: 8,
           ),
         );
       }
@@ -858,6 +901,7 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           unawaited(_applyMapWidgetDiagnosticStyle());
           return;
         }
+        unawaited(_ensureAnnotationManagers());
         unawaited(_inspectLoadedStyle());
       },
       onMapLoadedListener: (_) {
