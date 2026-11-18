@@ -122,8 +122,8 @@ jobs:
             --dart-define=OIDC_REDIRECT_URI="$OIDC_REDIRECT_URI"
             --dart-define=RESCUE_LINK_BASE_URL="$RESCUE_LINK_BASE_URL"
           )
-          flutter build apk --release "${DART_DEFINES[@]}"
-          flutter build appbundle --release "${DART_DEFINES[@]}"
+          flutter build apk --flavor production --release "${DART_DEFINES[@]}"
+          flutter build appbundle --flavor production --release "${DART_DEFINES[@]}"
 
       - name: Verify Android release assets
         shell: bash
