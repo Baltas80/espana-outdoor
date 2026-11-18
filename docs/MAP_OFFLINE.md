@@ -686,3 +686,11 @@ El gate de captura exige por separado:
 - fondo diagnóstico correcto y viewport opaco.
 
 Esto permite distinguir manager/feature creation de rasterización de línea/punto. El experimento sigue limitado a Android staging; producción conserva Outdoors v12 y Hybrid Composition/SurfaceView.
+
+## Corrección de inspección de anotaciones — 18/11/2026
+
+El artefacto [Android staging 44238493176](https://github.com/Baltas80/espana-outdoor/actions/runs/44238493176/artifacts/14398354912) muestra que la variante TileStore-disabled sí creó y recuperó una polyline y un circle (`getAnnotations()` devolvió 1 en cada gestor). Los eventos nativos registraron fuentes de anotación con IDs `0` y `1`, pero la instrumentación anterior filtraba el JSON del estilo buscando IDs que contuvieran la palabra `annotation`. Ese filtro podía declarar `annotation_layers=none` aunque los IDs reales fueran numéricos; por tanto, esa parte del diagnóstico era un falso negativo y no debe usarse como evidencia de ausencia de capas.
+
+Se corrige la inspección para usar la API viva de `StyleManager`: `getStyleLayers()`, `getStyleSources()`, `styleLayerExists()` y `styleSourceExists()`. Los gestores diagnósticos reciben IDs explícitos y distintos, y se registran sus IDs, conteos de anotaciones y propiedades de capa reducidas (tipo, fuente, visibilidad, color y tamaño), sin volcar estilos completos ni credenciales.
+
+Esta corrección mejora la observabilidad; no afirma que las anotaciones se estén renderizando. La captura del run 44238493176 sigue mostrando 0 píxeles rojos y azules pese a que la variante TileStore-disabled alcanzó `MAP_LOADED`, `RenderMode.FULL` y `MAP_IDLE`. La nueva ejecución debe determinar si el SDK ha registrado las capas reales y si sus propiedades son visibles. El gate visual continúa siendo obligatorio.
