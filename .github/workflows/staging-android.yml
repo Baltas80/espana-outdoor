@@ -30,6 +30,14 @@ on:
           - vector
           - annotation
         default: none
+      emulator_gpu_mode:
+        description: "Graphics backend for the Android diagnostic emulator; PR #79 uses ANGLE to compare with SwiftShader."
+        required: true
+        type: choice
+        options:
+          - swiftshader_indirect
+          - angle_indirect
+        default: swiftshader_indirect
   pull_request:
     branches: [main]
     paths:
@@ -70,6 +78,7 @@ env:
   MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
   MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}
   MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'annotation' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}
+  MAPBOX_EMULATOR_GPU_MODE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'angle_indirect' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader_indirect' }}
 
 jobs:
   android-staging:
@@ -106,6 +115,10 @@ jobs:
             none|baseline|vector|geojson|annotation) ;;
             *) echo "Unsupported MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"; exit 1 ;;
           esac
+          case "$MAPBOX_EMULATOR_GPU_MODE" in
+            swiftshader_indirect|angle_indirect) ;;
+            *) echo "Unsupported MAPBOX_EMULATOR_GPU_MODE"; exit 1 ;;
+          esac
           if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" && "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
             echo "MapWidget diagnostic styles are restricted to PR or explicit workflow_dispatch staging."
             exit 1
@@ -113,6 +126,7 @@ jobs:
           echo "Mapbox staging style: $MAPBOX_STYLE_URI"
           echo "Mapbox Android view mode: $MAPBOX_ANDROID_VIEW_MODE"
           echo "MapWidget diagnostic style: $MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
+          echo "Android emulator GPU backend: $MAPBOX_EMULATOR_GPU_MODE"
       - name: Preflight Mapbox style and vector tile access
         if: env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true'
         env:
@@ -556,7 +570,8 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disk-size: 6000M
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          # PR #79 switches to ANGLE after repeated SwiftShader partial-frame failures; other runs retain SwiftShader.
+          emulator-options: -no-window -gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }} -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 600
           script: bash tool/smoke_android_map_ab.sh "$RUNNER_TEMP" "$MAPBOX_STYLE_URI"
