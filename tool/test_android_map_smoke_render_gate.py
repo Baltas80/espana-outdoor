@@ -305,7 +305,7 @@ def android_step_block(name: str) -> str:
     marker = f"- name: {name}"
     if marker not in android_job:
         raise SystemExit(f"Android staging is missing step: {name}")
-    return android_job.split(marker, 1)[1].split("\\n      - name:", 1)[0]
+    return android_job.split(marker, 1)[1].split("\n      - name:", 1)[0]
 
 preflight_step = android_step_block("Preflight Mapbox style and vector tile access")
 if "MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}" not in preflight_step:
