@@ -306,16 +306,16 @@ def main() -> int:
         if args.expected_solid_color and args.expected_line_color:
             parser.error("choose either --expected-solid-color or --expected-line-color")
         if args.expected_line_color:
-            vector_metrics, failures = verify_expected_line_render(
+            line_metrics, failures = verify_expected_line_render(
                 args.png.read_bytes(), args.expected_line_color, args.expected_background_color
             )
             print(
                 "MAPBOX_MAP_WIDGET_LINE_METRICS "
-                f"width={vector_metrics['width']} height={vector_metrics['height']} "
-                f"line_pixels={vector_metrics['line_pixels']} "
-                f"line_ratio={vector_metrics['line_ratio']:.6f} "
-                f"background_ratio={vector_metrics['line_background_ratio']:.3f} "
-                f"opaque_ratio={vector_metrics['opaque_ratio']:.3f}"
+                f"width={line_metrics['width']} height={line_metrics['height']} "
+                f"line_pixels={line_metrics['line_pixels']} "
+                f"line_ratio={line_metrics['line_ratio']:.6f} "
+                f"background_ratio={line_metrics['line_background_ratio']:.3f} "
+                f"opaque_ratio={line_metrics['opaque_ratio']:.3f}"
             )
             print(
                 "MAPBOX_MAP_WIDGET_RENDER_GATE mode=line "
