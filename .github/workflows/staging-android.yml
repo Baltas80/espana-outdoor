@@ -19,6 +19,16 @@ on:
           - hybrid-surface
           - virtual-texture
         default: hybrid-surface
+      map_widget_diagnostic_style:
+        description: "Staging-only live MapWidget diagnostic; none keeps the normal style."
+        required: true
+        type: choice
+        options:
+          - none
+          - baseline
+          - geojson
+          - vector
+        default: none
   pull_request:
     branches: [main]
     paths:
@@ -58,7 +68,7 @@ env:
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
   MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
   MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}
-  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'vector' || 'none' }}
+  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'geojson' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}
 
 jobs:
   android-staging:
@@ -92,10 +102,10 @@ jobs:
             *) echo "Unsupported MAPBOX_ANDROID_VIEW_MODE"; exit 1 ;;
           esac
           case "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" in
-            none|baseline|vector) ;;
+            none|baseline|vector|geojson) ;;
             *) echo "Unsupported MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"; exit 1 ;;
           esac
-          if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+          if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" && "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
             echo "MapWidget diagnostic styles are restricted to pull-request staging."
             exit 1
           fi
