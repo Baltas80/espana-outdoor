@@ -914,3 +914,12 @@ La pantalla Mapa estaba visible y el estilo local vectorial fue aceptado; el JSO
 CI general [44190763965](https://github.com/Baltas80/espana-outdoor/actions/runs/44190763965) terminó correctamente en sus cuatro jobs (Flutter, Source Gateway, Rescue Link e iOS). Security [44190763970](https://github.com/Baltas80/espana-outdoor/actions/runs/44190763970) terminó 8/8. Android staging [44190764028](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028) terminó en fallo del gate obligatorio de renderizado; compilación, verificación, instalación y captura se completaron. El smoke no acepta mapa.
 
 No hay aceptación de Outdoors v12, mapa online, mapas offline, persistencia tras reinicio ni OPPO físico. PR #61 (navegación offline) y PR #64 (identidad web/OIDC) siguen Draft y divergidas; no fusionar hasta reconciliar con `main` y repetir sus pruebas de aceptación.
+
+
+## Entrega 18/11/2026 — Hybrid Composition no resuelve el renderizado vectorial
+
+Android staging [44199334090](https://github.com/Baltas80/espana-outdoor/actions/runs/44199334090) confirmó Hybrid Composition/SurfaceView en runtime (`texture_view=false`, hosting `HC`) y aceptó el estilo diagnóstico Streets v8. La inspección mostró dos capas, una fuente y una capa lineal `road` visible. Hubo respuestas de teselas de red no vacías y la tesela central `12/1993/1581` notificó `loaded=true`.
+
+La captura real conserva solo el fondo `#d9e6c7`: `line_pixels=0`, `background_ratio=1.000`. No se produjeron `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE` en 60 segundos. El smoke fue rechazado por el gate cartográfico después de construir/verificar los APK, instalarlos y subir las evidencias; la compilación sí terminó.
+
+**Siguiente cambio:** PR #79 añade un diagnóstico GeoJSON local con dos LineStrings, sin red ni MVT, en el mismo MapWidget. El resultado distinguirá el renderizado de geometrías lineales del procesamiento de teselas. La PR permanece Draft; no hay aceptación de Outdoors v12, mapas offline, persistencia tras reinicio, OPPO físico ni despliegue.
