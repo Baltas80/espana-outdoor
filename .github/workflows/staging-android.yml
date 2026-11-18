@@ -9,6 +9,7 @@ on:
       - 'tool/**'
       - 'test/**'
       - 'assets/**'
+      - 'android/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - '.github/workflows/staging-android.yml'
