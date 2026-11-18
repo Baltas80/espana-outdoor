@@ -647,3 +647,12 @@ PR #79 añade el estilo diagnóstico `geojson`: dos LineStrings inline cruzan la
 - Si GeoJSON tampoco se dibuja, el fallo está por debajo de la carga de teselas: capa lineal, renderer nativo o superficie Android.
 
 El estilo solo se permite en Android staging. Producción sigue en Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`. Este experimento no certifica mapas offline ni comportamiento en dispositivo físico.
+
+
+## Experimento de anotaciones nativas — 18/11/2026, run 44208940776
+
+El artefacto [14386503786](https://github.com/Baltas80/espana-outdoor/actions/runs/44208940776/artifacts/14386503786) corresponde a la variante `geojson` sobre Hybrid Composition/SurfaceView + Impeller. El APK se compiló, instaló y llegó a la pantalla Mapa. El estilo de diagnóstico fue aceptado y el estilo inspeccionado contenía un fondo y una capa `line` visible con una fuente GeoJSON inline. La cámara quedó en Córdoba (-4.7794, 37.8882), zoom 12. El PNG real muestra el fondo `#d9e6c7`, controles y atribución, pero no contiene píxeles de carretera. No se alcanzaron `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; el gate rechazó correctamente el smoke.
+
+El log muestra además que los annotation managers se creaban en `onMapCreated`, antes de que terminase la carga/cambio de estilo. El override `loadStyleJson` reemplaza el estilo inicial después de crear esos managers. Para eliminar esa variable y probar el camino de anotaciones que usa el overlay de rutas, el siguiente experimento crea los managers después de `STYLE_LOADED` y dibuja una línea nativa mediante `PolylineAnnotationManager` sobre un estilo de fondo sin fuentes. El override `annotation` es staging-only y no cambia el estilo de producción.
+
+La variante permitirá separar la capa GeoJSON/style-layer del API de anotaciones. No se acepta el mapa hasta obtener línea visible, `MAP_LOADED`, `RenderMode.FULL` y `MAP_IDLE` en la misma captura.
