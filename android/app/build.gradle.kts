@@ -44,7 +44,18 @@ android {
         versionName = flutter.versionName
     }
 
-    signingConfigs {\n        if (releaseSigningConfigured) {\n            create("release") {\n                storeFile = file(releaseStoreFilePath!!)\n                storePassword = releaseStorePassword\n                keyAlias = releaseKeyAlias\n                keyPassword = releaseKeyPassword\n            }\n        }\n    }\n\n    buildTypes {
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
         release {
             signingConfig = if (releaseSigningConfigured) { signingConfigs.getByName("release") } else { signingConfigs.getByName("debug") }
         }
