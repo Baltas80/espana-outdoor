@@ -969,6 +969,11 @@ The two staging APKs (TileStore default and disabled) were built, verified, inst
 
 The emulator was running Google SwiftShader (`swiftshader_indirect`). Both logcats contain the emulator-side `GL2Encoder.cpp:s_glGetStringi:4944 GL error 0x501`, alongside unusually slow EGL frame intervals. This is a correlated emulator graphics signal, not a proven Mapbox root cause. The same blank geometry has now been observed with vector-layer, inline GeoJSON and native annotation experiments; changing TileStore mode did not change the capture.
 
-**Next controlled experiment:** PR #79 staging selects ANGLE (`angle_indirect`) for the diagnostic emulator only. Manual dispatch retains a selector for SwiftShader/ANGLE; all non-PR-79 runs default to SwiftShader. This does not alter production Android rendering. The next run must compare the same annotation geometry and require visible pixels plus `MAP_LOADED + FULL + MAP_IDLE`; if ANGLE cannot boot or render, preserve that evidence and move to the physical OPPO test rather than weakening the gate.
+**Next controlled experiment:** PR #79 staging selects ANGLE through the current `swangle` emulator mode for the diagnostic emulator only. Manual dispatch retains a selector for `swiftshader`/`swangle`; all non-PR-79 runs default to `swiftshader`. This does not alter production Android rendering. The next run must compare the same annotation geometry and require visible pixels plus `MAP_LOADED + FULL + MAP_IDLE`; if ANGLE cannot boot or render, preserve that evidence and move to the physical OPPO test rather than weakening the gate.
 
 No online map, offline download/persistence, airplane-mode route, physical-device or production acceptance is implied.
+
+
+### Corrección del backend gráfico del emulador — 18/11/2026
+
+La documentación oficial de Android Emulator marca `angle_indirect` y `swiftshader_indirect` como modos obsoletos. El experimento se corrige para usar `swangle` (SwiftShader con backend ANGLE) y `swiftshader` como modo predeterminado. El run anterior que ya había arrancado con `angle_indirect` se conserva como evidencia de transición, pero no será la prueba de aceptación del nuevo modo. Esta corrección solo afecta al emulador de staging.
