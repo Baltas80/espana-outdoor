@@ -320,8 +320,14 @@ for step_name in (
         if f"{secret_name}: ${{{{ secrets.{secret_name} }}}}" not in step:
             raise SystemExit(f"{secret_name} must be scoped to {step_name}.")
 smoke_step = android_step_block("Android map native smoke")
-if "MAPBOX_ACCESS_TOKEN" in smoke_step or "MAPBOX_DOWNLOADS_TOKEN" in smoke_step:
-    raise SystemExit("The Android emulator smoke must consume the already-built APK without access to Mapbox secrets.")
+for secret_marker in (
+    "MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}",
+    "MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}",
+    '"${MAPBOX_ACCESS_TOKEN}"',
+    '"${MAPBOX_DOWNLOADS_TOKEN}"',
+):
+    if secret_marker in smoke_step:
+        raise SystemExit("The Android emulator smoke must consume the already-built APK without access to Mapbox secret values.")
 
 if "timeout-minutes: 105" not in android_job:
     raise SystemExit("Android staging job must allow three APK builds and the bounded A/B smoke to finish.")

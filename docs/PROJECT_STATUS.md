@@ -960,3 +960,4 @@ PR #79 sigue abierta, Draft y mergeable, sin integración. PR #61 (offline) y PR
 - Se amplía `tool/test_android_map_smoke_render_gate.py` para rechazar una regresión de exposición a nivel de job y exigir el alcance por paso.
 
 La modificación no cambia el token incluido como Dart define en el APK staging ni la política de producción. La validación queda pendiente en CI/Android sobre el nuevo HEAD.
+- La primera ejecución CI del aislamiento de secretos detectó un falso positivo en el guard: el paso de smoke referencia los indicadores booleanos `*_AVAILABLE` en su condición, no los valores secretos. El guard se ajusta para buscar asignaciones/interpolaciones de valores reales y seguir rechazando su inyección al emulador. Revalidación pendiente sobre el nuevo HEAD.
