@@ -629,3 +629,21 @@ PR #79 cambia ahora la selección automática de Android staging para usar `hybr
 La configuración de producción no cambia: Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`. El APK TileStore-disabled sigue siendo solo diagnóstico online y no sirve para aceptar offline.
 
 La aceptación cartográfica sigue pendiente: carreteras visibles, `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, después Outdoors v12 y validación física en OPPO. La descarga offline, modo avión, cierre/reapertura y reinicio no están certificados.
+
+
+## Hybrid Composition + Mapbox Vector diagnostic — 18/11/2026
+
+Android staging [44199334090](https://github.com/Baltas80/espana-outdoor/actions/runs/44199334090), source commit `c336e955`, ejecutó Standard + Streets v8 vectorial sobre el hosting Android de producción: Hybrid Composition/SurfaceView (`texture_view=false`, hosting `HC`). Los APK principal READ_ONLY y TileStore-disabled se construyeron, verificaron, instalaron y llegaron a la pantalla Mapa. La evidencia está en [14382301549](https://github.com/Baltas80/espana-outdoor/actions/runs/44199334090/artifacts/14382301549).
+
+La inspección runtime confirmó que `loadStyleJson` aceptó el estilo, `getStyleJSON()` informó `style_loaded=true`, dos capas y una fuente, con una capa `road` visible. Hubo respuestas de teselas vectoriales no vacías y la tesela central de Córdoba `12/1993/1581` notificó `loaded=true`. Aun así, las capturas no contienen líneas rojas (`line_pixels=0`, `background_ratio=1.000`) y no se alcanzaron `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE` en 60 segundos. El gate cartográfico rechazó el smoke después de la captura; no fue un fallo de compilación.
+
+**Conclusión:** cambiar a Hybrid Composition/SurfaceView no resolvió el problema. El preflight MVT confirma que la tesela contiene la capa `road` y geometrías LINESTRING, pero no prueba que el SDK las haya decodificado y pintado.
+
+### Siguiente experimento: GeoJSON local en el mismo MapWidget
+
+PR #79 añade el estilo diagnóstico `geojson`: dos LineStrings inline cruzan la cámara de Córdoba, con la misma capa lineal, color y MapWidget, pero sin red, TileJSON, MVT ni TileStore. El gate exige píxeles de línea reales y conserva los requisitos `MAP_LOADED`, `RenderMode.FULL` y `MAP_IDLE`.
+
+- Si GeoJSON se dibuja, el renderizador puede pintar geometría lineal; la investigación vuelve a la fuente vectorial, TileJSON, decodificación MVT y aplicación del estilo.
+- Si GeoJSON tampoco se dibuja, el fallo está por debajo de la carga de teselas: capa lineal, renderer nativo o superficie Android.
+
+El estilo solo se permite en Android staging. Producción sigue en Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`. Este experimento no certifica mapas offline ni comportamiento en dispositivo físico.
