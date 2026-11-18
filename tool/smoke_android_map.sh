@@ -519,7 +519,13 @@ if [[ "${map_widget_diagnostic_style}" == "baseline" ]]; then
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}" \
     --expected-solid-color "#d9e6c7"
-elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" || "${map_widget_diagnostic_style}" == "annotation" ]]; then
+elif [[ "${map_widget_diagnostic_style}" == "annotation" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-line-color "#c43c39" \
+    --expected-point-color "#1677ff" \
+    --expected-background-color "#d9e6c7"
+elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]; then
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}" \
     --expected-line-color "#c43c39" \

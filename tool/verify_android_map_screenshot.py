@@ -179,6 +179,7 @@ def verify_expected_line_render(
     payload: bytes,
     expected_line_color: str,
     expected_background_color: str = "#d9e6c7",
+    expected_point_color: str | None = None,
 ) -> tuple[dict[str, float | int], list[str]]:
     """Require the diagnostic background and actual line-colored pixels.
 
@@ -190,9 +191,10 @@ def verify_expected_line_render(
         raise ValueError("screenshot viewport is too small")
     line = _rgb(expected_line_color)
     background = _rgb(expected_background_color)
+    point = _rgb(expected_point_color) if expected_point_color else None
     min_x, max_x = round(width * 0.08), round(width * 0.65)
     min_y, max_y = round(height * 0.30), round(height * 0.68)
-    sampled = opaque = line_pixels = background_pixels = 0
+    sampled = opaque = line_pixels = background_pixels = point_pixels = 0
     for y in range(min_y, max_y):
         row = y * width * channels
         for x in range(min_x, max_x):
@@ -215,6 +217,12 @@ def verify_expected_line_render(
                 and red >= blue * 1.15
             ):
                 line_pixels += 1
+            if point is not None and (
+                max(abs(red - point[0]), abs(green - point[1]), abs(blue - point[2])) <= 72
+                and blue >= red * 1.15
+                and blue >= green * 1.15
+            ):
+                point_pixels += 1
     metrics: dict[str, float | int] = {
         "width": width,
         "height": height,
@@ -223,6 +231,7 @@ def verify_expected_line_render(
         "line_pixels": line_pixels,
         "line_ratio": line_pixels / sampled if sampled else 0.0,
         "line_background_ratio": background_pixels / sampled if sampled else 0.0,
+        "point_pixels": point_pixels,
     }
     failures: list[str] = []
     if metrics["opaque_ratio"] <= 0.95:
@@ -231,6 +240,8 @@ def verify_expected_line_render(
         failures.append("expected_line_background")
     if line_pixels < 30 or metrics["line_ratio"] < 0.00005:
         failures.append("line_features_missing")
+    if point is not None and point_pixels < 20:
+        failures.append("annotation_point_missing")
     return metrics, failures
 
 
@@ -271,6 +282,28 @@ def _self_test() -> None:
     assert line_failures == []
     _, missing_line_failures = verify_expected_line_render(solid_png, "#c43c39")
     assert "line_features_missing" in missing_line_failures
+
+    annotation_rows = bytearray()
+    for y in range(height):
+        annotation_rows.append(0)
+        for x in range(width):
+            if 198 <= x <= 202 and 100 <= y <= 299:
+                color = (196, 60, 57, 255)
+            elif 195 <= x <= 205 and 195 <= y <= 205:
+                color = (22, 119, 255, 255)
+            else:
+                color = (217, 230, 199, 255)
+            annotation_rows.extend(color)
+    annotation_png = PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(annotation_rows))) + chunk(b"IEND", b"")
+    annotation_metrics, annotation_failures = verify_expected_line_render(
+        annotation_png, "#c43c39", expected_point_color="#1677ff"
+    )
+    assert annotation_failures == []
+    assert annotation_metrics["point_pixels"] >= 20
+    _, missing_point_failures = verify_expected_line_render(
+        line_png, "#c43c39", expected_point_color="#1677ff"
+    )
+    assert "annotation_point_missing" in missing_point_failures
     print("ANDROID_MAP_SCREENSHOT_SELF_TEST passed")
 
 
@@ -280,6 +313,7 @@ def main() -> int:
     parser.add_argument("--foreground-package")
     parser.add_argument("--expected-solid-color")
     parser.add_argument("--expected-line-color", "--expected-vector-color", dest="expected_line_color")
+    parser.add_argument("--expected-point-color", help="also require a point annotation of this color")
     parser.add_argument("--expected-background-color", default="#d9e6c7")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
@@ -303,16 +337,22 @@ def main() -> int:
             f"dominant_ratio={metrics['dominant_ratio']:.3f} "
             f"dominant_color_key={metrics['dominant_color_key']:04x}"
         )
-        if args.expected_solid_color and args.expected_line_color:
-            parser.error("choose either --expected-solid-color or --expected-line-color")
+        if args.expected_solid_color and (args.expected_line_color or args.expected_point_color):
+            parser.error("choose either --expected-solid-color or line/point geometry checks")
+        if args.expected_point_color and not args.expected_line_color:
+            parser.error("--expected-point-color requires --expected-line-color")
         if args.expected_line_color:
             line_metrics, failures = verify_expected_line_render(
-                args.png.read_bytes(), args.expected_line_color, args.expected_background_color
+                args.png.read_bytes(),
+                args.expected_line_color,
+                args.expected_background_color,
+                args.expected_point_color,
             )
             print(
                 "MAPBOX_MAP_WIDGET_LINE_METRICS "
                 f"width={line_metrics['width']} height={line_metrics['height']} "
                 f"line_pixels={line_metrics['line_pixels']} "
+                f"point_pixels={line_metrics['point_pixels']} "
                 f"line_ratio={line_metrics['line_ratio']:.6f} "
                 f"background_ratio={line_metrics['line_background_ratio']:.3f} "
                 f"opaque_ratio={line_metrics['opaque_ratio']:.3f}"
@@ -320,7 +360,8 @@ def main() -> int:
             print(
                 "MAPBOX_MAP_WIDGET_RENDER_GATE mode=line "
                 f"line_color={args.expected_line_color} "
-                f"background_color={args.expected_background_color} min_line_pixels=30"
+                f"background_color={args.expected_background_color} min_line_pixels=30 "
+                f"point_color={args.expected_point_color or 'not-required'} min_point_pixels=20"
             )
         elif args.expected_solid_color:
             print(

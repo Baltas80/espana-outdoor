@@ -111,6 +111,12 @@ void main() {
       expect(points[2].lat, closeTo(37.8882, 0.00001));
     });
 
+    test('annotation diagnostic point is exactly at the Córdoba camera center', () {
+      final point = mapboxMapWidgetDiagnosticAnnotationPoint();
+      expect(point.lng, closeTo(-4.7794, 0.00001));
+      expect(point.lat, closeTo(37.8882, 0.00001));
+    });
+
     test('vector style uses a single public Streets source and road layer', () {
       final raw = mapboxMapWidgetDiagnosticStyleJson('vector');
       expect(raw, isNotNull);

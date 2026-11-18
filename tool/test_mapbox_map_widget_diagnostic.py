@@ -16,8 +16,14 @@ required_viewport = (
     "case 'geojson':",
     "mapboxMapWidgetGeoJsonStyleJson",
     "mapboxMapWidgetDiagnosticAnnotationLine",
+    "mapboxMapWidgetDiagnosticAnnotationPoint",
     "_ensureAnnotationManagers",
     "PolylineAnnotationOptions",
+    "CircleAnnotationOptions",
+    "ANNOTATION_LINE",
+    "ANNOTATION_POINT",
+    "getAnnotations()",
+    "_logAnnotationStyleState",
     "_isAnnotationDiagnostic",
     "await map.loadStyleJson(styleJson)",
     "_mapWidgetDiagnosticAppEnvironment == 'staging'",
@@ -58,6 +64,12 @@ if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagno
     raise SystemExit("Android staging smoke must execute the live line diagnostic branch.")
 if '--expected-line-color "#c43c39"' not in SMOKE:
     raise SystemExit("Line smoke must require red geometry pixels in the viewport.")
+if '--expected-point-color "#1677ff"' not in SMOKE:
+    raise SystemExit("Annotation smoke must require a blue point in addition to the line.")
+if '"--expected-point-color"' not in SCREENSHOT and "'--expected-point-color'" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must support a separately checked annotation point.")
+if "annotation_point_missing" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must reject a missing annotation point.")
 if "def verify_expected_solid_color(" not in SCREENSHOT:
     raise SystemExit("Screenshot verifier must support the isolated solid-color baseline.")
 if "expected_background_color" not in SCREENSHOT:

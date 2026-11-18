@@ -663,3 +663,26 @@ La variante permitirá separar la capa GeoJSON/style-layer del API de anotacione
 La ejecución Android staging [44215705178](https://github.com/Baltas80/espana-outdoor/actions/runs/44215705178) no llegó a compilar el APK ni a ejecutar el smoke. El paso inicial `Check staging endpoints` rechazó `MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=annotation`: la opción ya estaba declarada en `workflow_dispatch` y seleccionada para la PR #79, pero la lista blanca del shell solo aceptaba `none|baseline|vector|geojson`.
 
 Se corrige la lista blanca para incluir `annotation` y se añade una aserción estructural que exige que todos los modos declarados estén admitidos por el validador del workflow. Esta ejecución no aporta evidencia nueva sobre el renderizado; no se generó APK ni se ejecutó el emulador.
+
+
+## Resultado del experimento de anotaciones — 18/11/2026, run 44222702906
+
+Artefacto de evidencia [14392945338](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906/artifacts/14392945338), APKs [principal 14391349329](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906/artifacts/14391349329) y [TileStore-disabled 14391662991](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906/artifacts/14391662991).
+
+- Ambos APK se construyeron, verificaron e instalaron; la página Mapa fue confirmada por UIAutomator.
+- Runtime: Standard, Hybrid Composition/SurfaceView, Impeller, cámara Córdoba, zoom 12 y override staging `annotation`.
+- El estilo local `#d9e6c7` se aceptó. Se crearon los managers de polyline y circle; el log confirmó `ANNOTATION_MANAGERS result=ready`.
+- La captura real de ambas variantes no contiene la línea roja (`line_pixels=0`) ni geometría de anotación visible; el viewport conserva el fondo uniforme.
+- La variante principal no alcanzó `MAP_LOADED/FULL/IDLE`; la variante TileStore-disabled sí alcanzó esos tres estados, pero tampoco mostró la línea.
+- Por tanto, el estado de ciclo de vida de los managers ya no es el único bloqueo: el manager se crea, pero la evidencia visual no demuestra que la anotación se pinte.
+
+### Instrumentación añadida para el siguiente experimento
+
+La variante `annotation` ahora registra el resultado e ID de la línea creada, crea además un círculo azul en el centro de Córdoba, consulta el número de anotaciones persistidas y resume las capas de anotación del estilo activo. No se vuelcan estilos completos ni tokens.
+
+El gate de captura exige por separado:
+- al menos 30 píxeles rojos de la línea;
+- al menos 20 píxeles azules del punto;
+- fondo diagnóstico correcto y viewport opaco.
+
+Esto permite distinguir manager/feature creation de rasterización de línea/punto. El experimento sigue limitado a Android staging; producción conserva Outdoors v12 y Hybrid Composition/SurfaceView.

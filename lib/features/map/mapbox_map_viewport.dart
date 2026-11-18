@@ -268,6 +268,10 @@ List<Position> mapboxMapWidgetDiagnosticAnnotationLine() => <Position>[
       Position(-4.747, 37.906),
     ];
 
+/// A center point used to prove that the circle annotation path is rendered.
+Position mapboxMapWidgetDiagnosticAnnotationPoint() =>
+    Position(-4.7794, 37.8882);
+
 String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
   switch (variant) {
     case 'none':
@@ -743,6 +747,43 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     );
   }
 
+  Future<void> _logAnnotationStyleState() async {
+    final map = _map;
+    final lines = _lineManager;
+    final circles = _circleManager;
+    if (map == null || lines == null || circles == null) return;
+
+    try {
+      final rawStyleJson = await map.getStyleJSON();
+      final decoded = jsonDecode(rawStyleJson);
+      final rawLayers = decoded is Map ? decoded['layers'] : null;
+      final annotationLayers = rawLayers is List
+          ? rawLayers.whereType<Map>().where((layer) {
+              final id = layer['id']?.toString().toLowerCase() ?? '';
+              return id.contains('annotation');
+            }).map((layer) {
+              final layout = layer['layout'];
+              final visibility =
+                  layout is Map ? layout['visibility'] ?? 'visible' : 'visible';
+              return '${layer['id']}:$visibility';
+            }).take(12).join(',')
+          : '';
+      final lineAnnotations = await lines.getAnnotations();
+      final circleAnnotations = await circles.getAnnotations();
+      _logMapboxDiagnostic(
+        'ANNOTATION_STYLE_STATE',
+        'line_annotations=${lineAnnotations.length} '
+            'circle_annotations=${circleAnnotations.length} '
+            'annotation_layers=${annotationLayers.isEmpty ? 'none' : annotationLayers}',
+      );
+    } catch (error) {
+      _logMapboxDiagnostic(
+        'ANNOTATION_STYLE_STATE',
+        'result=failed error=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
+    }
+  }
+
   /// Annotation managers add style sources/layers. Create them only after the
   /// active style has loaded so a subsequent loadStyleJson cannot discard them.
   Future<void> _ensureAnnotationManagers() async {
@@ -781,15 +822,40 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
           ),
         );
       } else if (_isAnnotationDiagnostic) {
-        await lines.create(
+        final diagnosticLine = mapboxMapWidgetDiagnosticAnnotationLine();
+        _logMapboxDiagnostic(
+          'ANNOTATION_DIAGNOSTIC_STATE',
+          'active=true route_points=${widget.routePoints.length} '
+              'line_points=${diagnosticLine.length}',
+        );
+        final annotation = await lines.create(
           PolylineAnnotationOptions(
-            geometry: LineString(
-              coordinates: mapboxMapWidgetDiagnosticAnnotationLine(),
-            ),
+            geometry: LineString(coordinates: diagnosticLine),
             lineColor: const Color(0xFFC43C39).toARGB32(),
             lineWidth: 8,
+            lineOpacity: 1,
           ),
         );
+        _logMapboxDiagnostic(
+          'ANNOTATION_LINE',
+          'result=created id=${annotation.id} points=${diagnosticLine.length}',
+        );
+        final diagnosticPoint = await circles.create(
+          CircleAnnotationOptions(
+            geometry: Point(
+              coordinates: mapboxMapWidgetDiagnosticAnnotationPoint(),
+            ),
+            circleColor: const Color(0xFF1677FF).toARGB32(),
+            circleRadius: 16,
+            circleStrokeColor: Colors.white.toARGB32(),
+            circleStrokeWidth: 3,
+          ),
+        );
+        _logMapboxDiagnostic(
+          'ANNOTATION_POINT',
+          'result=created id=${diagnosticPoint.id}',
+        );
+        await _logAnnotationStyleState();
       }
       final markers = <CircleAnnotationOptions>[];
       final current = widget.currentPosition;
@@ -815,7 +881,10 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
       if (markers.isNotEmpty) await circles.createMulti(markers);
       await _fitRouteInView();
     } catch (error) {
-      debugPrint('Mapbox route overlay update failed: $error');
+      _logMapboxDiagnostic(
+        'ANNOTATION_SYNC',
+        'result=failed error=${sanitizeMapboxDiagnostic(error.toString())}',
+      );
     }
   }
 
