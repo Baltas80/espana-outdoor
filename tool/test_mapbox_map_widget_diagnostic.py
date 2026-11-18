@@ -40,16 +40,16 @@ required_workflow = (
 )
 for marker in required_workflow:
     if marker not in WORKFLOW:
-        raise SystemExit(f"Android staging vector diagnostic wiring is missing: {marker}")
+        raise SystemExit(f"Android staging GeoJSON diagnostic wiring is missing: {marker}")
 
 if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson)' not in SMOKE:
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
     raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
 if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in SMOKE:
-    raise SystemExit("Android staging smoke must execute the live vector diagnostic branch.")
+    raise SystemExit("Android staging smoke must execute the live line diagnostic branch.")
 if '--expected-line-color "#c43c39"' not in SMOKE:
-    raise SystemExit("Vector smoke must require road-colored pixels in the viewport.")
+    raise SystemExit("Line smoke must require red geometry pixels in the viewport.")
 if "def verify_expected_solid_color(" not in SCREENSHOT:
     raise SystemExit("Screenshot verifier must support the isolated solid-color baseline.")
 if "expected_background_color" not in SCREENSHOT:
