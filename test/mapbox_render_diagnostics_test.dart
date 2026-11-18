@@ -94,6 +94,23 @@ void main() {
       );
     });
 
+    test('annotation style uses a source-free background before manager creation', () {
+      final raw = mapboxMapWidgetDiagnosticStyleJson('annotation');
+      expect(raw, isNotNull);
+      final style = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(style['sources'], isEmpty);
+      final layers = style['layers'] as List<dynamic>;
+      expect(layers, hasLength(1));
+      expect((layers.single as Map<String, dynamic>)['type'], 'background');
+    });
+
+    test('annotation diagnostic line crosses the Córdoba camera center', () {
+      final points = mapboxMapWidgetDiagnosticAnnotationLine();
+      expect(points, hasLength(5));
+      expect(points[2].lng, closeTo(-4.7794, 0.00001));
+      expect(points[2].lat, closeTo(37.8882, 0.00001));
+    });
+
     test('vector style uses a single public Streets source and road layer', () {
       final raw = mapboxMapWidgetDiagnosticStyleJson('vector');
       expect(raw, isNotNull);
