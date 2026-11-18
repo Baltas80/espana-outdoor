@@ -13,6 +13,8 @@ required_viewport = (
     "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
     "defaultValue: 'none'",
     "mapboxMapWidgetDiagnosticStyleJson",
+    "case 'geojson':",
+    "mapboxMapWidgetGeoJsonStyleJson",
     "await map.loadStyleJson(styleJson)",
     "_mapWidgetDiagnosticAppEnvironment == 'staging'",
     "defaultTargetPlatform == TargetPlatform.android",
@@ -29,7 +31,9 @@ if "defaultValue: 'hybrid-surface'" not in VIEWPORT:
 
 required_workflow = (
     "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:",
-    "&& 'vector' || 'none'",
+    "&& 'geojson' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none'",
+    "map_widget_diagnostic_style:",
+    "- geojson",
     "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
     "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
     "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
@@ -38,17 +42,19 @@ for marker in required_workflow:
     if marker not in WORKFLOW:
         raise SystemExit(f"Android staging vector diagnostic wiring is missing: {marker}")
 
-if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector)' not in SMOKE:
+if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson)' not in SMOKE:
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
     raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
-if 'elif [[ "${map_widget_diagnostic_style}" == "vector" ]]' not in SMOKE:
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in SMOKE:
     raise SystemExit("Android staging smoke must execute the live vector diagnostic branch.")
-if '--expected-vector-color "#c43c39"' not in SMOKE:
+if '--expected-line-color "#c43c39"' not in SMOKE:
     raise SystemExit("Vector smoke must require road-colored pixels in the viewport.")
 if "def verify_expected_solid_color(" not in SCREENSHOT:
     raise SystemExit("Screenshot verifier must support the isolated solid-color baseline.")
 if "expected_background_color" not in SCREENSHOT:
     raise SystemExit("Screenshot verifier must reject the wrong baseline color.")
+if "def verify_expected_line_render(" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must require visible line pixels for GeoJSON and vector diagnostics.")
 
 print("MAPBOX_MAP_WIDGET_DIAGNOSTIC_GUARD passed")
