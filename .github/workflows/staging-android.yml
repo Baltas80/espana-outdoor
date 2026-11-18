@@ -75,25 +75,6 @@ jobs:
           flutter-version: '3.47.5'
           channel: stable
           cache: true
-      - name: Generate Android project
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp pubspec.yaml "$RUNNER_TEMP/pubspec.yaml"
-          cp pubspec.lock "$RUNNER_TEMP/pubspec.lock"
-          cp lib/main.dart "$RUNNER_TEMP/main.dart"
-          if [[ -f analysis_options.yaml ]]; then cp analysis_options.yaml "$RUNNER_TEMP/analysis_options.yaml"; fi
-          if [[ -f test/widget_test.dart ]]; then cp test/widget_test.dart "$RUNNER_TEMP/widget_test.dart"; fi
-          flutter --version
-          flutter create . --platforms=android --org com.espanaoutdoors --overwrite
-          cp "$RUNNER_TEMP/pubspec.yaml" pubspec.yaml
-          cp "$RUNNER_TEMP/pubspec.lock" pubspec.lock
-          cp "$RUNNER_TEMP/main.dart" lib/main.dart
-          if [[ -f "$RUNNER_TEMP/analysis_options.yaml" ]]; then cp "$RUNNER_TEMP/analysis_options.yaml" analysis_options.yaml; fi
-          if [[ -f "$RUNNER_TEMP/widget_test.dart" ]]; then cp "$RUNNER_TEMP/widget_test.dart" test/widget_test.dart; fi
-          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
-      - name: Apply Android native configuration
-        run: python3 tool/configure_mobile_native.py --platform android
       - name: Verify Android native configuration
         run: python3 tool/verify_mobile_native.py --platform android
       - name: Resolve dependencies from committed lockfile
