@@ -133,6 +133,22 @@ map_screen_verifier = MAP_SCREEN_VERIFIER.read_text(encoding="utf-8")
 if not MAPBOX_VIEWPORT.is_file():
     raise SystemExit("Android map smoke requires the shared Mapbox viewport.")
 mapbox_viewport = MAPBOX_VIEWPORT.read_text(encoding="utf-8")
+# Style overrides replace the active style. Annotation managers add their own
+# style sources/layers, so they must be created only after the final style load.
+on_map_created_block = mapbox_viewport.split("Future<void> _onMapCreated", 1)[1].split(
+    "Future<void> _ensureAnnotationManagers", 1
+)[0]
+if "createPolylineAnnotationManager" in on_map_created_block or "createCircleAnnotationManager" in on_map_created_block:
+    raise SystemExit("Annotation managers must not be created before the active Mapbox style is loaded.")
+style_listener_block = mapbox_viewport.split("onStyleLoadedListener: (_) {", 1)[1].split(
+    "onMapLoadedListener:", 1
+)[0]
+if "unawaited(_ensureAnnotationManagers())" not in style_listener_block:
+    raise SystemExit("Annotation managers must be initialized from the active STYLE_LOADED callback.")
+if style_listener_block.index("unawaited(_applyMapWidgetDiagnosticStyle())") > style_listener_block.index(
+    "unawaited(_ensureAnnotationManagers())"
+):
+    raise SystemExit("Staging style overrides must complete before annotation managers are created.")
 if not MAIN_DART.is_file():
     raise SystemExit("Android staging TileStore diagnostic requires the application entry point.")
 main_dart = MAIN_DART.read_text(encoding="utf-8")
