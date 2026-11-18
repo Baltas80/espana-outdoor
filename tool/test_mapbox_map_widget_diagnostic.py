@@ -15,6 +15,10 @@ required_viewport = (
     "mapboxMapWidgetDiagnosticStyleJson",
     "case 'geojson':",
     "mapboxMapWidgetGeoJsonStyleJson",
+    "mapboxMapWidgetDiagnosticAnnotationLine",
+    "_ensureAnnotationManagers",
+    "PolylineAnnotationOptions",
+    "_isAnnotationDiagnostic",
     "await map.loadStyleJson(styleJson)",
     "_mapWidgetDiagnosticAppEnvironment == 'staging'",
     "defaultTargetPlatform == TargetPlatform.android",
@@ -31,9 +35,10 @@ if "defaultValue: 'hybrid-surface'" not in VIEWPORT:
 
 required_workflow = (
     "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:",
-    "&& 'geojson' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none'",
+    "&& 'annotation' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none'",
     "map_widget_diagnostic_style:",
     "- geojson",
+    "- annotation",
     "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
     "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
     "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
@@ -42,11 +47,11 @@ for marker in required_workflow:
     if marker not in WORKFLOW:
         raise SystemExit(f"Android staging GeoJSON diagnostic wiring is missing: {marker}")
 
-if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson)' not in SMOKE:
+if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson|annotation)' not in SMOKE:
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
     raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
-if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in SMOKE:
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" || "${map_widget_diagnostic_style}" == "annotation" ]]' not in SMOKE:
     raise SystemExit("Android staging smoke must execute the live line diagnostic branch.")
 if '--expected-line-color "#c43c39"' not in SMOKE:
     raise SystemExit("Line smoke must require red geometry pixels in the viewport.")
