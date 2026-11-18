@@ -58,6 +58,11 @@ required_workflow = (
     "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
     "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
     "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
+    "emulator_gpu_mode:",
+    "MAPBOX_EMULATOR_GPU_MODE:",
+    "&& 'angle_indirect' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader_indirect'",
+    "swiftshader_indirect|angle_indirect)",
+    "-gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }}",
 )
 for marker in required_workflow:
     if marker not in WORKFLOW:
