@@ -117,6 +117,21 @@ void main() {
       expect(point.lat, closeTo(37.8882, 0.00001));
     });
 
+    test('annotation diagnostic managers use stable, distinct style ids', () {
+      expect(
+        mapboxDiagnosticPolylineManagerId,
+        'espana-outdoor-diagnostic-polyline-annotation',
+      );
+      expect(
+        mapboxDiagnosticCircleManagerId,
+        'espana-outdoor-diagnostic-circle-annotation',
+      );
+      expect(
+        mapboxDiagnosticPolylineManagerId,
+        isNot(mapboxDiagnosticCircleManagerId),
+      );
+    });
+
     test('vector style uses a single public Streets source and road layer', () {
       final raw = mapboxMapWidgetDiagnosticStyleJson('vector');
       expect(raw, isNotNull);
