@@ -82,8 +82,8 @@ jobs:
     env:
       ANDROID_APPLICATION_ID: com.espanaoutdoors.espana_outdoors.iconspreview
       ANDROID_APP_AUTH_REDIRECT_SCHEME: com.espanaoutdoors
-      MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
-      MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
+      MAPBOX_ACCESS_TOKEN_AVAILABLE: ${{ secrets.MAPBOX_ACCESS_TOKEN != '' }}
+      MAPBOX_DOWNLOADS_TOKEN_AVAILABLE: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Check staging endpoints
@@ -114,7 +114,9 @@ jobs:
           echo "Mapbox Android view mode: $MAPBOX_ANDROID_VIEW_MODE"
           echo "MapWidget diagnostic style: $MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"
       - name: Preflight Mapbox style and vector tile access
-        if: env.MAPBOX_ACCESS_TOKEN != ''
+        if: env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true'
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         shell: bash
         run: python3 tool/preflight_mapbox_tiles.py --style-uri "$MAPBOX_STYLE_URI"
       - name: Verify staging build profile
@@ -171,6 +173,9 @@ jobs:
       - name: Build Android staging APK
         id: build_apk
         if: success()
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -304,7 +309,10 @@ jobs:
       - name: Build Mapbox Skia comparison APK (Impeller disabled)
         id: build_skia_apk
         continue-on-error: true
-        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != '' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true' && env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true' && github.event_name == 'pull_request' && github.event.pull_request.number == 79 && env.MAPBOX_STYLE_URI == 'mapbox://styles/mapbox/outdoors-v12'
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -391,7 +399,10 @@ jobs:
       - name: Build Mapbox TileStore-disabled diagnostic APK
         id: build_tile_store_disabled_apk
         continue-on-error: true
-        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != '' && github.event_name == 'pull_request' && github.event.pull_request.number == 79
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true' && env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true' && github.event_name == 'pull_request' && github.event.pull_request.number == 79
+        env:
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -510,7 +521,7 @@ jobs:
           if-no-files-found: error
       - name: Enable KVM for Android emulator
         id: kvm_setup
-        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        if: success() && steps.build_apk.outputs.built == 'true' && env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true' && env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true'
         shell: bash
         run: |
           set -euxo pipefail
@@ -534,7 +545,7 @@ jobs:
         continue-on-error: true
         env:
           ANDROID_EMULATOR_CI: "true"
-        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        if: success() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true' && env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true'
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
@@ -584,7 +595,7 @@ jobs:
             ${{ runner.temp }}/tile-store-disabled/espana-mapbox-snapshotter-vector.png
           if-no-files-found: ignore
       - name: Require Android map native smoke
-        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN != '' && env.MAPBOX_DOWNLOADS_TOKEN != ''
+        if: always() && steps.build_apk.outputs.built == 'true' && steps.kvm_setup.outcome == 'success' && env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true' && env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true'
         shell: bash
         run: |
           set -euo pipefail

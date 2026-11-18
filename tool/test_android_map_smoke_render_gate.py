@@ -290,6 +290,39 @@ for job, minutes in (
         raise SystemExit(f"CI job {job} must have a {minutes}-minute upper bound.")
 
 android_job = job_block(workflow, "android-staging")
+job_env_block = android_job.split("steps:", 1)[0]
+for marker in (
+    "MAPBOX_ACCESS_TOKEN_AVAILABLE: ${{ secrets.MAPBOX_ACCESS_TOKEN != '' }}",
+    "MAPBOX_DOWNLOADS_TOKEN_AVAILABLE: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN != '' }}",
+):
+    if marker not in job_env_block:
+        raise SystemExit(f"Android staging must expose only Mapbox secret availability at job scope: {marker}")
+for secret_name in ("MAPBOX_ACCESS_TOKEN", "MAPBOX_DOWNLOADS_TOKEN"):
+    if f"{secret_name}: ${{{{ secrets.{secret_name} }}}}" in job_env_block:
+        raise SystemExit(f"{secret_name} must not be available to every Android staging step.")
+
+def android_step_block(name: str) -> str:
+    marker = f"- name: {name}"
+    if marker not in android_job:
+        raise SystemExit(f"Android staging is missing step: {name}")
+    return android_job.split(marker, 1)[1].split("\\n      - name:", 1)[0]
+
+preflight_step = android_step_block("Preflight Mapbox style and vector tile access")
+if "MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}" not in preflight_step:
+    raise SystemExit("Mapbox access token must be scoped to the Mapbox preflight step.")
+for step_name in (
+    "Build Android staging APK",
+    "Build Mapbox Skia comparison APK (Impeller disabled)",
+    "Build Mapbox TileStore-disabled diagnostic APK",
+):
+    step = android_step_block(step_name)
+    for secret_name in ("MAPBOX_ACCESS_TOKEN", "MAPBOX_DOWNLOADS_TOKEN"):
+        if f"{secret_name}: ${{{{ secrets.{secret_name} }}}}" not in step:
+            raise SystemExit(f"{secret_name} must be scoped to {step_name}.")
+smoke_step = android_step_block("Android map native smoke")
+if "MAPBOX_ACCESS_TOKEN" in smoke_step or "MAPBOX_DOWNLOADS_TOKEN" in smoke_step:
+    raise SystemExit("The Android emulator smoke must consume the already-built APK without access to Mapbox secrets.")
+
 if "timeout-minutes: 105" not in android_job:
     raise SystemExit("Android staging job must allow three APK builds and the bounded A/B smoke to finish.")
 
@@ -885,8 +918,8 @@ renderer_build = renderer_build.split("- name: Upload Android staging APK", 1)[0
 for marker in (
     "github.event.pull_request.number == 79",
     "steps.build_apk.outputs.built == 'true'",
-    "env.MAPBOX_ACCESS_TOKEN != ''",
-    "env.MAPBOX_DOWNLOADS_TOKEN != ''",
+    "env.MAPBOX_ACCESS_TOKEN_AVAILABLE == 'true'",
+    "env.MAPBOX_DOWNLOADS_TOKEN_AVAILABLE == 'true'",
     "continue-on-error: true",
     'renderer_dir="$RUNNER_TEMP/skia-build"',
     "flutter clean",

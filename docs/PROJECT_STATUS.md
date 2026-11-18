@@ -950,3 +950,13 @@ El artefacto Android [14392945338](https://github.com/Baltas80/espana-outdoor/ac
 - Security [44231003539](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003539): 8/8 controles superados.
 
 PR #79 sigue abierta, Draft y mergeable, sin integración. PR #61 (offline) y PR #64 (identidad) siguen Draft y no mergeables. La aceptación en OPPO físico, mapa Outdoors v12, cálculo/seguimiento offline, persistencia tras cierre/reinicio, identidad E2E y despliegue siguen pendientes. No se ha modificado producción.
+
+## Seguridad CI — aislamiento de secretos Mapbox (18/11/2026)
+
+- `MAPBOX_ACCESS_TOKEN` y `MAPBOX_DOWNLOADS_TOKEN` dejan de estar en el entorno global del job Android staging.
+- El job conserva únicamente dos indicadores booleanos de disponibilidad para decidir si ejecuta preflight, build y smoke.
+- Los valores secretos se inyectan solo en los pasos que realmente los necesitan: preflight de teselas y compilaciones APK (principal, Skia y TileStore-disabled).
+- Analyze, tests, preparación del proyecto, verificación de APK, KVM y emulador reciben solo el APK ya construido, no los tokens.
+- Se amplía `tool/test_android_map_smoke_render_gate.py` para rechazar una regresión de exposición a nivel de job y exigir el alcance por paso.
+
+La modificación no cambia el token incluido como Dart define en el APK staging ni la política de producción. La validación queda pendiente en CI/Android sobre el nuevo HEAD.
