@@ -1,4 +1,14 @@
 
+// ESPANA_OUTDOOR_RELEASE_SIGNING
+val releaseStoreFilePath = System.getenv("ANDROID_RELEASE_STORE_FILE")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")?.trim()?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured = releaseStoreFilePath != null && !releaseStorePassword.isNullOrBlank() && releaseKeyAlias != null && !releaseKeyPassword.isNullOrBlank() && file(releaseStoreFilePath).isFile
+if (System.getenv("APP_ENV") == "production" && !releaseSigningConfigured) {
+    throw GradleException("Production Android builds require a configured release keystore.")
+}
+
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
@@ -34,9 +44,9 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
+    signingConfigs {\n        if (releaseSigningConfigured) {\n            create("release") {\n                storeFile = file(releaseStoreFilePath!!)\n                storePassword = releaseStorePassword\n                keyAlias = releaseKeyAlias\n                keyPassword = releaseKeyPassword\n            }\n        }\n    }\n\n    buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseSigningConfigured) { signingConfigs.getByName("release") } else { signingConfigs.getByName("debug") }
         }
     }
 }
