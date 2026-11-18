@@ -372,8 +372,12 @@ if "_logMapboxDiagnostic('STYLE_URI', 'value=$mapboxStyleUri')" not in mapbox_vi
     raise SystemExit("Mapbox diagnostic output must identify the selected style URI.")
 if "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'annotation' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}" not in workflow:
     raise SystemExit("PR #79 Android staging must exercise the live MapWidget native annotation line style.")
-if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" || "${map_widget_diagnostic_style}" == "annotation" ]]' not in source or '--expected-line-color "#c43c39"' not in source:
-    raise SystemExit("Vector, GeoJSON and annotation line smoke must require visible red geometry pixels.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "annotation" ]]' not in source:
+    raise SystemExit("Annotation smoke must have its own line-plus-point verification branch.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in source:
+    raise SystemExit("Vector and GeoJSON smoke must retain their red-line verification branch.")
+if '--expected-line-color "#c43c39"' not in source or '--expected-point-color "#1677ff"' not in source:
+    raise SystemExit("Annotation smoke must require both visible red line and blue point pixels.")
 if "MAPBOX_STYLE_URI=mapbox://styles/mapbox/standard" not in ci_workflow:
     raise SystemExit("CI must compile the diagnostic test with the Standard style override.")
 if "tool/preflight_mapbox_tiles.py --style-uri \"$MAPBOX_STYLE_URI\"" not in workflow:

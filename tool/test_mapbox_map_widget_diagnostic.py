@@ -60,8 +60,10 @@ if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson|ann
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
     raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
-if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" || "${map_widget_diagnostic_style}" == "annotation" ]]' not in SMOKE:
-    raise SystemExit("Android staging smoke must execute the live line diagnostic branch.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "annotation" ]]' not in SMOKE:
+    raise SystemExit("Android staging smoke must execute the isolated annotation line-plus-point branch.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in SMOKE:
+    raise SystemExit("Android staging smoke must retain vector and GeoJSON line diagnostics.")
 if '--expected-line-color "#c43c39"' not in SMOKE:
     raise SystemExit("Line smoke must require red geometry pixels in the viewport.")
 if '--expected-point-color "#1677ff"' not in SMOKE:
