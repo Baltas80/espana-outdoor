@@ -36,6 +36,12 @@ const _mapWidgetDiagnosticAppEnvironment = String.fromEnvironment(
   defaultValue: 'production',
 );
 
+// Stable style-layer/source IDs make the native annotation managers inspectable.
+const mapboxDiagnosticPolylineManagerId =
+    'espana-outdoor-diagnostic-polyline-annotation';
+const mapboxDiagnosticCircleManagerId =
+    'espana-outdoor-diagnostic-circle-annotation';
+
 class MapboxAndroidViewConfiguration {
   const MapboxAndroidViewConfiguration({
     required this.textureView,
@@ -754,27 +760,66 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     if (map == null || lines == null || circles == null) return;
 
     try {
-      final rawStyleJson = await map.getStyleJSON();
-      final decoded = jsonDecode(rawStyleJson);
-      final rawLayers = decoded is Map ? decoded['layers'] : null;
-      final annotationLayers = rawLayers is List
-          ? rawLayers.whereType<Map>().where((layer) {
-              final id = layer['id']?.toString().toLowerCase() ?? '';
-              return id.contains('annotation');
-            }).map((layer) {
-              final layout = layer['layout'];
-              final visibility =
-                  layout is Map ? layout['visibility'] ?? 'visible' : 'visible';
-              return '${layer['id']}:$visibility';
-            }).take(12).join(',')
-          : '';
+      // getStyleJSON() can omit runtime annotation layers. Inspect the live
+      // StyleManager objects and query each manager's exact backing layer ID.
+      final styleLayers = await map.getStyleLayers();
+      final styleSources = await map.getStyleSources();
+      final lineLayerExists = await map.styleLayerExists(lines.id);
+      final circleLayerExists = await map.styleLayerExists(circles.id);
+      final lineSourceExists = await map.styleSourceExists(lines.id);
+      final circleSourceExists = await map.styleSourceExists(circles.id);
+
+      Future<String> summarizeLayer(String id, bool exists) async {
+        if (!exists) return 'missing';
+        final raw = await map.getStyleLayerProperties(id);
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map) return 'invalid';
+        final layout = decoded['layout'] is Map
+            ? decoded['layout'] as Map
+            : const <String, Object?>{};
+        final paint = decoded['paint'] is Map
+            ? decoded['paint'] as Map
+            : const <String, Object?>{};
+        return jsonEncode(<String, Object?>{
+          'id': decoded['id'],
+          'type': decoded['type'],
+          'source': decoded['source'],
+          'visibility': layout['visibility'] ?? 'visible',
+          'line_color': paint['line-color'],
+          'line_width': paint['line-width'],
+          'circle_color': paint['circle-color'],
+          'circle_radius': paint['circle-radius'],
+        });
+      }
+
+      final lineLayerDetails =
+          await summarizeLayer(lines.id, lineLayerExists);
+      final circleLayerDetails =
+          await summarizeLayer(circles.id, circleLayerExists);
       final lineAnnotations = await lines.getAnnotations();
       final circleAnnotations = await circles.getAnnotations();
+      final layerSummary = styleLayers
+          .whereType<StyleObjectInfo>()
+          .map((layer) => '${layer.id}:${layer.type}')
+          .take(24)
+          .join(',');
+      final sourceSummary = styleSources
+          .whereType<StyleObjectInfo>()
+          .map((source) => '${source.id}:${source.type}')
+          .take(24)
+          .join(',');
+
       _logMapboxDiagnostic(
         'ANNOTATION_STYLE_STATE',
-        'line_annotations=${lineAnnotations.length} '
+        'line_manager_id=${lines.id} circle_manager_id=${circles.id} '
+            'line_annotations=${lineAnnotations.length} '
             'circle_annotations=${circleAnnotations.length} '
-            'annotation_layers=${annotationLayers.isEmpty ? 'none' : annotationLayers}',
+            'line_layer_exists=$lineLayerExists '
+            'circle_layer_exists=$circleLayerExists '
+            'line_source_exists=$lineSourceExists '
+            'circle_source_exists=$circleSourceExists '
+            'style_layers=$layerSummary style_sources=$sourceSummary '
+            'line_layer=$lineLayerDetails circle_layer=$circleLayerDetails',
       );
     } catch (error) {
       _logMapboxDiagnostic(
@@ -791,8 +836,17 @@ class _MapboxMapViewportState extends State<MapboxMapViewport> {
     if (map == null || _annotationsReady || _annotationManagersCreating) return;
     _annotationManagersCreating = true;
     try {
-      _lineManager = await map.annotations.createPolylineAnnotationManager();
-      _circleManager = await map.annotations.createCircleAnnotationManager();
+      if (_isAnnotationDiagnostic) {
+        _lineManager = await map.annotations.createPolylineAnnotationManager(
+          id: mapboxDiagnosticPolylineManagerId,
+        );
+        _circleManager = await map.annotations.createCircleAnnotationManager(
+          id: mapboxDiagnosticCircleManagerId,
+        );
+      } else {
+        _lineManager = await map.annotations.createPolylineAnnotationManager();
+        _circleManager = await map.annotations.createCircleAnnotationManager();
+      }
       _annotationsReady = true;
       await _syncAnnotations();
       _logMapboxDiagnostic('ANNOTATION_MANAGERS', 'result=ready');
