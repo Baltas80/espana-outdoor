@@ -398,9 +398,9 @@ gpu_assignment = next(
     line.strip() for line in workflow.splitlines()
     if line.strip().startswith("MAPBOX_EMULATOR_GPU_MODE:")
 )
-expected_gpu_assignment = "MAPBOX_EMULATOR_GPU_MODE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'swangle' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader' }}"
+expected_gpu_assignment = "MAPBOX_EMULATOR_GPU_MODE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'swiftshader' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader' }}"
 if gpu_assignment != expected_gpu_assignment:
-    raise SystemExit("PR #79 must use ANGLE while manual dispatches remain controlled and all other runs default to SwiftShader.")
+    raise SystemExit("PR #79 must use SwiftShader for the reproducible smoke; ANGLE remains an explicit manual comparison and all other runs default to SwiftShader.")
 smoke_step = android_step_block("Android map native smoke")
 if "emulator-options: -no-window -gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }}" not in smoke_step:
     raise SystemExit("Android emulator must use the validated GPU-backend selector.")
