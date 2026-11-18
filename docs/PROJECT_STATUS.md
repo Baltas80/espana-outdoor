@@ -932,3 +932,21 @@ La captura real conserva solo el fondo `#d9e6c7`: `line_pixels=0`, `background_r
 - El log revela que los annotation managers se inicializaban desde `onMapCreated` antes de completar la carga/cambio de estilo. Se modifica el ciclo de vida para crearlos tras `STYLE_LOADED`, evitando que el posterior `loadStyleJson` sustituya las fuentes/capas de anotación recién creadas.
 - Nuevo experimento staging: estilo local de fondo + línea roja creada por `PolylineAnnotationManager`. Separa el API de anotaciones (usado por overlays de ruta) de la fuente GeoJSON y de las capas de estilo. Producción sigue con Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`.
 - El resultado de la nueva prueba está pendiente. No hay aceptación cartográfica, offline, OPPO físico ni despliegue.
+
+
+## Entrega 18/11/2026 — instrumentación de anotaciones nativas
+
+El artefacto Android [14392945338](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906/artifacts/14392945338), del run [44222702906](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906), se descargó y revisó directamente. Ambos APK Standard + Hybrid Composition/SurfaceView + Impeller llegaron a la pantalla Mapa y aceptaron el estilo local de diagnóstico. Se crearon los annotation managers (`ANNOTATION_MANAGERS result=ready`), pero las capturas reales no contienen la línea roja (`line_pixels=0`). El APK principal no alcanzó MAP_LOADED/FULL/IDLE; la variante TileStore-disabled sí alcanzó los tres estados, pero tampoco mostró geometría. El gate visual rechazó ambas variantes.
+
+**Nueva instrumentación publicada:**
+- Commit [5051dba](https://github.com/Baltas80/espana-outdoor/commit/5051dba4fb1d80398528797d02dfc5043beb2afc): registra el ID/resultado de la línea creada, consulta `getAnnotations()` y resume los IDs/visibilidad de capas de anotación. Añade un círculo azul en el centro de Córdoba para separar la ruta de línea del camino de anotaciones de punto.
+- El verificador de capturas exige por separado píxeles rojos de línea y, en modo `annotation`, píxeles azules de punto. Su auto-prueba sintética pasó en CI.
+- Commit [7246760](https://github.com/Baltas80/espana-outdoor/commit/724676096c5b2b016a1e764aa0569a7eedcfcdb7) corrige los guards estructurales para las dos ramas del smoke (anotación línea+punto y vector/GeoJSON solo línea).
+
+**Validación vigente al actualizar este documento:**
+- Android staging [44230906194](https://github.com/Baltas80/espana-outdoor/actions/runs/44230906194), sobre `5051dba`: preflight, configuración nativa y tests superados; compilación del APK en curso. Aún no hay artefacto nuevo ni resultado visual de esta instrumentación.
+- Android staging [44231003431](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003431), sobre HEAD `7246760`: en cola detrás del smoke activo, preservado por `cancel-in-progress: false`.
+- CI [44231003442](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003442), sobre `7246760`: Source Gateway y Rescue Link superados; guards, análisis y pruebas focalizadas superados; suite completa e iOS siguen en ejecución.
+- Security [44231003539](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003539): 8/8 controles superados.
+
+PR #79 sigue abierta, Draft y mergeable, sin integración. PR #61 (offline) y PR #64 (identidad) siguen Draft y no mergeables. La aceptación en OPPO físico, mapa Outdoors v12, cálculo/seguimiento offline, persistencia tras cierre/reinicio, identidad E2E y despliegue siguen pendientes. No se ha modificado producción.
