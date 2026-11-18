@@ -28,6 +28,7 @@ on:
           - baseline
           - geojson
           - vector
+          - annotation
         default: none
   pull_request:
     branches: [main]
@@ -68,7 +69,7 @@ env:
   OIDC_REDIRECT_URI: com.espanaoutdoors://oauth2redirect
   MAPBOX_STYLE_URI: ${{ (inputs.mapbox_style_variant == 'standard' || (github.event_name == 'pull_request' && github.event.pull_request.number == 79)) && 'mapbox://styles/mapbox/standard' || 'mapbox://styles/mapbox/outdoors-v12' }}
   MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}
-  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'geojson' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}
+  MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 79) && 'annotation' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none' }}
 
 jobs:
   android-staging:
