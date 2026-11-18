@@ -11,7 +11,7 @@ esac
 
 map_widget_diagnostic_style="${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:-none}"
 case "${map_widget_diagnostic_style}" in
-  none|baseline|vector|geojson) ;;
+  none|baseline|vector|geojson|annotation) ;;
   *) echo "ERROR: unsupported MapWidget diagnostic style." >&2; exit 2 ;;
 esac
 ADB_COMMAND="${ADB:-adb}"
@@ -519,7 +519,7 @@ if [[ "${map_widget_diagnostic_style}" == "baseline" ]]; then
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}" \
     --expected-solid-color "#d9e6c7"
-elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]; then
+elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" || "${map_widget_diagnostic_style}" == "annotation" ]]; then
   python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
     --foreground-package "${package_name}" \
     --expected-line-color "#c43c39" \
