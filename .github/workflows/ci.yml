@@ -119,8 +119,8 @@ jobs:
         run: flutter test --coverage --concurrency=1
       - name: Android release build
         run: |
-          flutter build apk --release --dart-define=APP_ENV=ci
-          flutter build appbundle --release --dart-define=APP_ENV=ci
+          flutter build apk --flavor production --release --dart-define=APP_ENV=ci
+          flutter build appbundle --flavor production --release --dart-define=APP_ENV=ci
       - name: Verify Android release assets
         shell: bash
         run: |
