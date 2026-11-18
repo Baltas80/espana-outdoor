@@ -103,7 +103,7 @@ jobs:
             *) echo "Unsupported MAPBOX_ANDROID_VIEW_MODE"; exit 1 ;;
           esac
           case "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" in
-            none|baseline|vector|geojson) ;;
+            none|baseline|vector|geojson|annotation) ;;
             *) echo "Unsupported MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE"; exit 1 ;;
           esac
           if [[ "$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE" != "none" && "$GITHUB_EVENT_NAME" != "pull_request" && "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then

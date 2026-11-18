@@ -656,3 +656,10 @@ El artefacto [14386503786](https://github.com/Baltas80/espana-outdoor/actions/ru
 El log muestra además que los annotation managers se creaban en `onMapCreated`, antes de que terminase la carga/cambio de estilo. El override `loadStyleJson` reemplaza el estilo inicial después de crear esos managers. Para eliminar esa variable y probar el camino de anotaciones que usa el overlay de rutas, el siguiente experimento crea los managers después de `STYLE_LOADED` y dibuja una línea nativa mediante `PolylineAnnotationManager` sobre un estilo de fondo sin fuentes. El override `annotation` es staging-only y no cambia el estilo de producción.
 
 La variante permitirá separar la capa GeoJSON/style-layer del API de anotaciones. No se acepta el mapa hasta obtener línea visible, `MAP_LOADED`, `RenderMode.FULL` y `MAP_IDLE` en la misma captura.
+
+
+## Corrección del staging de anotaciones — 18/11/2026
+
+La ejecución Android staging [44215705178](https://github.com/Baltas80/espana-outdoor/actions/runs/44215705178) no llegó a compilar el APK ni a ejecutar el smoke. El paso inicial `Check staging endpoints` rechazó `MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=annotation`: la opción ya estaba declarada en `workflow_dispatch` y seleccionada para la PR #79, pero la lista blanca del shell solo aceptaba `none|baseline|vector|geojson`.
+
+Se corrige la lista blanca para incluir `annotation` y se añade una aserción estructural que exige que todos los modos declarados estén admitidos por el validador del workflow. Esta ejecución no aporta evidencia nueva sobre el renderizado; no se generó APK ni se ejecutó el emulador.

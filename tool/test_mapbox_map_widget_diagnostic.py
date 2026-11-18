@@ -47,6 +47,9 @@ for marker in required_workflow:
     if marker not in WORKFLOW:
         raise SystemExit(f"Android staging GeoJSON diagnostic wiring is missing: {marker}")
 
+if 'none|baseline|vector|geojson|annotation)' not in WORKFLOW:
+    raise SystemExit("Android staging must accept every declared diagnostic variant, including annotation.")
+
 if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson|annotation)' not in SMOKE:
     raise SystemExit("Android smoke must validate the selected local diagnostic style.")
 if '--expected-solid-color "#d9e6c7"' not in SMOKE:
