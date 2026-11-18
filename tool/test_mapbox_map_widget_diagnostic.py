@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Guard the Android-only live MapWidget diagnostic and its screenshot contract."""
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+VIEWPORT = (ROOT / "lib/features/map/mapbox_map_viewport.dart").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/staging-android.yml").read_text(encoding="utf-8")
+SMOKE = (ROOT / "tool/smoke_android_map.sh").read_text(encoding="utf-8")
+SCREENSHOT = (ROOT / "tool/verify_android_map_screenshot.py").read_text(encoding="utf-8")
+
+required_viewport = (
+    "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
+    "defaultValue: 'none'",
+    "mapboxMapWidgetDiagnosticStyleJson",
+    "case 'geojson':",
+    "mapboxMapWidgetGeoJsonStyleJson",
+    "mapboxMapWidgetDiagnosticAnnotationLine",
+    "mapboxMapWidgetDiagnosticAnnotationPoint",
+    "_ensureAnnotationManagers",
+    "PolylineAnnotationOptions",
+    "CircleAnnotationOptions",
+    "ANNOTATION_LINE",
+    "ANNOTATION_POINT",
+    "getAnnotations()",
+    "_logAnnotationStyleState",
+    "mapboxDiagnosticPolylineManagerId",
+    "mapboxDiagnosticCircleManagerId",
+    "getStyleLayers()",
+    "getStyleSources()",
+    "styleLayerExists(lines.id)",
+    "styleLayerExists(circles.id)",
+    "styleSourceExists(lines.id)",
+    "styleSourceExists(circles.id)",
+    "line_manager_id=${lines.id}",
+    "circle_manager_id=${circles.id}",
+    "_isAnnotationDiagnostic",
+    "await map.loadStyleJson(styleJson)",
+    "_mapWidgetDiagnosticAppEnvironment == 'staging'",
+    "defaultTargetPlatform == TargetPlatform.android",
+    "result=rejected reason=staging_android_only",
+)
+for marker in required_viewport:
+    if marker not in VIEWPORT:
+        raise SystemExit(f"Live MapWidget diagnostic guard is missing: {marker}")
+
+if "defaultValue: 'mapbox://styles/mapbox/outdoors-v12'" not in VIEWPORT:
+    raise SystemExit("Production must retain Outdoors v12 as the default style.")
+if "defaultValue: 'hybrid-surface'" not in VIEWPORT:
+    raise SystemExit("Production must retain Hybrid Composition/SurfaceView as the default.")
+
+required_workflow = (
+    "MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:",
+    "&& 'annotation' || (github.event_name == 'workflow_dispatch' && inputs.map_widget_diagnostic_style) || 'none'",
+    "map_widget_diagnostic_style:",
+    "- geojson",
+    "- annotation",
+    "--dart-define=MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE=",
+    "mapbox_map_widget_diagnostic_style=$MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE",
+    "MAPBOX_ANDROID_VIEW_MODE: ${{ inputs.android_view_mode == 'virtual-texture' && 'virtual-texture' || 'hybrid-surface' }}",
+    "emulator_gpu_mode:",
+    "MAPBOX_EMULATOR_GPU_MODE:",
+    "&& 'swiftshader' || (github.event_name == 'workflow_dispatch' && inputs.emulator_gpu_mode) || 'swiftshader'",
+    "swiftshader|swangle)",
+    "-gpu ${{ env.MAPBOX_EMULATOR_GPU_MODE }}",
+)
+for marker in required_workflow:
+    if marker not in WORKFLOW:
+        raise SystemExit(f"Android staging GeoJSON diagnostic wiring is missing: {marker}")
+
+if 'none|baseline|vector|geojson|annotation)' not in WORKFLOW:
+    raise SystemExit("Android staging must accept every declared diagnostic variant, including annotation.")
+
+if 'case "${map_widget_diagnostic_style}" in\n  none|baseline|vector|geojson|annotation)' not in SMOKE:
+    raise SystemExit("Android smoke must validate the selected local diagnostic style.")
+if '--expected-solid-color "#d9e6c7"' not in SMOKE:
+    raise SystemExit("Baseline smoke must verify the expected MapWidget background color.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "annotation" ]]' not in SMOKE:
+    raise SystemExit("Android staging smoke must execute the isolated annotation line-plus-point branch.")
+if 'elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]' not in SMOKE:
+    raise SystemExit("Android staging smoke must retain vector and GeoJSON line diagnostics.")
+if '--expected-line-color "#c43c39"' not in SMOKE:
+    raise SystemExit("Line smoke must require red geometry pixels in the viewport.")
+if '--expected-point-color "#1677ff"' not in SMOKE:
+    raise SystemExit("Annotation smoke must require a blue point in addition to the line.")
+if '"--expected-point-color"' not in SCREENSHOT and "'--expected-point-color'" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must support a separately checked annotation point.")
+if "annotation_point_missing" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must reject a missing annotation point.")
+if "def verify_expected_solid_color(" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must support the isolated solid-color baseline.")
+if "expected_background_color" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must reject the wrong baseline color.")
+if "def verify_expected_line_render(" not in SCREENSHOT:
+    raise SystemExit("Screenshot verifier must require visible line pixels for GeoJSON and vector diagnostics.")
+
+print("MAPBOX_MAP_WIDGET_DIAGNOSTIC_GUARD passed")

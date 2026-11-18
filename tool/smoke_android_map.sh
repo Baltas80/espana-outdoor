@@ -3,6 +3,47 @@ set -euo pipefail
 
 apk_path="${1:?APK path required}"
 offline_mode="${2:-online}"
+snapshotter_mode="${3:-disabled}"
+case "${snapshotter_mode}" in
+  enabled|disabled) ;;
+  *) echo "ERROR: Snapshotter mode must be enabled or disabled." >&2; exit 2 ;;
+esac
+
+map_widget_diagnostic_style="${MAPBOX_MAP_WIDGET_DIAGNOSTIC_STYLE:-none}"
+case "${map_widget_diagnostic_style}" in
+  none|baseline|vector|geojson|annotation) ;;
+  *) echo "ERROR: unsupported MapWidget diagnostic style." >&2; exit 2 ;;
+esac
+ADB_COMMAND="${ADB:-adb}"
+if ! command -v "${ADB_COMMAND}" >/dev/null 2>&1; then
+  echo "ERROR: adb executable was not found." >&2
+  exit 2
+fi
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "ERROR: GNU timeout is required to bound Android emulator commands." >&2
+  exit 2
+fi
+
+# Bound every adb call. UIAutomator/dumpsys can otherwise hang indefinitely
+# when the emulator loses its system-server or instrumentation connection.
+adb() {
+  local limit=20
+  case "${1:-}" in
+    wait-for-device) limit=120 ;;
+    install) limit=180 ;;
+    logcat) limit=60 ;;
+    exec-out) limit=30 ;;
+    shell)
+      case "${2:-}" in
+        uiautomator) limit=45 ;;
+        dumpsys) limit=20 ;;
+        monkey) limit=30 ;;
+        *) limit=15 ;;
+      esac
+      ;;
+  esac
+  timeout --foreground --signal=TERM --kill-after=5s "${limit}s" "${ADB_COMMAND}" "$@"
+}
 aapt_path="$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -n 1)"
 test -x "${aapt_path}"
 package_name="$("${aapt_path}" dump badging "${apk_path}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
@@ -10,12 +51,97 @@ test -n "${package_name}"
 
 echo "Installing ${package_name}"
 adb wait-for-device
+# Keep the primary and renderer-comparison diagnostics independent. Each smoke
+# runs on the same disposable emulator, so discard boot/previous-app logcat.
+adb logcat -c
+
+# The Google APIs API-35 image repeatedly presents a system ANR for its
+# first-run SDK setup activity. It is unrelated to the app and blocks all UI
+# input while leaving the app task "resumed". Disable only this provisioning
+# package on the disposable CI emulator; never run this on a physical device.
+stabilize_emulator_setup_packages() {
+  local setup_package="com.google.android.googlesdksetup"
+  local package_paths disable_output disabled_packages
+  package_paths="$(adb shell pm path "${setup_package}" 2>/dev/null | tr -d '\r' || true)"
+  if [[ -z "${package_paths}" ]]; then
+    echo "ANDROID_EMULATOR_SYSTEM_PACKAGE package=${setup_package} installed=false"
+    return 0
+  fi
+
+  adb shell am force-stop "${setup_package}" >/dev/null 2>&1 || true
+  disable_output="$(adb shell pm disable-user --user 0 "${setup_package}" 2>&1 | tr -d '\r' || true)"
+  disabled_packages="$(adb shell pm list packages -d 2>/dev/null | tr -d '\r' || true)"
+  if ! grep -Fxq "package:${setup_package}" <<<"${disabled_packages}"; then
+    echo "ERROR: failed to disable the known first-run emulator setup package." >&2
+    printf '%s\n' "${disable_output}" >&2
+    exit 1
+  fi
+  adb shell am force-stop "${setup_package}" >/dev/null 2>&1 || true
+  echo "ANDROID_EMULATOR_SYSTEM_PACKAGE package=${setup_package} disabled=true"
+}
+
+stabilize_emulator_setup_packages
 adb install -r "${apk_path}"
 
 ui_dump() {
   local file="$1"
-  adb exec-out uiautomator dump /dev/tty 2>/dev/null >"${file}" || true
+  local remote_file="/sdcard/espana-outdoor-uiautomator.xml"
+  local attempt dump_output dump_status
+
+  # The first UIAutomator invocation on a freshly booted API-35 emulator can
+  # return exit code 0 before its device-side XML exists. Retry only this
+  # transient transport/startup condition; never consume a stale hierarchy.
+  for attempt in $(seq 1 4); do
+    rm -f "${file}"
+    if ! adb shell rm -f "${remote_file}" >/dev/null 2>&1; then
+      echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry reason=remote_cleanup_failed"
+      if (( attempt < 4 )); then sleep 2; fi
+      continue
+    fi
+    set +e
+    dump_output="$(adb shell uiautomator dump "${remote_file}" 2>&1 | tr -d '\r')"
+    dump_status=$?
+    set -e
+
+    if adb shell test -s "${remote_file}" >/dev/null 2>&1; then
+      if adb shell cat "${remote_file}" >"${file}" && grep -q '<hierarchy' "${file}"; then
+        echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=success"
+        return 0
+      fi
+    fi
+
+    rm -f "${file}"
+    echo "ANDROID_UIAUTOMATOR_DUMP attempt=${attempt} result=retry command_status=${dump_status} output=$(printf '%s' "${dump_output}" | tr '\n' ' ' | cut -c1-240)"
+    if (( attempt < 4 )); then sleep 2; fi
+  done
+
+  echo "ERROR: UIAutomator did not produce a readable hierarchy after 4 bounded attempts." >&2
+  return 1
 }
+
+window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
+post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
+logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
+screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+capture_failure_evidence() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ ! -s "${logcat_file}" ]]; then
+    adb logcat -d >"${logcat_file}" 2>/dev/null || true
+  fi
+  if [[ ! -s "${window_file}" ]]; then
+    ui_dump "${window_file}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${post_window}" ]]; then
+    ui_dump "${post_window}" >/dev/null 2>&1 || true
+  fi
+  if [[ ! -s "${screenshot_file}" ]]; then
+    adb exec-out screencap -p >"${screenshot_file}" 2>/dev/null || true
+  fi
+  exit "${exit_code}"
+}
+trap 'exit 124' TERM
+trap capture_failure_evidence EXIT
 
 wait_outside_anr() {
   local file="${RUNNER_TEMP:-/tmp}/espana-system-dialog.xml"
@@ -62,10 +188,12 @@ for node in root.iter("node"):
             x1, y1, x2, y2 = map(int, match.groups())
             buttons[label] = ((x1+x2)//2, (y1+y2)//2)
 
-    # Pixel Launcher can remain ANR-blocked after a cold emulator boot.
-    # Close only this unrelated launcher process to uncover the app UI;
-    # an ANR belonging to the target application remains a hard failure.
-    if "launcher" in owner.lower() and "Close app" in buttons:
+    # The Pixel launcher and the Google SDK setup activity are unrelated to
+    # the target app. Close their modal ANR dialog; target-app ANRs remain fatal.
+    if (
+        ("launcher" in owner.lower() or owner == "com.google.android.googlesdksetup")
+        and "Close app" in buttons
+    ):
         x, y = buttons["Close app"]
         print(f"SYSTEM_ANR_CLOSE|{owner}|{x}|{y}")
         raise SystemExit(0)
@@ -93,7 +221,7 @@ PY
     IFS='|' read -r kind owner action_x action_y <"${result}"
     case "${kind}" in
       SYSTEM_ANR_CLOSE)
-        echo "Closing unrelated unresponsive launcher ${owner} to uncover the app under test"
+        echo "Closing unrelated unresponsive Android system package ${owner} to uncover the app under test"
         if test -n "${action_x}" && test -n "${action_y}"; then
           adb shell input tap "${action_x}" "${action_y}"
         else
@@ -136,6 +264,14 @@ launch_app() {
   wait_outside_anr
 }
 
+if [[ "${offline_mode}" == "online" && "${ANDROID_EMULATOR_CI:-false}" == "true" ]]; then
+  echo "Verifying a validated internet connection before the online Mapbox smoke."
+  script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  bash "${script_dir}/ensure_android_emulator_online.sh"
+elif [[ "${offline_mode}" == "online" ]]; then
+  echo "ANDROID_EMULATOR_NETWORK preflight=skipped reason=not_ci_emulator"
+fi
+
 launch_app
 
 if test "${offline_mode}" = "offline"; then
@@ -150,7 +286,6 @@ if test "${offline_mode}" = "offline"; then
   launch_app
 fi
 
-window_file="${RUNNER_TEMP:-/tmp}/espana-window.xml"
 ui_dump "${window_file}"
 if ! grep -q '<hierarchy' "${window_file}"; then
   echo "FAIL: UIAutomator did not return a hierarchy."
@@ -174,7 +309,9 @@ candidates = []
 for node in root.iter("node"):
     text = (node.attrib.get("text") or "").strip()
     desc = (node.attrib.get("content-desc") or "").strip()
-    if text != "Mapa" and desc != "Mapa":
+    if text != "Mapa" and desc not in ("Mapa", "Mapa\nMapa"):
+        continue
+    if node.attrib.get("clickable") != "true":
         continue
     match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
     if match:
@@ -215,11 +352,136 @@ fi
 
 echo "Tapping Mapa at ${tap_x},${tap_y}"
 adb shell input tap "${tap_x}" "${tap_y}"
-sleep 15
+
+# The app can remain the resumed activity while a system ANR dialog owns the
+# screen. Prove that the actual Mapbox page (its map-only controls) is visible
+# before waiting for SDK events or accepting any screenshot entropy metrics.
+map_page_check_file="${RUNNER_TEMP:-/tmp}/espana-map-page-check.txt"
+map_page_ready=false
+for attempt in $(seq 1 15); do
+  wait_outside_anr
+  ui_dump "${post_window}"
+  if python3 tool/verify_android_map_screen.py "${post_window}" --package "${package_name}" >"${map_page_check_file}" 2>&1; then
+    cat "${map_page_check_file}"
+    map_page_ready=true
+    break
+  fi
+  echo "MAPBOX_MAP_PAGE_WAIT attempt=${attempt}/15 reason=$(tail -n 1 "${map_page_check_file}" 2>/dev/null || echo unavailable)"
+  sleep 2
+done
+if [[ "${map_page_ready}" != "true" ]]; then
+  echo "FAIL: the app did not reach the actual Mapbox map page after tapping Mapa."
+  cat "${map_page_check_file}" 2>/dev/null || true
+  cat "${post_window}" 2>/dev/null || true
+  exit 1
+fi
 
 logcat_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map-logcat.txt"
 screenshot_file="${RUNNER_TEMP:-/tmp}/espana-outdoor-map.png"
+mapbox_diag_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-diagnostics.txt"
+mapbox_wait_seconds="${MAPBOX_RENDER_WAIT_SECONDS:-60}"
+if ! [[ "${mapbox_wait_seconds}" =~ ^[1-9][0-9]{0,2}$ ]] || (( mapbox_wait_seconds < 15 || mapbox_wait_seconds > 120 )); then
+  echo "ERROR: MAPBOX_RENDER_WAIT_SECONDS must be between 15 and 120."
+  exit 2
+fi
+
+# Do not capture a transient partial frame immediately after style load.
+# Wait for visible tiles, a FULL frame and an idle map; keep evidence on timeout.
+mapbox_ready=false
+mapbox_poll_count=$(( (mapbox_wait_seconds + 2) / 3 ))
+for attempt in $(seq 1 "${mapbox_poll_count}"); do
+  adb logcat -d -s flutter:I >"${mapbox_diag_file}"
+  if grep -Fq 'MAPBOX_DIAGNOSTIC event=MAP_LOADED' "${mapbox_diag_file}" &&
+     grep -Fq 'MAPBOX_DIAGNOSTIC event=MAP_IDLE' "${mapbox_diag_file}" &&
+     grep -Fq 'MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL' "${mapbox_diag_file}"; then
+    mapbox_ready=true
+    echo "MAPBOX_RENDER_READY elapsed_seconds=$((attempt * 3)) map_loaded=true full_frame=true idle=true"
+    break
+  fi
+  if (( attempt % 5 == 0 )); then
+    echo "MAPBOX_RENDER_WAIT elapsed_seconds=$((attempt * 3)) map_loaded=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=MAP_LOADED' "${mapbox_diag_file}" || true) full_frame=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=RENDER_FRAME mode=RenderMode.FULL' "${mapbox_diag_file}" || true) idle=$(grep -Fc 'MAPBOX_DIAGNOSTIC event=MAP_IDLE' "${mapbox_diag_file}" || true)"
+  fi
+  sleep 3
+done
+if [[ "${mapbox_ready}" != "true" ]]; then
+  echo "MAPBOX_RENDER_NOT_READY deadline_seconds=${mapbox_wait_seconds}"
+  grep 'MAPBOX_DIAGNOSTIC' "${mapbox_diag_file}" | tail -n 80 || true
+fi
+
+# Recheck the real map page immediately before capture. This also rejects
+# Android system dialogs whose underlying app task still appears resumed.
+wait_outside_anr
+ui_dump "${post_window}"
+python3 tool/verify_android_map_screen.py "${post_window}" --package "${package_name}"
+
+# The process can remain alive in the background while the launcher or a
+# system dialog owns the screen. Never accept a screenshot without proving
+# that the application under test is the resumed/focused package.
+foreground_dump="$(adb shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | tr -d '\r' || true)"
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  foreground_dump="$(adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|topResumedActivity' | tr -d '\r' || true)"
+fi
+if ! grep -Fq "${package_name}" <<<"${foreground_dump}"; then
+  echo "FAIL: application is not the foreground Android package."
+  printf '%s\n' "${foreground_dump}"
+  exit 1
+fi
+echo "MAP_SMOKE_FOREGROUND package=${package_name} verified=true"
+
+if [[ "${snapshotter_mode}" == "enabled" ]]; then
+  # Snapshotter runs asynchronously from STYLE_LOADED. Do not dump logcat before
+  # its bounded native capture has emitted either a success or failure marker.
+  snapshotter_wait_seconds="${MAPBOX_SNAPSHOTTER_WAIT_SECONDS:-210}"
+  if ! [[ "${snapshotter_wait_seconds}" =~ ^[1-9][0-9]{0,2}$ ]] || (( snapshotter_wait_seconds < 15 || snapshotter_wait_seconds > 240 )); then
+    echo "ERROR: MAPBOX_SNAPSHOTTER_WAIT_SECONDS must be between 15 and 240."
+    exit 2
+  fi
+  snapshotter_poll_count=$(( (snapshotter_wait_seconds + 2) / 3 ))
+  snapshotter_terminal=false
+  for attempt in $(seq 1 "${snapshotter_poll_count}"); do
+    adb logcat -d -s flutter:I >"${mapbox_diag_file}"
+    if grep -Eq 'MAPBOX_DIAGNOSTIC event=SNAPSHOTTER_STAGE stage=(disposed|failed|dispose_failed)' "${mapbox_diag_file}" ||
+       grep -Fq 'MAPBOX_SNAPSHOTTER_CAPTURE failed=' "${mapbox_diag_file}"; then
+      snapshotter_terminal=true
+      echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=true elapsed_seconds=$((attempt * 3))"
+      break
+    fi
+    if (( attempt % 10 == 0 )); then
+      echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false elapsed_seconds=$((attempt * 3))"
+    fi
+    sleep 3
+  done
+  if [[ "${snapshotter_terminal}" != "true" ]]; then
+    echo "MAPBOX_SNAPSHOTTER_TERMINAL_WAIT completed=false timeout_seconds=${snapshotter_wait_seconds}"
+  fi
+  
+  
+else
+  echo "MAPBOX_SNAPSHOTTER_DIAGNOSTIC skipped=true reason=map_widget_isolation"
+fi
+
 adb logcat -d >"${logcat_file}"
+if [[ "${map_widget_diagnostic_style}" != "none" ]]; then
+  if ! grep -Fq "MAPBOX_DIAGNOSTIC event=MAP_WIDGET_DIAGNOSTIC_STYLE variant=${map_widget_diagnostic_style} result=accepted" "${logcat_file}"; then
+    echo "FAIL: the requested live MapWidget diagnostic style was not accepted."
+    exit 1
+  fi
+fi
+if [[ "${snapshotter_mode}" == "enabled" ]]; then
+  snapshotter_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter.png"
+  if python3 tool/extract_mapbox_snapshotter_png.py --kind baseline --logcat "${logcat_file}" --output "${snapshotter_file}"; then
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=true"
+  else
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=baseline available=false reason=diagnostic_capture_missing"
+  fi
+  snapshotter_vector_file="${RUNNER_TEMP:-/tmp}/espana-mapbox-snapshotter-vector.png"
+  if python3 tool/extract_mapbox_snapshotter_png.py --kind vector --logcat "${logcat_file}" --output "${snapshotter_vector_file}"; then
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=true"
+  else
+    echo "MAPBOX_SNAPSHOTTER_ARTIFACT kind=vector available=false reason=diagnostic_capture_missing"
+  fi
+  
+fi
 adb exec-out screencap -p >"${screenshot_file}"
 test -s "${screenshot_file}"
 
@@ -236,7 +498,6 @@ if grep -Eiq "FATAL EXCEPTION|Fatal signal [0-9]+ \((SIGSEGV|SIGABRT)\)|Abort me
   exit 1
 fi
 
-post_window="${RUNNER_TEMP:-/tmp}/espana-window-post-map.xml"
 ui_dump "${post_window}"
 if grep -Fq 'No se pudo cargar el mapa' "${post_window}" || grep -Fq 'Reintentar' "${post_window}"; then
   echo "FAIL: Mapbox is showing the map loader error state."
@@ -250,5 +511,39 @@ if grep -Eiq "MapboxException|StyleManager" "${logcat_file}"; then
   exit 1
 fi
 
-echo "PASS: Mapbox map remained alive and the visible UI is not in the loader error state."
+# A live process and absence of a loader message do not prove that the
+# cartographic viewport rendered. Reject blank/partial maps before uploading
+# the smoke evidence or reporting a successful Android staging run.
+set +e
+if [[ "${map_widget_diagnostic_style}" == "baseline" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-solid-color "#d9e6c7"
+elif [[ "${map_widget_diagnostic_style}" == "annotation" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-line-color "#c43c39" \
+    --expected-point-color "#1677ff" \
+    --expected-background-color "#d9e6c7"
+elif [[ "${map_widget_diagnostic_style}" == "vector" || "${map_widget_diagnostic_style}" == "geojson" ]]; then
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}" \
+    --expected-line-color "#c43c39" \
+    --expected-background-color "#d9e6c7"
+else
+  python3 tool/verify_android_map_screenshot.py "${screenshot_file}" \
+    --foreground-package "${package_name}"
+fi
+screenshot_status=$?
+set -e
+
+if [[ "${mapbox_ready}" != "true" ]]; then
+  echo "FAIL: Mapbox did not reach MAP_LOADED + FULL_FRAME + MAP_IDLE before the bounded render deadline."
+  exit 1
+fi
+if (( screenshot_status != 0 )); then
+  exit "${screenshot_status}"
+fi
+
+echo "PASS: Mapbox reached a complete idle viewport and the screenshot passed the visual gate."
 grep -Ei "Mapbox|MapboxSDK|MapboxStyle|tile|Range" "${logcat_file}" | tail -n 200 || true

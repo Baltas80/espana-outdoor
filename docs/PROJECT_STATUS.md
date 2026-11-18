@@ -1,10 +1,106 @@
+# Actualización operativa — 17/11/2026 14:47 CET
+
+## Android staging 44094615345: APK construido; smoke prolongado sin evidencia final
+
+- Source commit: `c0b8ce4af1c157f386459b535179d820677ea5d9`.
+- Preflight de estilo/tesela Standard y Analyze and test: superados.
+- APK staging publicado: [artefacto 14334097120](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334097120).
+- Application ID: `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5.
+- Estilo: Mapbox Standard. Hosting: Virtual Display + TextureView. Renderer: Impeller. TileStore: default READ_ONLY. Snapshotter concurrente: desactivado.
+- SHA-256 recalculado del APK: `72af1cc5c6ed45f0b66c14931b57c7f8eca4ea77a3ed0e2eaf9724674c3e199f`.
+- El job seguía en `Android map native smoke`; todavía no había artefacto de capturas/logcat. La descarga de logs devolvió `BlobNotFound`, por lo que no se atribuye el retraso a un fallo de Mapbox ni se declara resultado visual.
+- Security baseline del mismo source commit: 8/8 jobs completados correctamente. CI general tenía Source Gateway y Rescue Link correctos; Android release e iOS seguían en ejecución.
+
+### Corrección del límite de ejecución
+
+La revisión del workflow mostró que este experimento de PR #79 construye un solo APK (Standard + Virtual Texture), mientras que el paso de smoke conservaba 65 minutos y el boot del emulador 900 segundos. Se ajustaron los límites a 40 minutos para el paso y 600 segundos para el arranque. El smoke por variante conserva su timeout de 20 minutos. Se añadió una prueba estática que exige ambos límites.
+
+Commits:
+- [8f18ebf](https://github.com/Baltas80/espana-outdoor/commit/8f18ebff6759538b1bf45e379502c62d890bc58b) — límites de ejecución.
+- [7a75335](https://github.com/Baltas80/espana-outdoor/commit/7a75335fc647f27a5b105358bd4f0d993c6d5408) — test de límites.
+- [abb3637](https://github.com/Baltas80/espana-outdoor/commit/abb3637f00b8907ef51b5d52a8478700b7b3013c) — corrección de expresión regular del test.
+
+La nueva ejecución debe confirmar el efecto del límite y producir la captura. Ningún resultado de este run acepta el mapa. Producción conserva Outdoors v12 + Hybrid Composition/SurfaceView.
+
+---
+
+# Actualización operativa — 17/11/2026
+
+## Mapbox Android: Standard + Hybrid Composition no aceptado
+
+Run [44084139266](https://github.com/Baltas80/espana-outdoor/actions/runs/44084139266) sobre `e03aafc`: compilación, instalación y navegación a Mapa correctas; el viewport sigue negro. `STYLE_LOADED=1`, 190 capas, 10 fuentes, pero `MAP_LOADED=0`, `MAP_IDLE=0`, `RenderMode.PARTIAL` y gate visual fallido. El log contiene 6 misses de TileStore y 82 eventos de modelos; EGL emulado llegó a 63,8 s por muestra. En un recorte central de 630×1000 px, el 98,3 % de píxeles son RGB (4,4,4), con entropía 0,138 bits/píxel. No se puede atribuir el fallo únicamente a TileStore ni extrapolar el resultado del emulador al OPPO físico.
+
+La siguiente prueba de staging cambia solo la composición Android a Virtual Display + TextureView (`virtual-texture`), mantiene el estilo Standard y verifica el modo tanto en manifiesto como en runtime. Producción conserva Hybrid Composition + SurfaceView y Outdoors v12. Véase [MAP_OFFLINE.md](MAP_OFFLINE.md) para los artefactos y criterios.
+
 # España Outdoor — estado técnico
 
-Última revisión: **16/11/2026 16:26 CET**. Rama de referencia: `main`, HEAD verificado: `99396b6788fb45c0f9618f93aeedd61311a96fbc`.
+## Snapshot operativo — 17/11/2026 11:19 CET: resultado de la matriz Android y aislamiento de Snapshotter
+
+- Run Android [44055960774](https://github.com/Baltas80/espana-outdoor/actions/runs/44055960774), source HEAD `ed34ea5`: los tres APK (Impeller, Skia y TileStore-disabled) compilaron, pasaron verificación SHA/manifiesto, se instalaron y abrieron la pantalla Mapa. El job falló correctamente en el gate de renderizado.
+- En las tres variantes: `STYLE_LOADED`, un único `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`. El gate visual rechazó las capturas. El PNG de MapWidget no es aceptable.
+- Las respuestas de red de style, sprites, tiles, glyphs y TileJSON Streets v8 llegaron sin error. TileStore-disabled no cambió el viewport respecto a Skia (recorte cartográfico pixel-idéntico); TileStore no queda demostrado como causa.
+- Snapshotter baseline generó PNG; Snapshotter vectorial terminó en timeout de 60 s. El Snapshotter se estaba ejecutando concurrentemente con el MapWidget y podía contaminar el A/B.
+- Nuevo cambio en curso: desactivar Snapshotter durante la matriz MapWidget, registrar la bandera en el manifiesto y conservar la captura nativa solo como opt-in. No modifica producción ni acepta el mapa; busca medir el MapWidget sin una segunda instancia nativa en paralelo.
+- La matriz anterior no acredita offline, persistencia ni dispositivo físico. La siguiente ejecución debe repetir los tres APK sin Snapshotter y, si persiste el fallo, priorizar una prueba del APK exacto en un Android físico.
+
+## Snapshot operativo — 17/11/2026 10:24 CET: corrección del pipeline Android A/B
+
+- PR [#79](https://github.com/Baltas80/espana-outdoor/pull/79), HEAD `e9802648b563317106ba494f70878adcbd0924b8`: **176 commits ahead, 0 behind** respecto a `main` (`fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`). Sigue en draft.
+- El Android staging [44047628989](https://github.com/Baltas80/espana-outdoor/actions/runs/44047628989), ejecutado sobre el HEAD anterior `4e7dc9c`, compiló y publicó los APK principal y Skia, pero el smoke terminó antes de instalar el primero: el manifiesto de ese APK no contenía `mapbox_tile_store_usage_mode=default`. Es un defecto de contrato entre manifiesto y runner en ese commit; no es evidencia de un fallo nuevo del SDK ni una comparación cartográfica ejecutada.
+- El HEAD actual ya inyecta `MAPBOX_TILE_STORE_USAGE_MODE=default` y escribe ese valor en el manifiesto principal y el manifiesto Skia.
+- Se detectó y eliminó una duplicación real en `.github/workflows/staging-android.yml`: había dos pasos `Build Mapbox Skia comparison APK` con el mismo ID `build_skia_apk`; el primero no declaraba explícitamente el dart-define de TileStore. Se conserva un único paso, con configuración y manifiesto explícitos.
+- El smoke ejecuta secuencialmente hasta tres APK (Impeller, Skia y TileStore desactivado), cada uno con límite interno de 20 minutos. El límite anterior de 25 minutos para todo el paso podía interrumpir la matriz antes de recoger todas las evidencias. Se elevó el paso a 65 minutos y el job Android a 105 minutos.
+- Se añadieron guardas para exigir un único paso/ID por variante y la paridad de TileStore `default` en APK principal y Skia. El APK con TileStore desactivado es exclusivamente diagnóstico online y nunca sirve para aceptar offline.
+- Workflows lanzados sobre el HEAD actual: Security [44055799482](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799482), CI [44055799401](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799401) y Android staging [44055799615](https://github.com/Baltas80/espana-outdoor/actions/runs/44055799615). Estaban queued/pending al registrar este snapshot; no hay aún nuevos APK ni evidencia de smoke.
+- El mapa online continúa sin aceptación. No se ha demostrado descarga/persistencia offline tras force-stop, modo avión y reinicio, ni validación del APK exacto en el OPPO. No fusionar ni desplegar hasta superar esas puertas.
+
+Última revisión: **17/11/2026**. Rama de referencia: `main`, HEAD verificado: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
 
 Este documento separa código integrado, pruebas automatizadas, validación de emulador, validación física y configuración externa. Un workflow verde o un APK compilado no equivalen a aceptación de producción.
 
-## Snapshot operativo vigente — 16/11/2026 16:26 CET
+## Snapshot operativo — 17/11/2026, diagnóstico vectorial Mapbox
+
+### Estado de PR #79
+- [PR #79](https://github.com/Baltas80/espana-outdoor/pull/79), rama `fix/mapbox-render-diagnostics-ready-20261116`, HEAD `b1395e87a7d220b8a6eef58196ca50a1eaf6a6f1`: **160 commits ahead, 0 behind** respecto a `main`; permanece en draft y mergeable.
+- El HEAD añade dos capturas Snapshotter por APK: baseline sin fuentes y vectorial con Mapbox Streets v8 + una capa `road`. Añade resumen seguro de origen de TileJSON/teselas, tipos de capas y visibilidad del fondo, sin rutas, query strings ni tokens.
+- Se cambió a la API directa `Snapshotter.setStyleJSON` y se añadieron pruebas del estilo vectorial, redacción de orígenes, extracción de ambos PNG y publicación obligatoria de ambos artefactos.
+
+### Evidencia Android completada
+- Android staging [44030999939](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939), artefacto [14305199993](https://github.com/Baltas80/espana-outdoor/actions/runs/44030999939/artifacts/14305199993), source commit `06ee1fa`.
+- Impeller y Skia compilaron, se instalaron y llegaron a la pantalla `Mapa cartográfico`. Ambos MapWidget quedaron en `RenderMode.PARTIAL`, sin `MAP_LOADED` ni `MAP_IDLE`; capturas rechazadas (entropía 0,651 bits, color dominante 0,901).
+- Snapshotter baseline produjo en ambos procesos un PNG 1079×1891, 12.325 bytes, SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`; la imagen contiene un único color RGB (217,230,199), `#d9e6c7`.
+- Conclusión limitada: el Snapshotter puede dibujar un fondo sin fuentes. No valida MapWidget, teselas vectoriales ni Outdoors. El Snapshotter vectorial del HEAD actual aún no tiene resultado.
+
+### Validación del HEAD `b1395e87`
+- Security baseline [44039575473](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575473): **8/8 controles superados**.
+- CI [44039575302](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575302): guard de renderizado, análisis Flutter, pruebas focalizadas, suite Flutter, Source Gateway y Rescue Link superados; compilación Android release e iOS todavía en ejecución al actualizar este snapshot.
+- Android staging [44039575290](https://github.com/Baltas80/espana-outdoor/actions/runs/44039575290): configuración Android, lockfile, análisis y tests superados; compilación del APK principal en curso. Todavía no hay APK ni PNG vectorial de este HEAD.
+- En un HEAD intermedio, el guard falló por un marcador antiguo de `capture_completed`; se corrigió para aceptar eventos etiquetados por estilo. El fallo era del test estático, no del SDK.
+
+### Bloqueos de aceptación
+- Mapa online: no aceptado; falta demostrar `MAP_LOADED` + `RenderMode.FULL` + `MAP_IDLE` y gate visual.
+- Mapas offline: no certificados en modo avión, force-stop, reapertura y reinicio.
+- Navegación offline: evidencia histórica en emulador, pero requiere repetir con el candidato y comprobar ruta nueva con origen `OFFLINE`.
+- Dispositivo OPPO: pendiente instalar y validar el APK exacto.
+- Identidad web/Android, Keycloak/PostgreSQL y Valhalla en producción: pendientes de E2E y verificación externa.
+- Protección de `main`: la lectura de branch protection devuelve 403 a la integración; no se certifica que exista un ruleset activo.
+
+No fusionar PR #79 ni declarar producción hasta superar las puertas cartográficas, offline, físicas, identidad y backend indicadas en este documento.
+---
+
+## Snapshot operativo vigente — 16/11/2026 21:17 CET
+
+### Delta verificado de la ejecución A/B
+- `main` apunta a `fbf4024`; PR #79 (`fix/mapbox-render-diagnostics-ready-20261116`) está 54 commits ahead y 0 behind, HEAD fuente `3029c33`, todavía draft.
+- CI general de PR #79 [43939379797](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379797): success. Security baseline [43939379759](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379759): 8/8.
+- Android staging [43939379836](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836): análisis/tests, APK Outdoors, verificación SHA, APK Standard, manifiestos y upload superados; el smoke falló antes de instalar el primer APK.
+- Causa: el `script: |` multilínea de `reactivecircus/android-emulator-runner` ejecutó cada línea en un proceso `/usr/bin/sh -c` separado. Las variables `primary_apk`/`standard_apk` no sobrevivieron entre líneas; `smoke_android_map.sh` recibió argumento vacío (`APK path required`). El emulador sí arrancó.
+- Artefacto [14263750648](https://github.com/Baltas80/espana-outdoor/actions/runs/43939379836/artifacts/14263750648): ambos APK presentes. SHA-256 recalculados y coincidentes con manifiestos: Outdoors `ac25d20b2cf1a1eed3cd1d1bc143d68c14b7c9a185de3b6e9f7d00508c26b8f3`; Standard `fe0119624c81dcc47f3ed2c0e70dbe380328d2619e0788826f21c095cb48b1b2`. Ambos son runtime-capable, source commit `3029c33`, Flutter 3.47.5.
+- Corrección preparada en esta rama: mover toda la orquestación a `tool/smoke_android_map_ab.sh` y dejar una única invocación en el input `script` del action. El test Python ejecuta el wrapper con un `timeout` simulado para probar ambos estilos, la continuidad tras fallo primario y el modo no-A/B.
+- La corrección del pipeline no cambia el resultado cartográfico: el último mapa Outdoors aceptado sigue sin cumplir `MAP_LOADED`, `FULL`, `IDLE` ni el gate visual. Ninguno de los dos APK del run 43939379836 se ejecutó; no hay comparación A/B válida todavía.
+- PR #79 permanece en draft. No integrar hasta que el nuevo smoke ejecute ambos APK y produzca PNG/logcat/diagnósticos revisables.
+
+## Snapshot histórico — 16/11/2026 16:26 CET
 
 ### Main, integraciones y CI
 - PR #68 (seguridad backend), #70 (Keycloak/PostgreSQL), #71 (Community API Android/lockfile), #74 (Gitleaks) y #75 (documentación anterior) están integradas. PR #77 corrigió el falso positivo de Gitleaks migrando la clave local de waypoints y está fusionada; `main` apunta a `99396b6`.
@@ -503,3 +599,381 @@ No declarar producción ni fusionar PR #61/#73 hasta resolver el renderizado car
 - El repositorio metadata informa permiso `admin=true`, pero esto no concede al conector la operación de escritura de rulesets.
 - Producción sigue sin aceptación: mapa online/offline no validado visualmente; prueba física OPPO pendiente; login compartido web/Android pendiente; Keycloak/PostgreSQL TLS y Valhalla de producción sin prueba externa.
 - No declarar producción ni fusionar PR #61/#64/#73 hasta cumplir las respectivas puertas funcionales y de seguridad.
+
+## Actualización 16/11/2026 — Android staging: ANR del emulador identificado
+
+- `main`: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`. PR #79: rama `fix/mapbox-render-diagnostics-ready-20261116`, HEAD previo `8b2215f5b307023f4a4d4980c96e779d55560fe9`, 67 commits por delante y 0 por detrás; sigue draft.
+- CI general [43950052277](https://github.com/Baltas80/espana-outdoor/actions/runs/43950052277): Flutter, Source Gateway, Rescue Link e iOS terminaron correctamente. Security [43950050702](https://github.com/Baltas80/espana-outdoor/actions/runs/43950050702): 8/8.
+- Android staging [43950050766](https://github.com/Baltas80/espana-outdoor/actions/runs/43950050766): APK Outdoors y Standard compilados y verificados; smoke de ambos falló. El artefacto [14272151033](https://github.com/Baltas80/espana-outdoor/actions/runs/43950050766/artifacts/14272151033) demuestra que los dos PNG son la pantalla de inicio cubierta por el diálogo ANR `com.google.android.googlesdksetup isn't responding`. La jerarquía post-tap pertenece al paquete `android`, no a la página Mapa. Los logs no contienen eventos Mapbox; el viewport no llegó a montarse. Este run no es una comparación A/B ni una prueba de fallo del estilo.
+- Corrección en la PR #79: el smoke deshabilita ese paquete de provisioning solo en el emulador CI desechable; añade `tool/verify_android_map_screen.py` para exigir el marcador Semantics `Mapa cartográfico` del viewport y rechazar home/dialogs; verifica la jerarquía después del toque y antes de capturar. `MapboxMapPage` expone el marcador mediante `Semantics(container: true, explicitChildNodes: true)` y el test estático ejecuta el self-test del verificador.
+- Commits de esta corrección: [a6bbeff](https://github.com/Baltas80/espana-outdoor/commit/a6bbeffd1650ef708aaa135fe915b23e2ade7210), [2535efd](https://github.com/Baltas80/espana-outdoor/commit/2535efd679e1fada23fc219cdca4c255e74a707e), [813eb7b](https://github.com/Baltas80/espana-outdoor/commit/813eb7bd6e105cd143752914e0708dcbe95420f9), [33c9aa9](https://github.com/Baltas80/espana-outdoor/commit/33c9aa9dbc5fdc9218a2386b9cbc5e9cc6c1a548).
+- Pendiente: CI/Security y nueva ejecución Android sobre el HEAD final; confirmar que el emulador llega a la página Mapa; entonces comparar Outdoors/Standard y revisar callbacks/PNG. No aceptar mapa online/offline ni fusionar PR #79 todavía.
+
+
+
+## Actualización — 16/11/2026 23:20 CET — endurecimiento de captura UIAutomator
+
+En Android staging [43960709972](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972), ambos APK (Outdoors y Standard) se compilaron, verificaron y publicaron como artefactos [14275217626](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972/artifacts/14275217626) y [14275242373](https://github.com/Baltas80/espana-outdoor/actions/runs/43960709972/artifacts/14275242373). El paso de smoke Android terminó en failure; el upload de evidencias quedó skipped y la descarga de logs devolvió `BlobNotFound`. Por tanto, no hay captura nueva ni diagnóstico suficiente para atribuir la causa del fallo.
+
+Revisión del harness identificó un punto frágil: `adb exec-out uiautomator dump /dev/tty` intenta escribir la jerarquía a un TTY en una sesión ADB no interactiva. Se ha sustituido por `adb shell uiautomator dump /sdcard/espana-outdoor-uiautomator.xml` seguido de `adb shell cat`, con timeout de 45 segundos y validación explícita de que el archivo contiene `<hierarchy>`. Se ha añadido una guarda estática que impide reintroducir `/dev/tty` en este flujo.
+
+Este cambio endurece una causa potencial del fallo, pero **no se afirma que sea la causa raíz confirmada**: los logs del run no están disponibles. Los APK compilados no demuestran que el smoke, el mapa online ni la comparación A/B hayan pasado. Repetir Android staging sobre el HEAD actualizado y conservar PNG, jerarquías y logcat antes de aceptar el gate.
+
+## Actualización 17/11/2026 00:23 CET — A/B cartográfico válido y paridad de pixel ratio
+
+### Evidencia nueva de Android staging
+
+En [Android staging 43969985170](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170), source commit `d49551168f747347581ba30d3b0ece1eb584fb06`:
+- CI general [43969985400](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985400): success.
+- Security baseline [43969985219](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985219): success (8/8).
+- Android staging: ambos APK se compilaron y sus pasos de verificación finalizaron correctamente; el smoke falló únicamente en la aceptación del renderizado y publicó evidencias.
+- Artefactos: APK principal [14280355680](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14280355680), APK Standard [14279171310](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14279171310), capturas/jerarquías/logcat [14279481897](https://github.com/Baltas80/espana-outdoor/actions/runs/43969985170/artifacts/14279481897).
+
+El verificador confirmó que ambos experimentos llegaron a la página real `Mapa cartográfico` y que la ventana pertenecía a España Outdoor. Esta es la primera comparación A/B válida de esta secuencia; los intentos anteriores afectados por el ANR de Google SDK Setup no se consideran pruebas de estilo.
+
+Resultados:
+- Outdoors y Standard registran `STYLE_LOADED`, pero solo `RenderMode.PARTIAL`.
+- Ninguno alcanza `MAP_LOADED` ni `MAP_IDLE`; no aparece `MAP_LOAD_ERROR`.
+- La fuente composite registra 3 eventos `loaded=true` y 92 `loaded=false` en cada experimento.
+- Siete respuestas únicas de tesela llegan desde Network con tamaño no vacío y sin error. Los misses de TileStore son fallback local/red, no prueba de HTTP 404.
+- Las dos capturas son casi negras y no superan el gate visual.
+
+Conclusión: ambos estilos fallan bajo una variable compartida. No hay base para atribuirlo exclusivamente a Outdoors ni al token. La comparación tampoco acepta el mapa.
+
+### Corrección aplicada en la rama PR #79
+
+La rama offline #61 ya había detectado que el descriptor nativo de TileStore usa `resources.displayMetrics.density`, mientras el MapWidget de main heredaba `MapOptions.pixelRatio=1.0`. La API de Mapbox documenta ese valor predeterminado y su guía Android usa la densidad de pantalla para los descriptors.
+
+Se ha portado a la PR #79:
+- `MapOptions.pixelRatio = MediaQuery.devicePixelRatioOf(context)`.
+- Configuración de glyphs en paridad con el style pack nativo.
+- Validación de pixel ratio finito y positivo.
+- Tests Dart del helper y guard estático para exigir su uso por MapWidget.
+
+Commits:
+- [092a55f](https://github.com/Baltas80/espana-outdoor/commit/092a55f0867d25194e0343248699c2c04999c7a6) — configuración MapOptions.
+- [16f7b4a](https://github.com/Baltas80/espana-outdoor/commit/16f7b4a20f34c1b16f99b3ff6ab0b70b2325fd53) — pruebas de pixel ratio/glyphs.
+- [7f364a4](https://github.com/Baltas80/espana-outdoor/commit/7f364a40bd371606ab36d5f525c1a8b0468d77f5) — guard CI.
+- [22a0e18](https://github.com/Baltas80/espana-outdoor/commit/22a0e18348c9e214fcafcad74186b2c392ddd377) — documentación de evidencia e hipótesis.
+
+La discrepancia de configuración está corregida en código, pero no se declara causa raíz del mapa negro hasta obtener un nuevo APK y comprobar que el viewport alcanza `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y supera el gate visual.
+
+### Estado de integración
+
+- `main`: `fbf40245575b88b6f02ab1be3bcb02bb9337ffbf`.
+- PR #79 sigue en draft; no fusionar hasta que CI/Security y Android staging pasen en el HEAD nuevo y exista evidencia visual aceptable.
+- PR #61 sigue divergente; no fusionar ni superponer sus cambios de forma masiva.
+- Mapa offline, persistencia tras reinicio y validación física del APK exacto en OPPO siguen pendientes.
+- Identidad compartida web/Android, configuración real de Keycloak/PostgreSQL TLS, Valhalla de producción, DNS/HTTP externos y protección de main siguen pendientes.
+
+Siguiente prioridad: ejecutar CI, Security y Android staging sobre el nuevo HEAD; inspeccionar el log `MAPBOX_MAP_OPTIONS pixel_ratio` y repetir la comparación A/B. Si sigue sin alcanzar render completo, investigar el renderer y el estado de la fuente composite con esta configuración ya alineada.
+
+## Actualización de validación — HEAD 32faf647
+
+- La primera ejecución sobre `2114740` detectó dos errores en los nuevos tests: el guard estático esperaba el tipo `MapboxMapOptions` en vez de `MapOptions`, y el test Dart no importaba directamente el paquete que declara `GlyphsRasterizationMode`. Se corrigieron en [8ed9ef3](https://github.com/Baltas80/espana-outdoor/commit/8ed9ef32295b684413668228f488403a03270c29) y [32faf64](https://github.com/Baltas80/espana-outdoor/commit/32faf647d87f036a71a6331ee7f9bfe3aac40b1a).
+- Security baseline [43979531112](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531112): **8/8 jobs superados**.
+- CI [43979531228](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531228): Source Gateway y Rescue Link superados; suite Flutter completa superada y compilación Android release/iOS candidate en ejecución en la última consulta.
+- Android staging [43979531100](https://github.com/Baltas80/espana-outdoor/actions/runs/43979531100): preflight, configuración nativa, lockfile inmutable, análisis Flutter y tests completados correctamente; compilación APK aún en ejecución. Todavía no existe artefacto ni evidencia cartográfica del nuevo pixel ratio.
+- La rama PR #79 queda en 92 commits por delante de `main` y 0 por detrás. Sigue en draft.
+
+La corrección de pixel ratio ya supera el análisis estático y los tests de Android staging. La aceptación funcional depende del nuevo APK A/B: comprobar el valor `MAPBOX_MAP_OPTIONS pixel_ratio`, obtener `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE` y una captura cartográfica legible. No aceptar offline ni producción hasta completar además el protocolo de descarga, modo avión, cierre/reapertura, reinicio y prueba física.
+
+
+## Actualización 17/11/2026 01:26 CET — diagnóstico del hosting nativo Mapbox
+
+### Evidencia revisada
+
+Se descargó y examinó el artefacto de diagnóstico [Android staging 43980144452](https://github.com/Baltas80/espana-outdoor/actions/runs/43980144452), artifact [14284800755](https://github.com/Baltas80/espana-outdoor/actions/runs/43980144452/artifacts/14284800755), correspondiente al source commit `c83f18ad12699257884a41dc3211725ab4bd46a8`.
+
+Los dos experimentos llegaron a la pantalla real `Mapa cartográfico`, con la ventana de España Outdoor en primer plano y sin diálogo ANR. Se inspeccionaron los PNG originales, jerarquías, diagnósticos y logcat.
+
+| Métrica | Outdoors v12 | Standard |
+|---|---:|---:|
+| PNG | 1080×2400 | 1080×2400 |
+| Colores cuantizados | 38 | 36 |
+| Entropía | 0,650 bits | 0,649 bits |
+| Color dominante | 90,1 % | 90,1 % |
+| `STYLE_LOADED` | 1 | 1 |
+| `MAP_LOADED` | 0 | 0 |
+| `MAP_IDLE` | 0 | 0 |
+| `RenderMode.FULL` | 0 | 0 |
+| `RenderMode.PARTIAL` | 1 | 1 |
+| `MAP_LOAD_ERROR` | 0 | 0 |
+
+Ambos estilos muestran un viewport casi negro y no superan el gate visual. La fuente composite registró 3 eventos de tesela `loaded=true` y 65 `loaded=false` en cada experimento. Se observaron 7 respuestas de tesela desde Network por estilo, con 416.012 bytes acumulados y `error=none`. Los `NOT_FOUND` de TileStore son misses de caché local, no respuestas HTTP 404. Las coordenadas de tesela corresponden al área de Córdoba, coherente con la cámara inicial.
+
+Los logs indican Impeller/OpenGLES y uso de `swiftshader_indirect` en el emulador. También aparecen intervalos de frame muy altos. Es una variable del entorno que se debe separar del comportamiento en dispositivo físico; no se declara todavía como causa raíz.
+
+### Hipótesis nueva y experimento aislado
+
+La dependencia fijada es `mapbox_maps_flutter 3.33.0`. La migración oficial a v3 cambió Android de Virtual Display + TextureView (comportamiento de v2) a Hybrid Composition + SurfaceView por defecto. Como la pantalla combina el mapa nativo con varios overlays Flutter, se añadirá una comparación de hosting nativo manteniendo constantes estilo, commit, application ID, versión, emulador y TileStore.
+
+Se incorporó un selector exclusivamente de compilación:
+
+- `MAPBOX_ANDROID_VIEW_MODE=hybrid-surface`: modo de producción actual, Hybrid Composition + SurfaceView.
+- `MAPBOX_ANDROID_VIEW_MODE=virtual-texture`: control experimental, Virtual Display + TextureView.
+
+El valor predeterminado de producción sigue siendo `hybrid-surface`. El experimento no cambia el modo de producción y limpia los datos entre instalaciones para aislar TileStore/caché.
+
+### Cambios publicados en PR #79
+
+- [f06a2bb](https://github.com/Baltas80/espana-outdoor/commit/f06a2bb3cb3014b2372177326ccb084f93895914) — selector de hosting Android y diagnóstico del modo efectivo.
+- [951ed0a](https://github.com/Baltas80/espana-outdoor/commit/951ed0a31a7d5ac6a74df1d8fe0cbccde10cf378) — pruebas de Hybrid Composition/SurfaceView y Virtual Display/TextureView.
+- [c35ccdd](https://github.com/Baltas80/espana-outdoor/commit/c35ccddb333df2619f6346051a6d1b9e3b51aa3a) — orquestador de comparación de renderer.
+- [ab2f970](https://github.com/Baltas80/espana-outdoor/commit/ab2f970797cb34dc501fe0c74d492612b0fa14a2) — workflow de compilación y manifiestos separados.
+- [106aca5](https://github.com/Baltas80/espana-outdoor/commit/106aca57244ee5158ccfe31d1f7af769fcc3102c) — referencias de pasos del workflow.
+- [fdc2fbe](https://github.com/Baltas80/espana-outdoor/commit/fdc2fbe163ecf3cfae690e14c023f44961613c16) — pruebas del orquestador y del contrato de artefactos.
+- [a7e993f](https://github.com/Baltas80/espana-outdoor/commit/a7e993f38ea64ac34ca8ae818472f8d565b26b62) — guard estático de configuración de hosting.
+
+El nuevo workflow debe publicar APK principal y comparación por separado, registrar modo, estilo, commit y SHA-256, ejecutar ambos en el mismo emulador y conservar capturas/logcat aunque falle la aceptación. Los resultados de CI para este nuevo HEAD aún están pendientes.
+
+### Pendiente y criterio de decisión
+
+1. Validar análisis, tests y YAML del nuevo HEAD.
+2. Compilar ambos APK y verificar manifiestos/SHA-256.
+3. Ejecutar ambos modos con el mismo estilo Outdoors.
+4. Comparar callbacks, frames y PNG.
+5. Si Virtual Display/TextureView renderiza correctamente, probarlo en OPPO antes de cambiar el modo de producción.
+6. Si ambos fallan, aislar SwiftShader frente a GPU física y revisar fuente composite/renderer nativo.
+7. Corregir también el pixel ratio del descriptor offline y ejecutar descarga, modo avión, force-stop, reapertura y reinicio.
+
+PR #79 permanece draft. No fusionar ni certificar mapa online/offline hasta tener una captura utilizable y prueba reproducible en dispositivo Android real.
+
+
+## Actualización de entrega — 17/11/2026 07:18 CET
+
+### Android / Mapbox
+
+- [Android staging 44023914366](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366): APK principal Impeller y APK comparativo Skia compilados y publicados; análisis y tests del job superados; smoke cartográfico fallido.
+- Evidencias: [artefacto 14303301878](https://github.com/Baltas80/espana-outdoor/actions/runs/44023914366/artifacts/14303301878). Ambos APK llegan a la pantalla Mapa, pero solo emiten `RenderMode.PARTIAL`; no hay `MAP_LOADED` ni `MAP_IDLE`. Capturas no aceptables.
+- El Snapshotter alcanza `style_loaded` y `camera_set`, pero `start()` agota 45 s; no se genera PNG. Se observa `GL error 0x501` en el emulador SwiftShader en ambos procesos, sin demostrar causalidad.
+- El estilo remoto informa 148 capas, una fuente y fondo claro; hay respuestas de teselas/glyphs con contenido. Los misses de TileStore no son HTTP 404.
+- Se añadió un baseline Snapshotter con estilo JSON local sin fuentes, junto con logging de errores tardíos, style-data, imágenes ausentes y `capture_started`. Su resultado aún está pendiente de CI/Android staging.
+
+### Estado de aceptación
+
+No se acepta el mapa online ni offline. Siguen pendientes: descarga/persistencia y modo avión con cierre/reapertura/reinicio; validación del APK candidato en OPPO; identidad compartida web/Android contra Keycloak/PostgreSQL reales; estado operativo de Valhalla y despliegues externos; protección de main.
+
+No fusionar PR #79 ni modificar el estilo de producción hasta superar el gate cartográfico, pruebas offline y validación física. Ver detalles y criterio de interpretación en [docs/MAP_OFFLINE.md](MAP_OFFLINE.md).
+
+## Actualización de entrega — 17/11/2026 09:29 CET
+
+### Evidencia nueva de Android staging
+
+- [Run 44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329): Android staging completó la compilación de los APK de comparación y el smoke; el job terminó en failure porque el gate cartográfico rechazó el mapa.
+- El Snapshotter baseline sin fuentes generó un PNG uniforme `#d9e6c7` (1079×1891, 12.325 bytes; SHA-256 `7aa0edd61f8e1fe4169435903461f79871287a8f6d5c2e0fdbc62623749668d5`).
+- El Snapshotter vectorial cargó el TileJSON de Mapbox Streets v8 desde Network (19.079 bytes), pero las solicitudes de tiles observadas consultaron TileStore, devolvieron `NOT_FOUND` y algunas fueron canceladas. No se observó respuesta de red de tiles en ese Snapshotter antes del timeout de 60 s.
+- El MapWidget principal sí recibió respuestas de teselas/glyphs desde Network, pero mantuvo `RenderMode.PARTIAL`; no emitió `MAP_LOADED` ni `MAP_IDLE`. Captura no aceptable.
+- La evidencia no demuestra todavía que TileStore sea la causa. La documentación de Mapbox indica que READ_ONLY es el valor predeterminado y debe recurrir a solicitudes individuales cuando no encuentra un paquete; se añade una prueba controlada con TileStore desactivado exclusivamente en staging.
+
+### Cambio en curso
+
+- `main.dart` aplica `MapboxMapsOptions.setTileStoreUsageMode(DISABLED)` únicamente cuando `APP_ENV=staging`, plataforma Android y `MAPBOX_TILE_STORE_USAGE_MODE=disabled`. Registra el modo efectivo antes de `runApp`.
+- El workflow conserva el APK principal con modo predeterminado, construye un APK diagnóstico separado, registra su manifiesto y SHA-256, lo instala después de limpiar los datos y publica logcat/capturas por separado.
+- El APK TileStore-disabled se etiqueta `diagnostic-only-tile-store-disabled`; no se puede utilizar como candidato de producción ni como evidencia de aceptación offline.
+- Se amplía el test del orquestador para verificar identidad del modo, aislamiento de evidencias y fallo cerrado ante un experimento incompleto.
+
+### CI del HEAD anterior
+
+- Security baseline [44040272336](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272336): 8/8.
+- CI general [44040272332](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272332): success.
+- Android staging [44040272329](https://github.com/Baltas80/espana-outdoor/actions/runs/44040272329): failure esperado del gate cartográfico; no se acepta el mapa.
+
+El nuevo HEAD debe volver a ejecutar Security, CI y Android staging antes de considerar validado el cambio. PR #79 permanece draft; no se fusiona ni despliega.
+
+
+## Actualización de entrega — 17/11/2026 12:17 CET
+
+### Corrección de la matriz Android A/B
+
+Run [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090), source HEAD 08ade9fa646e970985c1228f1f2c266935c2e4df, evidencias [14321294721](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090/artifacts/14321294721).
+
+La revisión del artefacto detectó dos defectos de instrumentación:
+
+1. El smoke del APK principal falló antes de abrir Mapa: UIAutomator devolvió sin crear el XML remoto y el siguiente cat encontró el fichero inexistente. La captura es de Inicio; no hay evidencia válida del MapWidget Impeller en ese run.
+2. El APK TileStore-disabled heredó Skia. El paso anterior modifica el AndroidManifest versionado con EnableImpeller=false y el workflow no lo restauraba antes de compilar la tercera variante. Su log runtime registra backend=skia, aunque el manifiesto declaraba Impeller predeterminado. Por tanto, esa comparación no permite concluir nada aislado sobre TileStore.
+
+Los APK Skia y TileStore-disabled sí llegaron a Mapa cartográfico, pero ambos quedaron en RenderMode.PARTIAL, sin MAP_LOADED, MAP_IDLE ni RenderMode.FULL. Sus capturas fueron rechazadas (34 colores cuantizados, entropía 0,651 bits, color dominante 0,901).
+
+### Correcciones publicadas en PR #79
+
+- UIAutomator elimina el XML remoto anterior, reintenta cuatro veces y valida existencia, contenido y jerarquía antes de leerlo.
+- El selector de navegación exige un nodo Mapa clicable y no el icono decorativo.
+- El test Python ejecuta la función real con ADB simulado: recuperación tras dos ausencias y fallo cerrado tras cuatro.
+- El workflow guarda el AndroidManifest ya configurado antes de la mutación Skia y lo restaura byte a byte antes del APK TileStore-disabled, verificándolo con cmp para conservar permisos y política de red.
+- El orquestador exige que el APK TileStore-disabled confirme runtime backend=impeller además de TileStore DISABLED.
+
+### Validación
+
+- CI general [44065339116](https://github.com/Baltas80/espana-outdoor/actions/runs/44065339116): success sobre HEAD 08ade9f.
+- Security baseline [44065336788](https://github.com/Baltas80/espana-outdoor/actions/runs/44065336788): success, 8/8.
+- Android staging [44065337090](https://github.com/Baltas80/espana-outdoor/actions/runs/44065337090): failure en el smoke; no se acepta el mapa.
+- Las correcciones nuevas todavía no tienen CI ni Android staging completados.
+
+No se certifica el mapa online/offline, el dispositivo OPPO ni producción. El siguiente run debe demostrar Impeller + READ_ONLY, Skia + READ_ONLY e Impeller + DISABLED como tres variantes runtime independientes antes de comparar el renderizado. La prueba física, el modo avión, persistencia tras cierre/reinicio, identidad compartida y servicios de producción siguen pendientes.
+
+
+## Corrección posterior: artefacto parcial del smoke Standard — 17/11/2026
+
+Se descargó e inspeccionó [android-map-smoke-44094615345, artefacto 14334810511](https://github.com/Baltas80/espana-outdoor/actions/runs/44094615345/artifacts/14334810511), que no estaba disponible en la primera consulta. Contiene XML de UI y un snapshot de diagnóstico, pero no captura PNG ni logcat final.
+
+Evidencia:
+- La pantalla Mapa estaba realmente visible; el viewport Mapbox ocupaba `[0,304][1080,2195]` (no era un contenedor de tamaño cero).
+- Runtime confirmado: `backend=impeller`, `mode=virtual-texture`, `texture_view=true`, `hosting=VD`, pixel ratio 2.625.
+- Estilo Standard: `STYLE_LOADED=1`; `MAP_LOADED=0`, `MAP_IDLE=0`, `MAP_LOAD_ERROR=0`; único frame observado: `RenderMode.PARTIAL`.
+- En la ventana capturada: 7 solicitudes `TILE` contra TileStore con `NOT_FOUND` no canceladas y 5 canceladas; **no se observó respuesta `TILE` desde Network**. Sí se recibieron 42 recursos `MODEL` desde Network, además del estilo/import y sprites. Esto no demuestra todavía que TileStore bloquee el fallback: requiere una comparación con el mismo estilo, hosting, cámara y APK, variando solo TileStore.
+- El artefacto no contiene captura de pantalla ni logcat completo; no se acepta el mapa.
+
+Nuevo experimento añadido al workflow de PR #79:
+- Construir un APK diagnóstico adicional Standard + Virtual Texture + TileStore DISABLED.
+- Restaurar el manifiesto nativo configurado incluso cuando el build Skia se omite.
+- Mantener iguales estilo, hosting, renderer, cámara y versión; verificar el modo en manifiesto y runtime.
+- El smoke ejecutará ambos APK en el mismo emulador y publicará evidencia separada. El APK TileStore-disabled es solo diagnóstico online y nunca acepta offline.
+
+El límite del smoke se ajustó a 55 minutos para dos variantes de 20 minutos y arranque de emulador limitado a 600 segundos. La aceptación sigue exigiendo `MAP_LOADED + RenderMode.FULL + MAP_IDLE` y captura legible. No se modifica producción.
+
+
+## Corrección del guard de CI — 17/11/2026
+
+La primera ejecución de CI tras ampliar el diagnóstico Standard + TileStore, [44097670840](https://github.com/Baltas80/espana-outdoor/actions/runs/44097670840), falló en `Test Android map smoke render gate` por una aserción obsoleta que seguía exigiendo `timeout-minutes: 65` y tres variantes. El workflow ya ejecutaba dos variantes Standard (READ_ONLY y DISABLED), con 55 minutos de límite. No fue un fallo de compilación ni de Mapbox.
+
+Se corrigió la aserción en [0180acea](https://github.com/Baltas80/espana-outdoor/commit/0180acea07e4918687b6e25b340d70dd4070da03): ahora exige 55 minutos y dos variantes. La ejecución Android anterior [44097675255](https://github.com/Baltas80/espana-outdoor/actions/runs/44097675255) se canceló al avanzar la rama antes de completar Analyze and test; no produjo APK. La nueva revisión de CI y Android debe ejecutarse sobre el HEAD actualizado antes de considerar validada la matriz.
+
+
+
+## Evidencia Android staging — 17/11/2026: APK Standard + Virtual Texture
+
+Run [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153), source commit `647fbedee05e86635a9b7a0d2da329f1aa190788`, workflow commit `aaddef2a00fa3cc5cf27a6d9ab9925f7cad73990`.
+
+Se construyeron y publicaron dos APK de 200.316.534 bytes cada uno. Ambos usan Application ID `com.espanaoutdoors.espana_outdoors.iconspreview`, versionCode 5, Flutter 3.47.5, estilo Mapbox Standard, Virtual Display + TextureView, Impeller predeterminado y Snapshotter desactivado:
+
+| Artefacto | TileStore | SHA-256 APK |
+|---|---|---|
+| [APK primario 14335334142](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14335334142) | READ_ONLY (modo default) | `e52bd91edb072476fa579de9543787cafadaa13314c96abdd52f4c3aeaa852f7` |
+| [APK diagnóstico 14336391796](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153/artifacts/14336391796) | DISABLED | `3f8df4020d2b15e8dd3fb13039a595db08bf28008202665a4754adb6bef10303` |
+
+Los dos ZIP se descargaron y sus manifiestos se inspeccionaron; los SHA-256 se recalcularon directamente sobre los APK extraídos y coinciden con los manifiestos. La variante DISABLED mantiene estilo, hosting, renderer, Application ID, versionCode y source commit; solo cambia el modo TileStore. Es diagnóstico online, no candidato de aceptación offline.
+
+Estado al registrar esta evidencia: el job Android había terminado la compilación, verificación y publicación de ambos APK y seguía ejecutando `Android map native smoke`. Todavía no había artefacto de capturas/logcat. La descarga de logs del job devolvió `BlobNotFound`; no se interpreta como fallo de Mapbox ni como resultado visual.
+
+- CI [44099371163](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371163): Flutter (análisis, suite completa y build Android release), Source Gateway y Rescue Link superados; iOS en cola al consultar.
+- Security [44099371282](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371282): 8/8 jobs superados.
+- Android [44099371153](https://github.com/Baltas80/espana-outdoor/actions/runs/44099371153): APKs publicados; smoke pendiente.
+
+No hay aceptación del mapa: siguen siendo obligatorios `MAP_LOADED`, `RenderMode.FULL`, `MAP_IDLE`, captura visual válida y posterior validación offline en Android físico. Producción no se ha modificado.
+
+
+## Actualización de diagnóstico Mapbox — 17/11/2026
+
+Android staging [44102148014](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148014) construyó los APK Standard + Virtual Texture/Impeller (TileStore READ_ONLY y DISABLED), instaló ambos y llegó a la pantalla Mapa. Las dos capturas son negras; el gate cartográfico falló correctamente. El estilo cargó y la cámara/viewport son válidos, pero no se alcanzaron `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+
+La inspección del logcat encontró que el listener de recursos agotaba su límite global de 100 eventos con 64/65 eventos MODEL antes de completar la observación de TILE. No se puede concluir que no hubiera solicitudes de tiles por red. Se corrigió en PR #79 con presupuesto independiente (TILE 300, MODEL 16, STYLE 32, sprites 24) y tests unitarios.
+
+CI general [44102148065](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148065) terminó correctamente; Security [44102148017](https://github.com/Baltas80/espana-outdoor/actions/runs/44102148017) terminó 8/8. Android staging falló solo en el requisito de smoke cartográfico, con APKs y evidencias publicados.
+
+Commits de instrumentación: [805b80a](https://github.com/Baltas80/espana-outdoor/commit/805b80a26f633635f706dc10d5f9977fab0993ef), [cee5ec4](https://github.com/Baltas80/espana-outdoor/commit/cee5ec4b248cf62a8ca5acaac092bfd010d8aad2), [4a4a193](https://github.com/Baltas80/espana-outdoor/commit/4a4a193d9610731a48b3d65b58dc12e6c422acab). La nueva instrumentación necesita CI y Android staging propios. No se ha cambiado producción ni certificado el modo offline.
+
+
+## Evidencia nueva — Android staging 44114771231 (17/11/2026)
+
+La repetición de [Android staging 44114771231](https://github.com/Baltas80/espana-outdoor/actions/runs/44114771231), intento 2, generó dos capturas negras de la pantalla Mapa con Standard + Virtual Display/TextureView + Impeller. Ambos APK cargaron 190 capas y 10 fuentes, pero solo emitieron `STYLE_LOADED` y un frame `PARTIAL`; no hubo `MAP_LOADED`, `MAP_IDLE`, `FULL` ni `MAP_LOAD_ERROR`.
+
+La instrumentación registra exactamente 14 respuestas TILE correctas desde Network por variante (745.634 bytes), además de glyphs y sprites descargados. Los misses `NOT_FOUND` de TileStore tienen fallback de red correcto. READ_ONLY y DISABLED producen los mismos contadores y bytes; TileStore no explica el mapa negro en este run. El emulador usa `swiftshader_indirect` y EGL registra intervalos extremos (>60 s); es una limitación probable del entorno, aún no causa raíz demostrada.
+
+Nuevo diagnóstico en PR #79: aplicar un estilo JSON local de fondo sólido al MapWidget real, sin fuentes ni red, exclusivamente en Android staging. La prueba comprobará si el PlatformView nativo puede producir un frame completo. Si el fondo local también sale negro, se detienen las variaciones de estilo y se pasa a superficie/render thread y dispositivo OPPO físico. Producción conserva Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico desactivado.
+
+La prueba física OPPO, la descarga y persistencia offline, el modo avión y el reinicio siguen pendientes. No se acepta mapa ni producción.
+
+ 
+## Snapshot operativo — 17/11/2026: MapWidget baseline confirmado; vectorial mínimo siguiente
+
+- Android staging [44147946052](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052), source `7c752b55b69e5a690fb18690762a6170f16ab4b0`, terminó correctamente. CI [44147946091](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946091) terminó correctamente y Security [44147949027](https://github.com/Baltas80/espana-outdoor/actions/runs/44147949027) superó 8/8.
+- Artefacto de evidencia [14360145472](https://github.com/Baltas80/espana-outdoor/actions/runs/44147946052/artifacts/14360145472): dos capturas/logcats, TileStore READ_ONLY y DISABLED. Ambas muestran el fondo local `#d9e6c7` en el MapWidget real; los logs registran `MAP_LOADED`, `MAP_IDLE` y `RenderMode.FULL` después de aplicar el estilo baseline.
+- Conclusión limitada: el PlatformView y el renderizador nativo pueden dibujar un estilo local sin fuentes. No se ha demostrado que las teselas vectoriales remotas se decodifiquen/rendericen; el estilo remoto Standard se sustituye por baseline antes del frame completo.
+- Nuevo experimento en el HEAD siguiente: MapWidget con una única fuente Streets v8 y capa `road`; la captura debe contener píxeles de línea `#c43c39` en el viewport central, además de `MAP_LOADED`, `FULL` e `IDLE`. El gate no puede aprobarse por controles Flutter o por el fondo solo.
+- Producción conserva Outdoors v12 + Hybrid Composition/SurfaceView. No hay aceptación offline, prueba OPPO, persistencia tras reinicio, identidad E2E ni certificación de backend/Valhalla.
+
+
+## Gradle dependency-cache mitigation — 17/11/2026
+
+Android staging [44180150008](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150008) passed the real Mapbox MVT preflight (the Córdoba z12 Streets v8 tile decoded with a `road` layer and LINESTRING feature), Flutter analysis, and the full staging test step. The release APK build then failed before compilation while Gradle resolved Kotlin plugin artifacts: Maven Central returned HTTP 429 for `kotlin-gradle-plugins-bom:2.2.20` and related Kotlin artifacts. The failed build produced no APK or Android map-smoke artifact. This is an upstream dependency-rate-limit failure, not a cartography result.
+
+The failed Android job was re-run through GitHub Actions. To reduce repeat downloads and improve resilience, the CI Flutter build and Android staging workflows now enable the standard Gradle dependency cache through `actions/setup-java` (`cache: gradle`) keyed by the committed Android Gradle files. A structural regression check enforces the cache configuration. The first cache population still requires a successful dependency resolution; the retry must be inspected before treating the mitigation as effective.
+
+CI [44180150099](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150099) completed successfully (Flutter, Source Gateway, Rescue Link, iOS). Security [44180150079](https://github.com/Baltas80/espana-outdoor/actions/runs/44180150079) completed 8/8. No map-rendering, physical-device, offline-persistence, or production-deployment acceptance is implied.
+
+
+## Snapshot operativo — 18/11/2026: experimento vectorial aún falla en Virtual Display
+
+Android staging [44190764028](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028) construyó y verificó dos APK del source commit `6fccce2`: Standard + vector + Impeller, uno con TileStore READ_ONLY y otro DISABLED. SHA-256 recalculados y coincidentes con manifiestos: `b77c035c74b1d6c0c6706190f5a930db950d7399d2098761e5fa188423fdc650` y `b98d72783b8bff46079e5c1fb9f59f1e740cacceceac2a166f84c2db30affa89`. Artefactos: [APK principal](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14379536090), [APK TileStore-disabled](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14380145217), [evidencia smoke](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028/artifacts/14379377165).
+
+La pantalla Mapa estaba visible y el estilo local vectorial fue aceptado; el JSON runtime contenía una fuente Streets v8 y una capa `road` visible. Ambas capturas carecen de carreteras y solo muestran el fondo diagnóstico. No se alcanzaron `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`; el único frame fue `PARTIAL`. El TileStore-disabled notificó la tesela central `12/1993/1581` como loaded, sin conseguir renderizarla.
+
+**Limitación crítica del experimento:** los dos APK usaron Virtual Display/TextureView, no el hosting de producción Hybrid Composition/SurfaceView. Por ello el resultado no descarta un problema específico del hosting de producción. PR #79 cambia el staging automático para ejecutar Standard + vector y A/B TileStore sobre `hybrid-surface`; Virtual Display queda como opción manual. Se actualizan los guards/fixtures y la documentación antes de repetir Android staging.
+
+CI general [44190763965](https://github.com/Baltas80/espana-outdoor/actions/runs/44190763965) terminó correctamente en sus cuatro jobs (Flutter, Source Gateway, Rescue Link e iOS). Security [44190763970](https://github.com/Baltas80/espana-outdoor/actions/runs/44190763970) terminó 8/8. Android staging [44190764028](https://github.com/Baltas80/espana-outdoor/actions/runs/44190764028) terminó en fallo del gate obligatorio de renderizado; compilación, verificación, instalación y captura se completaron. El smoke no acepta mapa.
+
+No hay aceptación de Outdoors v12, mapa online, mapas offline, persistencia tras reinicio ni OPPO físico. PR #61 (navegación offline) y PR #64 (identidad web/OIDC) siguen Draft y divergidas; no fusionar hasta reconciliar con `main` y repetir sus pruebas de aceptación.
+
+
+## Entrega 18/11/2026 — Hybrid Composition no resuelve el renderizado vectorial
+
+Android staging [44199334090](https://github.com/Baltas80/espana-outdoor/actions/runs/44199334090) confirmó Hybrid Composition/SurfaceView en runtime (`texture_view=false`, hosting `HC`) y aceptó el estilo diagnóstico Streets v8. La inspección mostró dos capas, una fuente y una capa lineal `road` visible. Hubo respuestas de teselas de red no vacías y la tesela central `12/1993/1581` notificó `loaded=true`.
+
+La captura real conserva solo el fondo `#d9e6c7`: `line_pixels=0`, `background_ratio=1.000`. No se produjeron `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE` en 60 segundos. El smoke fue rechazado por el gate cartográfico después de construir/verificar los APK, instalarlos y subir las evidencias; la compilación sí terminó.
+
+**Siguiente cambio:** PR #79 añade un diagnóstico GeoJSON local con dos LineStrings, sin red ni MVT, en el mismo MapWidget. El resultado distinguirá el renderizado de geometrías lineales del procesamiento de teselas. La PR permanece Draft; no hay aceptación de Outdoors v12, mapas offline, persistencia tras reinicio, OPPO físico ni despliegue.
+
+
+## Actualización de diagnóstico Mapbox — 18/11/2026
+
+- Run Android [44208940776](https://github.com/Baltas80/espana-outdoor/actions/runs/44208940776), HEAD `8aa5734`: Analyze/tests, compilación APK, verificación de APK, KVM y ejecución del smoke finalizaron; el job falló en el gate obligatorio de renderizado. Artefacto de evidencia [14386503786](https://github.com/Baltas80/espana-outdoor/actions/runs/44208940776/artifacts/14386503786).
+- El APK usó Standard + Hybrid Composition/SurfaceView + Impeller y el override GeoJSON fue aceptado. La inspección confirmó cámara Córdoba (-4.7794, 37.8882), zoom 12, una fuente GeoJSON y una capa line visible. La captura real contiene solo el fondo diagnóstico, sin píxeles de línea. No hubo `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+- El log revela que los annotation managers se inicializaban desde `onMapCreated` antes de completar la carga/cambio de estilo. Se modifica el ciclo de vida para crearlos tras `STYLE_LOADED`, evitando que el posterior `loadStyleJson` sustituya las fuentes/capas de anotación recién creadas.
+- Nuevo experimento staging: estilo local de fondo + línea roja creada por `PolylineAnnotationManager`. Separa el API de anotaciones (usado por overlays de ruta) de la fuente GeoJSON y de las capas de estilo. Producción sigue con Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`.
+- El resultado de la nueva prueba está pendiente. No hay aceptación cartográfica, offline, OPPO físico ni despliegue.
+
+
+## Entrega 18/11/2026 — instrumentación de anotaciones nativas
+
+El artefacto Android [14392945338](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906/artifacts/14392945338), del run [44222702906](https://github.com/Baltas80/espana-outdoor/actions/runs/44222702906), se descargó y revisó directamente. Ambos APK Standard + Hybrid Composition/SurfaceView + Impeller llegaron a la pantalla Mapa y aceptaron el estilo local de diagnóstico. Se crearon los annotation managers (`ANNOTATION_MANAGERS result=ready`), pero las capturas reales no contienen la línea roja (`line_pixels=0`). El APK principal no alcanzó MAP_LOADED/FULL/IDLE; la variante TileStore-disabled sí alcanzó los tres estados, pero tampoco mostró geometría. El gate visual rechazó ambas variantes.
+
+**Nueva instrumentación publicada:**
+- Commit [5051dba](https://github.com/Baltas80/espana-outdoor/commit/5051dba4fb1d80398528797d02dfc5043beb2afc): registra el ID/resultado de la línea creada, consulta `getAnnotations()` y resume los IDs/visibilidad de capas de anotación. Añade un círculo azul en el centro de Córdoba para separar la ruta de línea del camino de anotaciones de punto.
+- El verificador de capturas exige por separado píxeles rojos de línea y, en modo `annotation`, píxeles azules de punto. Su auto-prueba sintética pasó en CI.
+- Commit [7246760](https://github.com/Baltas80/espana-outdoor/commit/724676096c5b2b016a1e764aa0569a7eedcfcdb7) corrige los guards estructurales para las dos ramas del smoke (anotación línea+punto y vector/GeoJSON solo línea).
+
+**Validación vigente al actualizar este documento:**
+- Android staging [44230906194](https://github.com/Baltas80/espana-outdoor/actions/runs/44230906194), sobre `5051dba`: preflight, configuración nativa y tests superados; compilación del APK en curso. Aún no hay artefacto nuevo ni resultado visual de esta instrumentación.
+- Android staging [44231003431](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003431), sobre HEAD `7246760`: en cola detrás del smoke activo, preservado por `cancel-in-progress: false`.
+- CI [44231003442](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003442), sobre `7246760`: Source Gateway y Rescue Link superados; guards, análisis y pruebas focalizadas superados; suite completa e iOS siguen en ejecución.
+- Security [44231003539](https://github.com/Baltas80/espana-outdoor/actions/runs/44231003539): 8/8 controles superados.
+
+PR #79 sigue abierta, Draft y mergeable, sin integración. PR #61 (offline) y PR #64 (identidad) siguen Draft y no mergeables. La aceptación en OPPO físico, mapa Outdoors v12, cálculo/seguimiento offline, persistencia tras cierre/reinicio, identidad E2E y despliegue siguen pendientes. No se ha modificado producción.
+
+## Seguridad CI — aislamiento de secretos Mapbox (18/11/2026)
+
+- `MAPBOX_ACCESS_TOKEN` y `MAPBOX_DOWNLOADS_TOKEN` dejan de estar en el entorno global del job Android staging.
+- El job conserva únicamente dos indicadores booleanos de disponibilidad para decidir si ejecuta preflight, build y smoke.
+- Los valores secretos se inyectan solo en los pasos que realmente los necesitan: preflight de teselas y compilaciones APK (principal, Skia y TileStore-disabled).
+- Analyze, tests, preparación del proyecto, verificación de APK, KVM y emulador reciben solo el APK ya construido, no los tokens.
+- Se amplía `tool/test_android_map_smoke_render_gate.py` para rechazar una regresión de exposición a nivel de job y exigir el alcance por paso.
+
+La modificación no cambia el token incluido como Dart define en el APK staging ni la política de producción. La validación queda pendiente en CI/Android sobre el nuevo HEAD.
+- La primera ejecución CI del aislamiento de secretos detectó un falso positivo en el guard: el paso de smoke referencia los indicadores booleanos `*_AVAILABLE` en su condición, no los valores secretos. El guard se ajusta para buscar asignaciones/interpolaciones de valores reales y seguir rechazando su inyección al emulador. Revalidación pendiente sobre el nuevo HEAD.
+
+
+## Android MapWidget geometry smoke — 18/11/2026, run 44244043121
+
+The two staging APKs (TileStore default and disabled) were built, verified, installed, and captured. The annotation diagnostic confirmed one polyline and one circle in their managers; their style layers and backing GeoJSON sources exist and report visible. The capture nevertheless contains no line or point pixels (`line_pixels=0`, `point_pixels=0`, `background_ratio=1.000`). Neither variant reached `MAP_LOADED`, `MAP_IDLE`, or `RenderMode.FULL`; the mandatory render gate rejected the smoke.
+
+The emulator was running Google SwiftShader (`swiftshader_indirect`). Both logcats contain the emulator-side `GL2Encoder.cpp:s_glGetStringi:4944 GL error 0x501`, alongside unusually slow EGL frame intervals. This is a correlated emulator graphics signal, not a proven Mapbox root cause. The same blank geometry has now been observed with vector-layer, inline GeoJSON and native annotation experiments; changing TileStore mode did not change the capture.
+
+**Next controlled experiment:** PR #79 staging selects ANGLE through the current `swangle` emulator mode for the diagnostic emulator only. Manual dispatch retains a selector for `swiftshader`/`swangle`; all non-PR-79 runs default to `swiftshader`. This does not alter production Android rendering. The next run must compare the same annotation geometry and require visible pixels plus `MAP_LOADED + FULL + MAP_IDLE`; if ANGLE cannot boot or render, preserve that evidence and move to the physical OPPO test rather than weakening the gate.
+
+No online map, offline download/persistence, airplane-mode route, physical-device or production acceptance is implied.
+
+
+### Corrección del backend gráfico del emulador — 18/11/2026
+
+La documentación oficial de Android Emulator marca `angle_indirect` y `swiftshader_indirect` como modos obsoletos. El experimento se corrige para usar `swangle` (SwiftShader con backend ANGLE) y `swiftshader` como modo predeterminado. El run anterior que ya había arrancado con `angle_indirect` se conserva como evidencia de transición, pero no será la prueba de aceptación del nuevo modo. Esta corrección solo afecta al emulador de staging.

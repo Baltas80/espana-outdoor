@@ -119,12 +119,17 @@ class _MapboxMapPageState extends ConsumerState<MapboxMapPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: MapboxMapViewport(
-              initialCenter: position == null
-                  ? Position(-4.7794, 37.8882)
-                  : Position(position.longitude, position.latitude),
-              initialZoom: position == null ? 12 : 15,
-              onMapCreated: (controller) => _controller = controller,
+            child: Semantics(
+              container: true,
+              explicitChildNodes: true,
+              label: 'Mapa cartográfico',
+              child: MapboxMapViewport(
+                initialCenter: position == null
+                    ? Position(-4.7794, 37.8882)
+                    : Position(position.longitude, position.latitude),
+                initialZoom: position == null ? 12 : 15,
+                onMapCreated: (controller) => _controller = controller,
+              ),
             ),
           ),
           Positioned(
