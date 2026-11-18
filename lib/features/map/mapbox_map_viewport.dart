@@ -189,6 +189,75 @@ String mapboxSnapshotterVectorStyleJson() {
 /// Optional local style applied to the live MapWidget only in Android staging.
 /// This bypasses the remote style/import pipeline while retaining the same
 /// Flutter PlatformView and native Mapbox renderer.
+/// A self-contained GeoJSON line style for the live MapWidget diagnostic.
+/// It isolates line-layer rendering from vector-tile retrieval and TileStore.
+String mapboxMapWidgetGeoJsonStyleJson() {
+  return jsonEncode(<String, Object?>{
+    'version': 8,
+    'sources': <String, Object?>{
+      'espana-outdoor-diagnostic-geojson': <String, Object?>{
+        'type': 'geojson',
+        'data': <String, Object?>{
+          'type': 'FeatureCollection',
+          'features': <Object?>[
+            <String, Object?>{
+              'type': 'Feature',
+              'properties': <String, Object?>{'kind': 'diagnostic-road-a'},
+              'geometry': <String, Object?>{
+                'type': 'LineString',
+                'coordinates': <List<double>>[
+                  <double>[-4.813, 37.871],
+                  <double>[-4.799, 37.879],
+                  <double>[-4.7794, 37.8882],
+                  <double>[-4.762, 37.898],
+                  <double>[-4.747, 37.906],
+                ],
+              },
+            },
+            <String, Object?>{
+              'type': 'Feature',
+              'properties': <String, Object?>{'kind': 'diagnostic-road-b'},
+              'geometry': <String, Object?>{
+                'type': 'LineString',
+                'coordinates': <List<double>>[
+                  <double>[-4.802, 37.904],
+                  <double>[-4.790, 37.896],
+                  <double>[-4.7794, 37.8882],
+                  <double>[-4.768, 37.879],
+                  <double>[-4.755, 37.870],
+                ],
+              },
+            },
+          ],
+        },
+      },
+    },
+    'layers': <Object?>[
+      <String, Object?>{
+        'id': 'espana-outdoor-diagnostic-background',
+        'type': 'background',
+        'paint': <String, Object?>{
+          'background-color': '#d9e6c7',
+        },
+      },
+      <String, Object?>{
+        'id': 'espana-outdoor-diagnostic-geojson-lines',
+        'type': 'line',
+        'source': 'espana-outdoor-diagnostic-geojson',
+        'paint': <String, Object?>{
+          'line-color': '#c43c39',
+          'line-width': 5.0,
+          'line-opacity': 1.0,
+        },
+        'layout': <String, Object?>{
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+      },
+    ],
+  });
+}
+
 String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
   switch (variant) {
     case 'none':
@@ -197,11 +266,13 @@ String? mapboxMapWidgetDiagnosticStyleJson(String variant) {
       return mapboxSnapshotterBaselineStyleJson();
     case 'vector':
       return mapboxSnapshotterVectorStyleJson();
+    case 'geojson':
+      return mapboxMapWidgetGeoJsonStyleJson();
     default:
       throw ArgumentError.value(
         variant,
         'variant',
-        'must be none, baseline or vector',
+        'must be none, baseline, vector or geojson',
       );
   }
 }
