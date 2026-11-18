@@ -175,15 +175,15 @@ def _rgb(value: str) -> tuple[int, int, int]:
         raise ValueError("expected color must use #RRGGBB") from error
 
 
-def verify_expected_vector_render(
+def verify_expected_line_render(
     payload: bytes,
     expected_line_color: str,
     expected_background_color: str = "#d9e6c7",
 ) -> tuple[dict[str, float | int], list[str]]:
-    """Require the diagnostic background and actual road-colored pixels.
+    """Require the diagnostic background and actual line-colored pixels.
 
     The crop deliberately excludes the top toast, map controls and bottom
-    navigation so UI chrome cannot satisfy the vector-feature check.
+    navigation so UI chrome cannot satisfy the line-feature check.
     """
     width, height, channels, pixels = decode_png(payload)
     if width < 300 or height < 300:
@@ -218,19 +218,19 @@ def verify_expected_vector_render(
     metrics: dict[str, float | int] = {
         "width": width,
         "height": height,
-        "vector_crop_pixels": sampled,
+        "line_crop_pixels": sampled,
         "opaque_ratio": opaque / sampled if sampled else 0.0,
-        "vector_line_pixels": line_pixels,
-        "vector_line_ratio": line_pixels / sampled if sampled else 0.0,
-        "vector_background_ratio": background_pixels / sampled if sampled else 0.0,
+        "line_pixels": line_pixels,
+        "line_ratio": line_pixels / sampled if sampled else 0.0,
+        "line_background_ratio": background_pixels / sampled if sampled else 0.0,
     }
     failures: list[str] = []
     if metrics["opaque_ratio"] <= 0.95:
         failures.append("opaque_ratio")
-    if metrics["vector_background_ratio"] < 0.30:
-        failures.append("expected_vector_background")
-    if line_pixels < 30 or metrics["vector_line_ratio"] < 0.00005:
-        failures.append("vector_features_missing")
+    if metrics["line_background_ratio"] < 0.30:
+        failures.append("expected_line_background")
+    if line_pixels < 30 or metrics["line_ratio"] < 0.00005:
+        failures.append("line_features_missing")
     return metrics, failures
 
 
@@ -260,17 +260,17 @@ def _self_test() -> None:
     solid_metrics = analyze_png(solid_png)
     assert verify_expected_solid_color(solid_metrics, "#d9e6c7") == []
     assert verify_expected_solid_color(solid_metrics, "#000000") == ["expected_background_color"]
-    vector_rows = bytearray()
+    line_rows = bytearray()
     for y in range(height):
-        vector_rows.append(0)
+        line_rows.append(0)
         for x in range(width):
             color = (196, 60, 57, 255) if 198 <= x <= 202 and 100 <= y <= 299 else (217, 230, 199, 255)
-            vector_rows.extend(color)
-    vector_png = PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(vector_rows))) + chunk(b"IEND", b"")
-    _, vector_failures = verify_expected_vector_render(vector_png, "#c43c39")
-    assert vector_failures == []
-    _, missing_vector_failures = verify_expected_vector_render(solid_png, "#c43c39")
-    assert "vector_features_missing" in missing_vector_failures
+            line_rows.extend(color)
+    line_png = PNG_SIGNATURE + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(line_rows))) + chunk(b"IEND", b"")
+    _, line_failures = verify_expected_line_render(line_png, "#c43c39")
+    assert line_failures == []
+    _, missing_line_failures = verify_expected_line_render(solid_png, "#c43c39")
+    assert "line_features_missing" in missing_line_failures
     print("ANDROID_MAP_SCREENSHOT_SELF_TEST passed")
 
 
@@ -279,7 +279,7 @@ def main() -> int:
     parser.add_argument("png", nargs="?", type=Path)
     parser.add_argument("--foreground-package")
     parser.add_argument("--expected-solid-color")
-    parser.add_argument("--expected-vector-color")
+    parser.add_argument("--expected-line-color", "--expected-vector-color", dest="expected_line_color")
     parser.add_argument("--expected-background-color", default="#d9e6c7")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
@@ -303,23 +303,23 @@ def main() -> int:
             f"dominant_ratio={metrics['dominant_ratio']:.3f} "
             f"dominant_color_key={metrics['dominant_color_key']:04x}"
         )
-        if args.expected_solid_color and args.expected_vector_color:
-            parser.error("choose either --expected-solid-color or --expected-vector-color")
-        if args.expected_vector_color:
-            vector_metrics, failures = verify_expected_vector_render(
-                args.png.read_bytes(), args.expected_vector_color, args.expected_background_color
+        if args.expected_solid_color and args.expected_line_color:
+            parser.error("choose either --expected-solid-color or --expected-line-color")
+        if args.expected_line_color:
+            vector_metrics, failures = verify_expected_line_render(
+                args.png.read_bytes(), args.expected_line_color, args.expected_background_color
             )
             print(
-                "MAPBOX_OFFLINE_VECTOR_METRICS "
+                "MAPBOX_MAP_WIDGET_LINE_METRICS "
                 f"width={vector_metrics['width']} height={vector_metrics['height']} "
-                f"line_pixels={vector_metrics['vector_line_pixels']} "
-                f"line_ratio={vector_metrics['vector_line_ratio']:.6f} "
-                f"background_ratio={vector_metrics['vector_background_ratio']:.3f} "
+                f"line_pixels={vector_metrics['line_pixels']} "
+                f"line_ratio={vector_metrics['line_ratio']:.6f} "
+                f"background_ratio={vector_metrics['line_background_ratio']:.3f} "
                 f"opaque_ratio={vector_metrics['opaque_ratio']:.3f}"
             )
             print(
-                "MAPBOX_OFFLINE_RENDER_GATE mode=vector "
-                f"line_color={args.expected_vector_color} "
+                "MAPBOX_MAP_WIDGET_RENDER_GATE mode=line "
+                f"line_color={args.expected_line_color} "
                 f"background_color={args.expected_background_color} min_line_pixels=30"
             )
         elif args.expected_solid_color:
