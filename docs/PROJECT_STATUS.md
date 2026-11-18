@@ -923,3 +923,12 @@ Android staging [44199334090](https://github.com/Baltas80/espana-outdoor/actions
 La captura real conserva solo el fondo `#d9e6c7`: `line_pixels=0`, `background_ratio=1.000`. No se produjeron `MAP_LOADED`, `RenderMode.FULL` ni `MAP_IDLE` en 60 segundos. El smoke fue rechazado por el gate cartográfico después de construir/verificar los APK, instalarlos y subir las evidencias; la compilación sí terminó.
 
 **Siguiente cambio:** PR #79 añade un diagnóstico GeoJSON local con dos LineStrings, sin red ni MVT, en el mismo MapWidget. El resultado distinguirá el renderizado de geometrías lineales del procesamiento de teselas. La PR permanece Draft; no hay aceptación de Outdoors v12, mapas offline, persistencia tras reinicio, OPPO físico ni despliegue.
+
+
+## Actualización de diagnóstico Mapbox — 18/11/2026
+
+- Run Android [44208940776](https://github.com/Baltas80/espana-outdoor/actions/runs/44208940776), HEAD `8aa5734`: Analyze/tests, compilación APK, verificación de APK, KVM y ejecución del smoke finalizaron; el job falló en el gate obligatorio de renderizado. Artefacto de evidencia [14386503786](https://github.com/Baltas80/espana-outdoor/actions/runs/44208940776/artifacts/14386503786).
+- El APK usó Standard + Hybrid Composition/SurfaceView + Impeller y el override GeoJSON fue aceptado. La inspección confirmó cámara Córdoba (-4.7794, 37.8882), zoom 12, una fuente GeoJSON y una capa line visible. La captura real contiene solo el fondo diagnóstico, sin píxeles de línea. No hubo `MAP_LOADED`, `MAP_IDLE` ni `RenderMode.FULL`.
+- El log revela que los annotation managers se inicializaban desde `onMapCreated` antes de completar la carga/cambio de estilo. Se modifica el ciclo de vida para crearlos tras `STYLE_LOADED`, evitando que el posterior `loadStyleJson` sustituya las fuentes/capas de anotación recién creadas.
+- Nuevo experimento staging: estilo local de fondo + línea roja creada por `PolylineAnnotationManager`. Separa el API de anotaciones (usado por overlays de ruta) de la fuente GeoJSON y de las capas de estilo. Producción sigue con Outdoors v12, Hybrid Composition/SurfaceView y diagnóstico `none`.
+- El resultado de la nueva prueba está pendiente. No hay aceptación cartográfica, offline, OPPO físico ni despliegue.
