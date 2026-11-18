@@ -51,7 +51,7 @@ on:
       - '.github/workflows/staging-android.yml'
 
 concurrency:
-  group: android-staging-${{ github.ref }}
+  group: android-staging-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   # Keep an active emulator smoke and its evidence; newer PR commits queue behind it.
   cancel-in-progress: false
 

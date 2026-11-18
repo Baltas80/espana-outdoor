@@ -322,8 +322,11 @@ if metadata_result.returncode != 0 or metadata_result.stdout != "com.example.app
         "Android APK metadata parser failed its aapt badging fixture: "
         + (metadata_result.stderr or metadata_result.stdout)
     )
-if "cancel-in-progress: false" not in workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]:
-    raise SystemExit("Android staging must preserve the active emulator smoke and queue newer commits.")
+concurrency_block = workflow.split("concurrency:", 1)[1].split("permissions:", 1)[0]
+if "cancel-in-progress: false" not in concurrency_block:
+    raise SystemExit("Android staging must preserve an active emulator smoke.")
+if "github.event.pull_request.head.sha || github.sha" not in concurrency_block:
+    raise SystemExit("Android staging concurrency must isolate each source commit so a stale smoke cannot block the latest revision.")
 
 # Style A/B is staging-only. PR #79 runs Standard + a native annotation line on the production
 # Hybrid Composition/SurfaceView hosting path. workflow_dispatch can opt into
