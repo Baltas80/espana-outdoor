@@ -53,6 +53,8 @@ void main() {
       expect(sources, hasLength(1));
       final source = sources['espana-outdoor-diagnostic-geojson'] as Map<String, dynamic>;
       expect(source['type'], 'geojson');
+      expect(source.containsKey('url'), isFalse);
+      expect(source.containsKey('tiles'), isFalse);
       final data = source['data'] as Map<String, dynamic>;
       expect(data['type'], 'FeatureCollection');
       final features = data['features'] as List<dynamic>;
