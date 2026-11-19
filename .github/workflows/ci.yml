@@ -76,7 +76,7 @@ jobs:
       - name: Verify GitHub Actions job timeouts
         run: python3 tool/test_ci_job_timeouts.py
       - name: Setup Java 21
-        uses: actions/setup-java@v6.2.0
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '21'
@@ -193,7 +193,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Setup Java 21
-        uses: actions/setup-java@v6.2.0
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '21'
