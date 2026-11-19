@@ -65,7 +65,7 @@ jobs:
       - name: Verify staging build profile
         run: python3 tool/verify_build_profile.py --profile staging
       - name: Setup Java 21
-        uses: actions/setup-java@v6.2.0
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: '21'
