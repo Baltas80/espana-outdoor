@@ -45,7 +45,7 @@ jobs:
         # deploy-pages@v5.0.1 currently uses @actions/artifact 2.x; keep the
         # Pages uploader on upload-artifact v4 until the deploy action updates
         # its artifact client to the v7 protocol.
-        uses: actions/upload-pages-artifact@v4.0.0
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: "./site"
 
