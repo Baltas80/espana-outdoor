@@ -33,7 +33,7 @@ jobs:
           AEMET_API_KEY_EXPIRES_AT: 2030-01-01T00:00:00Z
         run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml config --quiet
       - name: Setup Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6
         with:
           go-version-file: services/rescue-link/go.mod
           cache-dependency-path: services/rescue-link/go.sum
@@ -51,7 +51,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
       - name: Setup Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6
         with:
           go-version-file: services/source-gateway/go.mod
           cache-dependency-path: services/source-gateway/go.sum
