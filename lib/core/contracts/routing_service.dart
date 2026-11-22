@@ -31,6 +31,7 @@ class RouteResult {
     this.ascentMeters,
     this.descentMeters,
     this.steps = const [],
+    this.source,
   });
 
   final List<LatLng> points;
@@ -39,6 +40,7 @@ class RouteResult {
   final double? ascentMeters;
   final double? descentMeters;
   final List<RouteStep> steps;
+  final String? source;
 }
 
 /// Provider-neutral outdoor routing boundary. The production adapter is expected
