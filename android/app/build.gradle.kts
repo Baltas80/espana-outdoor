@@ -1,4 +1,3 @@
-﻿
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -33,10 +32,14 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(
-            org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-        )
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
+}
+
+dependencies {
+    implementation("com.mapbox.maps:android-ndk27:11.35.0")
+    implementation("com.mapbox.navigationcore:android-ndk27:3.35.0")
+    implementation("com.mapbox.common:common-ndk27:24.35.0")
 }
 
 flutter {
