@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../contracts/routing_service.dart';
 import '../../infrastructure/routing/mapbox_navigation_routing_service.dart';
@@ -46,11 +47,11 @@ class _OutdoorRoutingService implements RoutingService {
   }
 
   @override
-  Future<RouteResult> match(List points) {
+  Future<RouteResult> match(List<LatLng> points) {
     final engine = valhalla;
     if (engine == null) {
       throw StateError('Valhalla is required for track map matching.');
     }
-    return engine.match(points.cast());
+    return engine.match(points);
   }
 }
