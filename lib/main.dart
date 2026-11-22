@@ -6,12 +6,15 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'app/app.dart';
 import 'core/observability/sentry_observability.dart';
+import 'infrastructure/routing/mapbox_navigation_routing_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MapboxOptions.setAccessToken(
-    const String.fromEnvironment('MAPBOX_ACCESS_TOKEN'),
-  );
+  const mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+  MapboxOptions.setAccessToken(mapboxToken);
+  if (mapboxToken.isNotEmpty) {
+    await MapboxNavigationRoutingService().configure(mapboxToken);
+  }
   await Hive.initFlutter();
   await Hive.openBox<Map<dynamic, dynamic>>('route_records');
   await Hive.openBox<String>('weather_cache');
